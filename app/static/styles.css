@@ -39,7 +39,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -118,6 +119,67 @@ main {
   padding: 34px 0 28px;
 }
 
+.dataset-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 28px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(30, 55, 65, 0.05);
+}
+
+.dataset-selector h2 {
+  margin: 0 0 5px;
+  font-size: 19px;
+  letter-spacing: -0.025em;
+}
+
+.dataset-selector p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dataset-select-wrap {
+  display: grid;
+  flex: 0 1 620px;
+  gap: 7px;
+}
+
+.dataset-select-wrap label {
+  color: #52636c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dataset-select-wrap select {
+  width: 100%;
+  height: 44px;
+  padding: 0 42px 0 13px;
+  border: 1px solid #cfdadd;
+  border-radius: 10px;
+  outline: none;
+  background: var(--surface-soft);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dataset-select-wrap select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(13, 127, 120, 0.12);
+}
+
+.dataset-select-wrap select:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .hero {
   display: flex;
   align-items: flex-end;
@@ -177,10 +239,10 @@ h1 {
 .status-panel {
   width: 290px;
   padding: 18px 20px;
-  border: 1px solid #f0d7a7;
-  border-left: 4px solid var(--caution);
+  border: 1px solid var(--line);
+  border-left: 4px solid #94a3aa;
   border-radius: 14px;
-  background: linear-gradient(135deg, #fffdf8, var(--caution-soft));
+  background: linear-gradient(135deg, #ffffff, #eef2f3);
 }
 
 .eyebrow {
@@ -213,9 +275,14 @@ h1 {
   background: var(--caution);
 }
 
+.status-dot.unknown {
+  background: #94a3aa;
+  box-shadow: 0 0 0 5px rgba(148, 163, 170, 0.16);
+}
+
 .status-panel p {
   margin: 5px 0 0 21px;
-  color: #78591f;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -240,7 +307,7 @@ h1 {
 }
 
 .metric-primary {
-  border-top: 3px solid var(--caution);
+  border-top: 3px solid var(--teal);
   padding-top: 16px;
 }
 
@@ -286,6 +353,11 @@ h1 {
 .danger {
   background: var(--danger-soft);
   color: #b83535;
+}
+
+.unknown {
+  background: #edf1f2;
+  color: #61717a;
 }
 
 .metric-value {
@@ -388,6 +460,11 @@ h1 {
   box-shadow: 0 2px 7px rgba(24, 49, 58, 0.1);
 }
 
+.period-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .rpm-chip,
 .result-chip {
   padding: 7px 10px;
@@ -406,6 +483,15 @@ h1 {
 
 .fft-card .plot {
   height: 254px;
+}
+
+.plot-empty {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 .chart-interaction-hint {
@@ -435,6 +521,15 @@ h1 {
 
 .peak-item b {
   color: var(--navy);
+}
+
+.chart-data-summary {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
 }
 
 .level-card,
@@ -554,6 +649,31 @@ h1 {
   font-size: 12px;
 }
 
+.analysis-placeholder {
+  display: grid;
+  min-height: 150px;
+  margin-top: 16px;
+  padding: 26px;
+  place-content: center;
+  border: 1px dashed #cad5d9;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  text-align: center;
+}
+
+.analysis-placeholder strong {
+  margin-bottom: 7px;
+  color: #52636c;
+  font-size: 13px;
+}
+
+.analysis-placeholder p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .recommendation-list {
   display: grid;
   gap: 8px;
@@ -629,6 +749,16 @@ h1 {
   main {
     width: calc(100% - 28px);
     padding-top: 23px;
+  }
+
+  .dataset-selector {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 17px;
+  }
+
+  .dataset-select-wrap {
+    flex-basis: auto;
   }
 
   .hero {
