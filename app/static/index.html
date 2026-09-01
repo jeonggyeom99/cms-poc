@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="V032 설비 상태와 AI Mock 진단을 확인하는 CMS Dashboard">
+    <title>V032 | CMS AI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="CMS AI Dashboard 홈">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span>
+            <strong>CMS AI</strong>
+            <small>Condition Monitoring System</small>
+          </span>
+        </a>
+        <div class="topbar-meta">
+          <span class="mock-label">MOCK DATA</span>
+          <span id="last-updated">최근 측정 --</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="equipment-title">
+          <div>
+            <nav class="breadcrumb" aria-label="설비 위치">
+              <span id="plant-name">Water Treatment</span>
+              <span aria-hidden="true">/</span>
+              <span id="line-name">Direct Cooling System</span>
+            </nav>
+            <div class="title-row">
+              <span class="equipment-code">V032</span>
+              <div>
+                <h1 id="equipment-title">No.2 Direct Cooling Pump</h1>
+                <p id="measurement-point">측정 위치 · Pump DS</p>
+              </div>
+            </div>
+          </div>
+          <div class="status-panel" aria-label="현재 종합 상태">
+            <span class="eyebrow">CURRENT STATUS</span>
+            <div class="status-value">
+              <span class="status-dot caution" aria-hidden="true"></span>
+              <strong id="status-label">주의</strong>
+            </div>
+            <p>경고 기준을 소폭 초과했습니다.</p>
+          </div>
+        </section>
+
+        <section class="metric-grid" aria-label="현재 측정값">
+          <article class="metric-card metric-primary">
+            <div class="metric-heading"><span>진동 속도 RMS</span><span class="mini-state caution">주의</span></div>
+            <div class="metric-value"><strong id="velocity-value">--</strong><span id="velocity-unit">mm/s</span></div>
+            <div class="threshold-row"><span>경고 <b id="warning-value">--</b></span><span>위험 <b id="danger-value">--</b></span></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-heading"><span>가속도 RMS</span><span class="mini-state normal">정상</span></div>
+            <div class="metric-value"><strong id="acceleration-value">--</strong><span id="acceleration-unit">g</span></div>
+            <p class="metric-note">충격성 진동 특성</p>
+          </article>
+          <article class="metric-card">
+            <div class="metric-heading"><span>베어링 온도</span><span class="mini-state normal">정상</span></div>
+            <div class="metric-value"><strong id="temperature-value">--</strong><span id="temperature-unit">°C</span></div>
+            <p class="metric-note">운전 기준 안정 범위</p>
+          </article>
+          <article class="metric-card">
+            <div class="metric-heading"><span>운전율</span><span class="mini-state normal">가동 중</span></div>
+            <div class="metric-value"><strong id="operating-rate">--</strong><span>%</span></div>
+            <p class="metric-note">최근 24시간 기준</p>
+          </article>
+        </section>
+
+        <section class="chart-grid" aria-label="진동 그래프">
+          <article class="card chart-card trend-card">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">VIBRATION TREND</span>
+                <h2>Trend Graph</h2>
+              </div>
+              <div class="period-tabs" role="group" aria-label="추세 기간 선택">
+                <button type="button" data-period="30">1개월</button>
+                <button type="button" data-period="90" class="active">3개월</button>
+                <button type="button" data-period="all">전체</button>
+              </div>
+            </div>
+            <div id="trend-chart" class="plot" role="img" aria-label="V032 진동 속도 추세 그래프"></div>
+          </article>
+
+          <article class="card chart-card fft-card">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">FREQUENCY SPECTRUM</span>
+                <h2>FFT Graph</h2>
+              </div>
+              <span class="rpm-chip">1,770 RPM</span>
+            </div>
+            <div id="fft-chart" class="plot" role="img" aria-label="V032 FFT 주파수 스펙트럼 그래프"></div>
+            <div id="peak-list" class="peak-list" aria-label="주요 주파수 피크"></div>
+          </article>
+        </section>
+
+        <section class="analysis-grid" aria-label="분석 결과">
+          <article class="card level-card">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">LEVEL ANALYSIS</span>
+                <h2>Level 분석 결과</h2>
+              </div>
+              <span class="result-chip caution" id="level-result">Level B · 주의</span>
+            </div>
+            <p class="analysis-lead" id="level-description"></p>
+            <div id="level-metrics" class="level-metrics"></div>
+          </article>
+
+          <article class="card diagnosis-card">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">AI DIAGNOSIS · MOCK</span>
+                <h2>진단 결과</h2>
+              </div>
+              <div class="confidence"><span>신뢰도</span><strong id="confidence-value">--%</strong></div>
+            </div>
+            <div class="diagnosis-title-row">
+              <span class="diagnosis-icon" aria-hidden="true">!</span>
+              <div><strong id="diagnosis-title"></strong><span id="diagnosis-category"></span></div>
+            </div>
+            <p id="diagnosis-summary" class="diagnosis-summary"></p>
+            <h3>권장 조치</h3>
+            <ol id="recommendation-list" class="recommendation-list"></ol>
+          </article>
+        </section>
+
+        <p class="mock-notice">이 화면의 분석 및 진단 내용은 UI 검증을 위한 Mock 데이터이며 실제 설비 판단에 사용할 수 없습니다.</p>
+      </main>
+    </div>
+  </body>
+</html>
+

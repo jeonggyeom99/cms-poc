@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "mock": true,
+    "generatedAt": "2026-08-24T14:00:00+09:00"
+  },
+  "equipment": {
+    "id": "V032",
+    "name": "No.2 Direct Cooling Pump",
+    "measurementPoint": "Pump DS",
+    "plant": "Water Treatment",
+    "line": "Direct Cooling System",
+    "lastMeasuredAt": "2026-08-24 14:00",
+    "status": "caution",
+    "statusLabel": "주의"
+  },
+  "current": {
+    "velocity": 4.76,
+    "velocityUnit": "mm/s",
+    "warningThreshold": 4.72,
+    "dangerThreshold": 5.44,
+    "acceleration": 1.65,
+    "accelerationUnit": "g",
+    "temperature": 42.1,
+    "temperatureUnit": "°C",
+    "operatingRate": 97.4
+  },
+  "trend": {
+    "unit": "mm/s",
+    "points": [
+      {"timestamp": "2026-04-03 09:00", "value": 3.62},
+      {"timestamp": "2026-04-10 09:00", "value": 3.71},
+      {"timestamp": "2026-04-17 09:00", "value": 3.85},
+      {"timestamp": "2026-04-24 09:00", "value": 4.14},
+      {"timestamp": "2026-05-01 09:00", "value": 7.76},
+      {"timestamp": "2026-05-08 09:00", "value": 4.34},
+      {"timestamp": "2026-05-15 18:00", "value": 5.06},
+      {"timestamp": "2026-05-21 17:00", "value": 7.69},
+      {"timestamp": "2026-05-31 16:00", "value": 5.13},
+      {"timestamp": "2026-06-14 14:00", "value": 5.18},
+      {"timestamp": "2026-06-16 14:00", "value": 4.83},
+      {"timestamp": "2026-06-17 13:00", "value": 5.11},
+      {"timestamp": "2026-06-27 00:00", "value": 4.76},
+      {"timestamp": "2026-07-10 15:00", "value": 4.92},
+      {"timestamp": "2026-07-10 20:00", "value": 5.01},
+      {"timestamp": "2026-07-18 01:00", "value": 4.19},
+      {"timestamp": "2026-07-21 19:00", "value": 4.76},
+      {"timestamp": "2026-08-01 09:00", "value": 4.41},
+      {"timestamp": "2026-08-08 09:00", "value": 4.58},
+      {"timestamp": "2026-08-15 09:00", "value": 4.69},
+      {"timestamp": "2026-08-24 14:00", "value": 4.76}
+    ]
+  },
+  "fft": {
+    "frequencyUnit": "Hz",
+    "amplitudeUnit": "mm/s",
+    "frequencies": [0, 5, 10, 15, 20, 25, 29.5, 35, 40, 45, 50, 55, 59, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200],
+    "amplitudes": [0.08, 0.12, 0.16, 0.21, 0.28, 0.42, 2.84, 0.54, 0.35, 0.31, 0.24, 0.39, 1.42, 0.36, 0.29, 0.22, 0.18, 0.14, 0.17, 0.12, 0.10, 0.08, 0.07, 0.08, 0.05, 0.06, 0.04, 0.05, 0.03, 0.04, 0.03],
+    "peaks": [
+      {"frequency": 29.5, "amplitude": 2.84, "label": "1× RPM"},
+      {"frequency": 59.0, "amplitude": 1.42, "label": "2× RPM"}
+    ]
+  },
+  "levelAnalysis": {
+    "result": "caution",
+    "resultLabel": "Level B · 주의",
+    "description": "속도 RMS가 경고 기준을 0.04 mm/s 초과했습니다.",
+    "metrics": [
+      {"name": "속도 RMS", "value": 4.76, "unit": "mm/s", "percent": 87, "status": "caution"},
+      {"name": "가속도 RMS", "value": 1.65, "unit": "g", "percent": 64, "status": "normal"},
+      {"name": "1× 성분", "value": 2.84, "unit": "mm/s", "percent": 72, "status": "caution"}
+    ]
+  },
+  "diagnosis": {
+    "title": "회전체 1× 성분 상승 가능성",
+    "category": "불평형 초기 징후",
+    "confidence": 86,
+    "summary": "회전 주파수(29.5 Hz) 부근의 진폭이 상대적으로 높고 속도 RMS가 경고 기준을 소폭 초과한 Mock 진단입니다.",
+    "recommendations": [
+      "다음 정기점검 시 임펠러 오염 및 편심 상태를 확인하세요.",
+      "커플링 체결 상태와 축 정렬 상태를 함께 점검하세요.",
+      "동일 운전 조건에서 7일 이내 재측정을 권장합니다."
+    ]
+  }
+}
