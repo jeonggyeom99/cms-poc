@@ -17,7 +17,8 @@ const plotConfig = {
     "autoScale2d",
     "toggleSpikelines",
   ],
-  scrollZoom: false,
+  scrollZoom: true,
+  doubleClick: "reset+autosize",
 };
 
 let dashboardData;
@@ -32,6 +33,7 @@ function baseLayout() {
     margin: { l: 48, r: 18, t: 28, b: 44 },
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
+    dragmode: "zoom",
     hoverlabel: {
       bgcolor: "#0d2f3c",
       bordercolor: "#0d2f3c",
@@ -43,14 +45,12 @@ function baseLayout() {
       linecolor: palette.grid,
       tickfont: { color: palette.muted, size: 10 },
       zeroline: false,
-      fixedrange: true,
     },
     yaxis: {
       gridcolor: palette.grid,
       linecolor: palette.grid,
       tickfont: { color: palette.muted, size: 10 },
       zeroline: false,
-      fixedrange: true,
     },
     showlegend: true,
     legend: {
@@ -254,4 +254,3 @@ async function initializeDashboard() {
 }
 
 window.addEventListener("DOMContentLoaded", initializeDashboard);
-

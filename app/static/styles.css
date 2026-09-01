@@ -408,6 +408,13 @@ h1 {
   height: 254px;
 }
 
+.chart-interaction-hint {
+  margin: -1px 0 7px;
+  color: #819099;
+  font-size: 10px;
+  text-align: right;
+}
+
 .peak-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -684,4 +691,3 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
-
