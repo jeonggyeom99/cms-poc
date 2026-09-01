@@ -18,7 +18,7 @@ const plotConfig = {
     "toggleSpikelines",
   ],
   scrollZoom: true,
-  doubleClick: "reset+autosize",
+  doubleClick: "reset",
 };
 
 let dashboardData;
