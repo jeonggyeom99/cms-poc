@@ -13,15 +13,24 @@
 1.FFT_<설비 정보>.csv
 ```
 
-- `WarningStatus` CSV는 읽지 않습니다.
+- 같은 번호의 `WarningStatus` CSV가 있으면 최신 행의 속도 주의·위험 Level을 읽습니다.
 - Trend는 `DataDate`, `VelAve`, `AccAllAve` 컬럼을 사용합니다.
 - FFT는 최신 `MeasureMode=3` 행의 `ResultData`를 속도 스펙트럼으로 사용합니다.
 - `MeasureFreq` 코드 `5`는 500 Hz, `6`은 1000 Hz 범위로 변환합니다.
 - Trend 또는 FFT 한쪽이 없어도 설비 목록에 표시되며, 해당 그래프에는 데이터 없음 상태가 표시됩니다.
 - `data/`의 실제 CSV는 저장소에 포함되지 않으므로 실행 환경에서 별도로 제공해야 합니다.
 
-온도, 운전율, 상태 기준, Level 분석 및 AI 진단은 현재 CSV에 포함되지 않아
-화면에서 후속 단계 항목으로 표시됩니다.
+온도, 운전율 및 AI 진단은 현재 CSV에 포함되지 않아 화면에서 후속 단계 항목으로 표시됩니다.
+
+## VelAve Level 적정선 분석
+
+Trend CSV의 가장 최근 시각을 기준으로 최근 3개월(달력 기준)의 `VelAve`를 분석합니다. Q1과 Q3에서 IQR을 계산하고 `Q1 - 1.5 × IQR` 이상, `Q3 + 1.5 × IQR` 이하인 값을 정상 범위로 사용합니다.
+
+- 정상값 평균의 2배를 주의 권고 Level, 4배를 위험 권고 Level로 계산합니다.
+- 같은 데이터셋의 최신 `WarningStatus`에 설정된 `VELJudgeWarnValue`, `VELJudgeDangValue`와 권고값의 차이를 표시합니다.
+- 차이는 `현재 설정값 - 권고값`이며, 별도의 허용오차나 적정/부적정 이진 판정은 적용하지 않습니다.
+- WarningStatus가 없으면 권고값만 표시하고, Trend가 없으면 Level 분석 불가로 표시합니다.
+- Level 비교 결과는 우상향 분석에 따른 설비 종합 상태와 독립적인 참고 정보입니다.
 
 ## VelAve 상승 경향 분석
 

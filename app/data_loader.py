@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import ast
+import calendar
 import csv
 import logging
 import math
 import re
 import struct
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,103 @@ TREND_MOVING_AVERAGE_POINTS = 72
 TREND_REGRESSION_POINTS = 72
 TREND_REQUIRED_POINTS = TREND_MOVING_AVERAGE_POINTS + TREND_REGRESSION_POINTS - 1
 TREND_RISING_THRESHOLD = 1 / (24 * 14)
+LEVEL_ANALYSIS_MONTHS = 3
+
+
+def _subtract_months(value: datetime, months: int) -> datetime:
+    month_index = value.year * 12 + value.month - 1 - months
+    year, zero_based_month = divmod(month_index, 12)
+    month = zero_based_month + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def _linear_quantile(values: list[float], quantile: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    if lower_index == upper_index:
+        return ordered[lower_index]
+    fraction = position - lower_index
+    return ordered[lower_index] + (ordered[upper_index] - ordered[lower_index]) * fraction
+
+
+def analyze_velave_level(
+    points: list[dict[str, Any]], configured: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Calculate recommended VelAve alarm levels from the latest three calendar months."""
+    analysis: dict[str, Any] = {
+        "status": "unavailable",
+        "windowStart": None,
+        "windowEnd": None,
+        "usedPoints": 0,
+        "normalPoints": 0,
+        "outlierPoints": 0,
+        "lowerBound": None,
+        "upperBound": None,
+        "normalMean": None,
+        "recommended": {
+            "warningThreshold": None,
+            "dangerThreshold": None,
+        },
+        "configured": configured,
+        "difference": None,
+    }
+    if not points:
+        return analysis
+
+    dated_values = [
+        (datetime.fromisoformat(str(point["timestamp"])), float(point["value"]))
+        for point in points
+        if math.isfinite(float(point["value"]))
+    ]
+    if not dated_values:
+        return analysis
+
+    latest_date = max(timestamp for timestamp, _ in dated_values)
+    start_date = _subtract_months(latest_date, LEVEL_ANALYSIS_MONTHS)
+    recent_values = [
+        value for timestamp, value in dated_values if start_date <= timestamp <= latest_date
+    ]
+    if not recent_values:
+        return analysis
+
+    first_quartile = _linear_quantile(recent_values, 0.25)
+    third_quartile = _linear_quantile(recent_values, 0.75)
+    interquartile_range = third_quartile - first_quartile
+    lower_bound = first_quartile - 1.5 * interquartile_range
+    upper_bound = third_quartile + 1.5 * interquartile_range
+    normal_values = [value for value in recent_values if lower_bound <= value <= upper_bound]
+    normal_mean = sum(normal_values) / len(normal_values)
+    recommended = {
+        "warningThreshold": normal_mean * 2,
+        "dangerThreshold": normal_mean * 4,
+    }
+
+    difference = None
+    if configured is not None:
+        difference = {
+            "warningThreshold": configured["warningThreshold"] - recommended["warningThreshold"],
+            "dangerThreshold": configured["dangerThreshold"] - recommended["dangerThreshold"],
+        }
+
+    analysis.update(
+        {
+            "status": "compared" if configured is not None else "recommendation_only",
+            "windowStart": start_date.isoformat(sep=" "),
+            "windowEnd": latest_date.isoformat(sep=" "),
+            "usedPoints": len(recent_values),
+            "normalPoints": len(normal_values),
+            "outlierPoints": len(recent_values) - len(normal_values),
+            "lowerBound": lower_bound,
+            "upperBound": upper_bound,
+            "normalMean": normal_mean,
+            "recommended": recommended,
+            "difference": difference,
+        }
+    )
+    return analysis
 
 
 def _fill_low_outliers(values: list[float]) -> list[float]:
@@ -111,11 +210,13 @@ def _dataset_sort_key(dataset_id: str) -> tuple[int, str]:
 def _classify_csv(path: Path) -> tuple[str, str] | None:
     name = path.name
     dataset_match = DATASET_NUMBER_PATTERN.match(name)
-    if dataset_match is None or "warningstatus" in name.lower():
+    if dataset_match is None:
         return None
 
     lowered_name = name.lower()
-    if "fft" in lowered_name:
+    if "warningstatus" in lowered_name:
+        kind = "warningStatus"
+    elif "fft" in lowered_name:
         kind = "fft"
     elif "trend" in lowered_name:
         kind = "trend"
@@ -190,6 +291,37 @@ def _load_trend(path: Path) -> dict[str, Any]:
     }
 
 
+def _load_warning_status(path: Path) -> dict[str, Any]:
+    latest_row: dict[str, str] | None = None
+    latest_timestamp: datetime | None = None
+    with path.open(encoding="utf-8-sig", newline="") as status_file:
+        reader = csv.DictReader(status_file)
+        required_columns = {"GenerationTime", "VELJudgeWarnValue", "VELJudgeDangValue"}
+        if not required_columns.issubset(reader.fieldnames or []):
+            missing = ", ".join(sorted(required_columns - set(reader.fieldnames or [])))
+            raise ValueError(f"WarningStatus CSV 필수 컬럼 누락: {missing}")
+
+        for row in reader:
+            measured_at = datetime.fromisoformat(str(row["GenerationTime"]))
+            if latest_timestamp is None or measured_at > latest_timestamp:
+                latest_row = row
+                latest_timestamp = measured_at
+
+    if latest_row is None:
+        raise ValueError("WarningStatus CSV에 데이터 행이 없습니다.")
+
+    warning_threshold = float(str(latest_row["VELJudgeWarnValue"]))
+    danger_threshold = float(str(latest_row["VELJudgeDangValue"]))
+    if not math.isfinite(warning_threshold) or not math.isfinite(danger_threshold):
+        raise ValueError("WarningStatus CSV의 속도 Level이 유효한 숫자가 아닙니다.")
+
+    return {
+        "measuredAt": latest_row["GenerationTime"],
+        "warningThreshold": warning_threshold,
+        "dangerThreshold": danger_threshold,
+    }
+
+
 def _decode_float32_bytes(raw_value: str) -> list[float]:
     decoded = ast.literal_eval(raw_value)
     if not isinstance(decoded, bytes):
@@ -255,6 +387,8 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
     datasets: dict[str, dict[str, Any]] = {}
     for dataset_id in sorted(grouped_files, key=_dataset_sort_key):
         files = grouped_files[dataset_id]
+        if "trend" not in files and "fft" not in files:
+            continue
         metadata_source = files.get("trend") or files["fft"]
         equipment = _equipment_metadata(dataset_id, metadata_source)
         errors: dict[str, str] = {}
@@ -275,6 +409,16 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
                 LOGGER.warning("FFT CSV를 읽지 못했습니다: %s (%s)", fft_path, error)
                 errors["fft"] = str(error)
 
+        warning_status = None
+        if warning_status_path := files.get("warningStatus"):
+            try:
+                warning_status = _load_warning_status(warning_status_path)
+            except (OSError, ValueError, csv.Error) as error:
+                LOGGER.warning(
+                    "WarningStatus CSV를 읽지 못했습니다: %s (%s)", warning_status_path, error
+                )
+                errors["warningStatus"] = str(error)
+
         measured_dates: list[str] = []
         current_velocity = None
         current_acceleration = None
@@ -285,6 +429,8 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
             current_acceleration = latest_point["acceleration"]
         if fft is not None:
             measured_dates.append(fft["measuredAt"])
+        if warning_status is not None:
+            measured_dates.append(warning_status["measuredAt"])
 
         trend_analysis = trend["analysis"] if trend is not None else None
         if trend_analysis is None or trend_analysis["status"] == "insufficient_data":
@@ -318,6 +464,7 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
                 "availability": {
                     "trend": trend is not None,
                     "fft": fft is not None,
+                    "warningStatus": warning_status is not None,
                 },
                 "errors": errors,
             },
@@ -325,8 +472,12 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
             "current": {
                 "velocity": current_velocity,
                 "velocityUnit": "mm/s",
-                "warningThreshold": None,
-                "dangerThreshold": None,
+                "warningThreshold": (
+                    warning_status["warningThreshold"] if warning_status is not None else None
+                ),
+                "dangerThreshold": (
+                    warning_status["dangerThreshold"] if warning_status is not None else None
+                ),
                 "acceleration": current_acceleration,
                 "accelerationUnit": "g",
                 "temperature": None,
@@ -335,7 +486,9 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
             },
             "trend": trend,
             "fft": fft,
-            "levelAnalysis": None,
+            "levelAnalysis": analyze_velave_level(
+                trend["points"] if trend is not None else [], warning_status
+            ),
             "diagnosis": None,
         }
 

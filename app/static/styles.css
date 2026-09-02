@@ -550,7 +550,84 @@ h1 {
 }
 
 .analysis-lead {
-  margin: 16px 0 20px;
+  margin: 16px 0 14px;
+}
+
+.level-analysis-details {
+  display: grid;
+  gap: 12px;
+}
+
+.level-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.level-comparison-item {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--caution);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.level-comparison-item.danger {
+  border-top-color: var(--danger);
+  background: var(--surface-soft);
+  color: inherit;
+}
+
+.level-comparison-item h3 {
+  margin: 0 0 10px;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.level-comparison-item dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.level-comparison-item dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.level-comparison-item dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.level-comparison-item dd {
+  margin: 0;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.level-comparison-item > p,
+.level-statistics {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.level-comparison-item > p {
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+.level-statistics {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--teal-soft);
+  line-height: 1.5;
+  text-align: center;
 }
 
 .level-metrics {
@@ -788,6 +865,10 @@ h1 {
 
 @media (max-width: 540px) {
   .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .level-comparison-grid {
     grid-template-columns: 1fr;
   }
 
