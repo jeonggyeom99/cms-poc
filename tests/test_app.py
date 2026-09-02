@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.data_loader import load_datasets
+from app.data_loader import TREND_RISING_THRESHOLD, _fill_low_outliers, analyze_velave_trend, load_datasets
 from app.main import create_app
 
 
@@ -49,6 +49,13 @@ def trend_row(timestamp: str, velocity: float, acceleration: float) -> dict[str,
         "VelAve": str(velocity),
         "CrestfactorAve": "3.0",
     }
+
+
+def trend_points(values: list[float]) -> list[dict[str, float | str]]:
+    return [
+        {"timestamp": f"2026-01-{index // 24 + 1:02d} {index % 24:02d}:00:00", "value": value}
+        for index, value in enumerate(values)
+    ]
 
 
 def fft_row(
@@ -144,6 +151,70 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert fft_only["fft"]["frequencies"] == [0.0, 250.0, 500.0, 750.0]
 
 
+def test_velave_trend_detects_rising_slope() -> None:
+    analysis = analyze_velave_trend(trend_points([1.0 + index * 0.01 for index in range(143)]))
+
+    assert analysis["status"] == "rising"
+    assert analysis["isRising"] is True
+    assert analysis["slope"] > TREND_RISING_THRESHOLD
+    assert analysis["detectedAt"] == "2026-01-03 23:00:00"
+    assert analysis["usedPoints"] == analysis["requiredPoints"] == 143
+
+
+def test_velave_trend_classifies_flat_data_as_stable() -> None:
+    analysis = analyze_velave_trend(trend_points([2.5] * 143))
+
+    assert analysis["status"] == "stable"
+    assert analysis["isRising"] is False
+    assert analysis["detectedAt"] is None
+    assert analysis["slope"] == pytest.approx(0)
+
+
+def test_velave_trend_interpolates_low_outliers_before_analysis() -> None:
+    values = [1.0 + index * 0.01 for index in range(143)]
+    values[80] = -1000.0
+
+    corrected = _fill_low_outliers(values)
+    analysis = analyze_velave_trend(trend_points(values))
+
+    assert corrected[80] == pytest.approx((corrected[79] + corrected[81]) / 2)
+    assert analysis["status"] == "rising"
+
+
+def test_velave_trend_requires_at_least_143_points() -> None:
+    analysis = analyze_velave_trend(trend_points([1.0] * 142))
+
+    assert analysis["status"] == "insufficient_data"
+    assert analysis["isRising"] is None
+    assert analysis["detectedAt"] is None
+    assert analysis["usedPoints"] == 142
+    assert analysis["requiredPoints"] == 143
+
+
+def test_dashboard_api_returns_trend_analysis_and_derived_statuses(tmp_path: Path) -> None:
+    scenarios = {
+        "1": ([1.0 + index * 0.01 for index in range(143)], "rising", "caution", "상승 경향"),
+        "2": ([2.0] * 143, "stable", "normal", "정상"),
+        "3": ([2.0] * 142, "insufficient_data", "unknown", "추세 판단 불가"),
+    }
+    for dataset_id, (values, _, _, _) in scenarios.items():
+        write_csv(
+            tmp_path / f"{dataset_id}.Trend_Test Pump_Point (V{dataset_id.zfill(3)}).csv",
+            TREND_COLUMNS,
+            [trend_row(point["timestamp"], point["value"], 0.1) for point in trend_points(values)],
+        )
+
+    target_app = create_app(tmp_path)
+    for dataset_id, (_, analysis_status, equipment_status, status_label) in scenarios.items():
+        payload = get(target_app, f"/api/dashboard/{dataset_id}").json()
+
+        assert payload["trend"]["analysis"]["status"] == analysis_status
+        assert payload["equipment"]["status"] == equipment_status
+        assert payload["equipment"]["statusLabel"] == status_label
+        assert payload["equipment"]["statusDescription"]
+        assert payload["equipment"]["statusColor"].startswith("#")
+
+
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
@@ -171,8 +242,12 @@ def test_dataset_and_dashboard_apis_return_csv_payloads(tmp_path: Path) -> None:
     assert payload["meta"]["source"] == "csv"
     assert payload["meta"]["mock"] is False
     assert payload["trend"]["points"]
+    assert payload["trend"]["analysis"]["status"] == "insufficient_data"
+    assert payload["trend"]["analysis"]["requiredPoints"] == 143
     assert payload["fft"] is None
     assert payload["diagnosis"] is None
+    assert payload["equipment"]["status"] == "unknown"
+    assert payload["equipment"]["statusLabel"] == "추세 판단 불가"
 
 
 def test_default_dashboard_and_missing_dataset_responses(tmp_path: Path) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import csv
 import logging
+import math
 import re
 import struct
 from pathlib import Path
@@ -21,6 +22,83 @@ FREQUENCY_RANGES_HZ = {
     "5": 500.0,
     "6": 1000.0,
 }
+
+TREND_MOVING_AVERAGE_POINTS = 72
+TREND_REGRESSION_POINTS = 72
+TREND_REQUIRED_POINTS = TREND_MOVING_AVERAGE_POINTS + TREND_REGRESSION_POINTS - 1
+TREND_RISING_THRESHOLD = 1 / (24 * 14)
+
+
+def _fill_low_outliers(values: list[float]) -> list[float]:
+    """Linearly interpolate values below mean - 3σ, including edge runs."""
+    mean = sum(values) / len(values)
+    standard_deviation = math.sqrt(sum((value - mean) ** 2 for value in values) / len(values))
+    low_outlier_limit = mean - 3 * standard_deviation
+    corrected: list[float | None] = values.copy()
+
+    for index, value in enumerate(values):
+        if value < low_outlier_limit:
+            corrected[index] = None
+
+    index = 0
+    while index < len(corrected):
+        if corrected[index] is not None:
+            index += 1
+            continue
+        start = index
+        while index < len(corrected) and corrected[index] is None:
+            index += 1
+        end = index
+        left = corrected[start - 1] if start else None
+        right = corrected[end] if end < len(corrected) else None
+        if left is None:
+            corrected[start:end] = [right] * (end - start)
+        elif right is None:
+            corrected[start:end] = [left] * (end - start)
+        else:
+            span = end - start + 1
+            corrected[start:end] = [left + (right - left) * offset / span for offset in range(1, span)]
+
+    return [float(value) for value in corrected]
+
+
+def analyze_velave_trend(points: list[dict[str, Any]]) -> dict[str, Any]:
+    """Determine whether VelAve has a sustained upward slope in hourly Trend data."""
+    point_count = len(points)
+    analysis: dict[str, Any] = {
+        "status": "insufficient_data",
+        "isRising": None,
+        "detectedAt": None,
+        "threshold": TREND_RISING_THRESHOLD,
+        "thresholdUnit": "mm/s/hour",
+        "slope": None,
+        "usedPoints": point_count,
+        "requiredPoints": TREND_REQUIRED_POINTS,
+    }
+    if point_count < TREND_REQUIRED_POINTS:
+        return analysis
+
+    values = _fill_low_outliers([float(point["value"]) for point in points])
+    moving_averages = [
+        sum(values[index : index + TREND_MOVING_AVERAGE_POINTS]) / TREND_MOVING_AVERAGE_POINTS
+        for index in range(point_count - TREND_MOVING_AVERAGE_POINTS + 1)
+    ]
+    regression_values = moving_averages[-TREND_REGRESSION_POINTS:]
+    mean_x = (TREND_REGRESSION_POINTS - 1) / 2
+    mean_y = sum(regression_values) / TREND_REGRESSION_POINTS
+    numerator = sum((index - mean_x) * (value - mean_y) for index, value in enumerate(regression_values))
+    denominator = sum((index - mean_x) ** 2 for index in range(TREND_REGRESSION_POINTS))
+    slope = numerator / denominator
+    is_rising = slope > TREND_RISING_THRESHOLD
+    analysis.update(
+        {
+            "status": "rising" if is_rising else "stable",
+            "isRising": is_rising,
+            "detectedAt": points[-TREND_REGRESSION_POINTS]["timestamp"] if is_rising else None,
+            "slope": slope,
+        }
+    )
+    return analysis
 
 
 def _dataset_sort_key(dataset_id: str) -> tuple[int, str]:
@@ -108,6 +186,7 @@ def _load_trend(path: Path) -> dict[str, Any]:
     return {
         "unit": "mm/s",
         "points": points,
+        "analysis": analyze_velave_trend(points),
     }
 
 
@@ -207,11 +286,27 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
         if fft is not None:
             measured_dates.append(fft["measuredAt"])
 
+        trend_analysis = trend["analysis"] if trend is not None else None
+        if trend_analysis is None or trend_analysis["status"] == "insufficient_data":
+            status, status_label, status_description, status_color = (
+                "unknown", "추세 판단 불가", "우상향 판정에는 최소 143개의 시간별 VelAve 이력이 필요합니다.", "#94a3aa",
+            )
+        elif trend_analysis["status"] == "rising":
+            status, status_label, status_description, status_color = (
+                "caution", "상승 경향", "최근 72시간 이동평균의 기울기가 상승 임계값을 초과했습니다.", "#f1a526",
+            )
+        else:
+            status, status_label, status_description, status_color = (
+                "normal", "정상", "최근 VelAve에서 상승 경향이 검출되지 않았습니다.", "#14a47b",
+            )
+
         equipment.update(
             {
                 "lastMeasuredAt": max(measured_dates) if measured_dates else None,
-                "status": "unknown",
-                "statusLabel": "데이터 없음",
+                "status": status,
+                "statusLabel": status_label,
+                "statusDescription": status_description,
+                "statusColor": status_color,
             }
         )
 

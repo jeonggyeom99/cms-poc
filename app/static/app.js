@@ -81,6 +81,12 @@ function populateSummary(data) {
     ? `최근 측정 ${equipment.lastMeasuredAt}`
     : "최근 측정 데이터 없음";
   document.getElementById("status-label").textContent = equipment.statusLabel;
+  document.getElementById("status-description").textContent = equipment.statusDescription;
+  const statusPanel = document.querySelector(".status-panel");
+  const statusDot = document.querySelector(".status-dot");
+  statusPanel.className = `status-panel ${equipment.status}`;
+  statusPanel.style.setProperty("--status-color", equipment.statusColor);
+  statusDot.className = `status-dot ${equipment.status}`;
   document.getElementById("velocity-value").textContent = formatNumber(current.velocity);
   document.getElementById("velocity-unit").textContent = current.velocityUnit;
   document.getElementById("warning-value").textContent = formatNumber(current.warningThreshold);

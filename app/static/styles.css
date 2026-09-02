@@ -240,7 +240,7 @@ h1 {
   width: 290px;
   padding: 18px 20px;
   border: 1px solid var(--line);
-  border-left: 4px solid #94a3aa;
+  border-left: 4px solid var(--status-color, #94a3aa);
   border-radius: 14px;
   background: linear-gradient(135deg, #ffffff, #eef2f3);
 }
@@ -273,6 +273,11 @@ h1 {
 
 .status-dot.caution {
   background: var(--caution);
+}
+
+.status-dot.normal {
+  background: var(--normal);
+  box-shadow: 0 0 0 5px rgba(20, 164, 123, 0.15);
 }
 
 .status-dot.unknown {
