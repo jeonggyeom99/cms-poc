@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=dark-equipment-overview">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script defer src="/static/app.js"></script>
+    <script defer src="/static/app.js?v=dark-equipment-overview"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -31,52 +31,56 @@
       </header>
 
       <main>
-        <section class="hero" aria-labelledby="equipment-title">
-          <div>
-            <nav class="breadcrumb" aria-label="설비 위치">
-              <span id="plant-name">CMS 설비</span>
-              <span aria-hidden="true">/</span>
-              <span id="line-name">CSV Dataset</span>
-            </nav>
-            <div class="title-row">
-              <span class="equipment-code" id="equipment-code">--</span>
-              <div>
-                <h1 id="equipment-title">설비를 선택하세요</h1>
-                <p id="measurement-point">측정 위치 · --</p>
+        <section class="equipment-overview" aria-labelledby="equipment-title">
+          <div class="equipment-overview-main">
+            <div class="equipment-summary">
+              <div class="equipment-kicker">
+                <span class="equipment-code" id="equipment-code">--</span>
+                <span id="dataset-availability">CSV DATA</span>
+                <time id="overview-measured-at">최근 측정 데이터 없음</time>
               </div>
+              <h1 id="equipment-title">설비를 선택하세요</h1>
+              <p class="equipment-location"><strong id="plant-name">CMS 설비</strong><span aria-hidden="true">/</span><span id="line-name">CSV Dataset</span><span aria-hidden="true">·</span><span id="measurement-point">측정 위치 --</span></p>
             </div>
+            <aside class="overview-status unknown" aria-label="현재 종합 상태">
+              <span class="overview-status-label">CURRENT STATUS</span>
+              <div class="overview-status-value">
+                <span class="status-dot unknown" aria-hidden="true"></span>
+                <strong id="status-label">데이터 없음</strong>
+              </div>
+              <div class="overview-status-detail">
+                <span>판정 근거</span>
+                <p id="status-description">상태 판단 기준은 CSV에 포함되어 있지 않습니다.</p>
+              </div>
+              <div class="overview-status-detail">
+                <span>최근 측정</span>
+                <time id="status-measured-at">데이터 없음</time>
+              </div>
+            </aside>
           </div>
-          <div class="status-panel unknown" aria-label="현재 종합 상태">
-            <span class="eyebrow">CURRENT STATUS</span>
-            <div class="status-value">
-              <span class="status-dot unknown" aria-hidden="true"></span>
-              <strong id="status-label">데이터 없음</strong>
-            </div>
-            <p id="status-description">상태 판단 기준은 CSV에 포함되어 있지 않습니다.</p>
-          </div>
-        </section>
 
-        <section class="metric-grid" aria-label="현재 측정값">
-          <article class="metric-card metric-primary">
-            <div class="metric-heading"><span>진동 속도 평균</span><span class="mini-state unknown" id="velocity-state">데이터 없음</span></div>
-            <div class="metric-value"><strong id="velocity-value">--</strong><span id="velocity-unit">mm/s</span></div>
-            <div class="threshold-row"><span>경고 <b id="warning-value">--</b></span><span>위험 <b id="danger-value">--</b></span></div>
-          </article>
-          <article class="metric-card">
-            <div class="metric-heading"><span>가속도 평균</span><span class="mini-state unknown" id="acceleration-state">데이터 없음</span></div>
-            <div class="metric-value"><strong id="acceleration-value">--</strong><span id="acceleration-unit">g</span></div>
-            <p class="metric-note">Trend CSV의 마지막 AccAllAve</p>
-          </article>
-          <article class="metric-card">
-            <div class="metric-heading"><span>베어링 온도</span><span class="mini-state unknown">미제공</span></div>
-            <div class="metric-value"><strong id="temperature-value">--</strong><span id="temperature-unit">°C</span></div>
-            <p class="metric-note">CSV에 포함되지 않은 항목</p>
-          </article>
-          <article class="metric-card">
-            <div class="metric-heading"><span>운전율</span><span class="mini-state unknown">미제공</span></div>
-            <div class="metric-value"><strong id="operating-rate">--</strong><span>%</span></div>
-            <p class="metric-note">CSV에 포함되지 않은 항목</p>
-          </article>
+          <div class="overview-metrics" aria-label="현재 측정값">
+            <article class="overview-metric metric-primary">
+              <div class="metric-heading"><span>진동 속도 평균</span><span class="mini-state unknown" id="velocity-state">데이터 없음</span></div>
+              <div class="metric-value"><strong id="velocity-value">--</strong><span id="velocity-unit">mm/s</span></div>
+              <div class="threshold-row"><span>경고 <b id="warning-value">--</b></span><span>위험 <b id="danger-value">--</b></span></div>
+            </article>
+            <article class="overview-metric">
+              <div class="metric-heading"><span>가속도 평균</span><span class="mini-state unknown" id="acceleration-state">데이터 없음</span></div>
+              <div class="metric-value"><strong id="acceleration-value">--</strong><span id="acceleration-unit">g</span></div>
+              <p class="metric-note">Trend CSV의 마지막 AccAllAve</p>
+            </article>
+            <article class="overview-metric">
+              <div class="metric-heading"><span>베어링 온도</span><span class="mini-state unknown">미제공</span></div>
+              <div class="metric-value"><strong id="temperature-value">--</strong><span id="temperature-unit">°C</span></div>
+              <p class="metric-note">CSV에 포함되지 않은 항목</p>
+            </article>
+            <article class="overview-metric">
+              <div class="metric-heading"><span>운전율</span><span class="mini-state unknown">미제공</span></div>
+              <div class="metric-value"><strong id="operating-rate">--</strong><span>%</span></div>
+              <p class="metric-note">CSV에 포함되지 않은 항목</p>
+            </article>
+          </div>
         </section>
 
         <section class="chart-grid" aria-label="진동 그래프">

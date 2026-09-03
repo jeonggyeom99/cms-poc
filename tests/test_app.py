@@ -345,6 +345,10 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert 'id="dataset-select"' in response.text
     assert "CSV DATA" in response.text
+    assert 'class="equipment-overview"' in response.text
+    assert 'id="dataset-availability"' in response.text
+    assert 'id="status-measured-at"' in response.text
+    assert 'class="overview-metrics"' in response.text
     assert "Trend Graph" in response.text
     assert "FFT Graph" in response.text
     assert "후속 단계" in response.text

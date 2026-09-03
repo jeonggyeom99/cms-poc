@@ -78,15 +78,20 @@ function populateSummary(data) {
   document.getElementById("equipment-code").textContent = equipment.id;
   document.getElementById("equipment-title").textContent = equipment.name;
   document.getElementById("measurement-point").textContent = `측정 위치 · ${equipment.measurementPoint}`;
-  document.getElementById("last-updated").textContent = equipment.lastMeasuredAt
+  const measuredAt = equipment.lastMeasuredAt
     ? `최근 측정 ${equipment.lastMeasuredAt}`
     : "최근 측정 데이터 없음";
+  document.getElementById("last-updated").textContent = measuredAt;
+  document.getElementById("overview-measured-at").textContent = measuredAt;
+  document.getElementById("status-measured-at").textContent = equipment.lastMeasuredAt ?? "데이터 없음";
+  document.getElementById("dataset-availability").textContent = availabilityLabel(data.meta.availability);
   document.getElementById("status-label").textContent = equipment.statusLabel;
   document.getElementById("status-description").textContent = equipment.statusDescription;
-  const statusPanel = document.querySelector(".status-panel");
+  const overview = document.querySelector(".equipment-overview");
+  const statusPanel = document.querySelector(".overview-status");
   const statusDot = document.querySelector(".status-dot");
-  statusPanel.className = `status-panel ${equipment.status}`;
-  statusPanel.style.setProperty("--status-color", equipment.statusColor);
+  overview.style.setProperty("--status-color", equipment.statusColor);
+  statusPanel.className = `overview-status ${equipment.status}`;
   statusDot.className = `status-dot ${equipment.status}`;
   document.getElementById("velocity-value").textContent = formatNumber(current.velocity);
   document.getElementById("velocity-unit").textContent = current.velocityUnit;
