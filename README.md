@@ -13,14 +13,16 @@
 1.FFT_<설비 정보>.csv
 ```
 
-- 같은 번호의 `WarningStatus` CSV가 있으면 최신 행의 속도 주의·위험 Level을 읽습니다.
-- Trend는 `DataDate`, `VelAve`, `AccAllAve` 컬럼을 사용합니다.
+- 같은 번호의 `WarningStatus` CSV가 있으면 최신 행에서 가속도 ALL/BPF/PEAK, 속도, 변위의 주의·위험 Level을 읽습니다. 속도 외 Level 컬럼은 선택 사항입니다.
+- Trend는 `DataDate`, `VelAve`, `AccAllAve`를 필수로 사용하며, 확대 화면의 측정값 선택에는 `AccBpfAve`, `AccPeakAve`, `CrestfactorAve`를 추가로 사용합니다. 현재 PoC에서는 `CrestfactorAve`를 변위(`µm`)로 표시합니다.
 - FFT는 최신 `MeasureMode=3` 행의 `ResultData`를 속도 스펙트럼으로 사용합니다.
 - `MeasureFreq` 코드 `5`는 500 Hz, `6`은 1000 Hz 범위로 변환합니다.
 - Trend 또는 FFT 한쪽이 없어도 설비 목록에 표시되며, 해당 그래프에는 데이터 없음 상태가 표시됩니다.
 - `data/`의 실제 CSV는 저장소에 포함되지 않으므로 실행 환경에서 별도로 제공해야 합니다.
 
 온도, 운전율 및 AI 진단은 현재 CSV에 포함되지 않아 화면에서 후속 단계 항목으로 표시됩니다.
+
+Trend Graph를 확대하면 가속도 ALL/BPF/PEAK, 속도, 변위 계열을 선택해 함께 비교할 수 있습니다. 가속도와 속도 또는 변위를 함께 선택하면 단위별 이중 축을 사용하며, 속도와 변위는 동시에 선택할 수 없습니다.
 
 ## VelAve Level 적정선 분석
 

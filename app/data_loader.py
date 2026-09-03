@@ -31,6 +31,49 @@ TREND_REQUIRED_POINTS = TREND_MOVING_AVERAGE_POINTS + TREND_REGRESSION_POINTS - 
 TREND_RISING_THRESHOLD = 1 / (24 * 14)
 LEVEL_ANALYSIS_MONTHS = 3
 
+TREND_METRIC_DEFINITIONS = (
+    {
+        "key": "accelerationAll",
+        "pointKey": "acceleration",
+        "column": "AccAllAve",
+        "label": "가속도 ALL",
+        "unit": "g",
+        "thresholdPrefix": "ACCALL",
+    },
+    {
+        "key": "accelerationBpf",
+        "pointKey": "accelerationBpf",
+        "column": "AccBpfAve",
+        "label": "가속도 BPF",
+        "unit": "g",
+        "thresholdPrefix": "ACCBPF",
+    },
+    {
+        "key": "accelerationPeak",
+        "pointKey": "accelerationPeak",
+        "column": "AccPeakAve",
+        "label": "가속도 PEAK",
+        "unit": "g",
+        "thresholdPrefix": "ACCPEAK",
+    },
+    {
+        "key": "velocity",
+        "pointKey": "value",
+        "column": "VelAve",
+        "label": "속도",
+        "unit": "mm/s",
+        "thresholdPrefix": "VEL",
+    },
+    {
+        "key": "displacement",
+        "pointKey": "displacement",
+        "column": "CrestfactorAve",
+        "label": "변위",
+        "unit": "µm",
+        "thresholdPrefix": "DISP",
+    },
+)
+
 
 def _subtract_months(value: datetime, months: int) -> datetime:
     month_index = value.year * 12 + value.month - 1 - months
@@ -262,6 +305,16 @@ def _equipment_metadata(dataset_id: str, source_path: Path) -> dict[str, str]:
     }
 
 
+def _optional_finite_float(raw_value: Any) -> float | None:
+    if raw_value is None or not str(raw_value).strip():
+        return None
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
+
+
 def _load_trend(path: Path) -> dict[str, Any]:
     points: list[dict[str, Any]] = []
     with path.open(encoding="utf-8-sig", newline="") as trend_file:
@@ -277,6 +330,9 @@ def _load_trend(path: Path) -> dict[str, Any]:
                     "timestamp": row["DataDate"],
                     "value": float(row["VelAve"]),
                     "acceleration": float(row["AccAllAve"]),
+                    "accelerationBpf": _optional_finite_float(row.get("AccBpfAve")),
+                    "accelerationPeak": _optional_finite_float(row.get("AccPeakAve")),
+                    "displacement": _optional_finite_float(row.get("CrestfactorAve")),
                 }
             )
 
@@ -315,11 +371,59 @@ def _load_warning_status(path: Path) -> dict[str, Any]:
     if not math.isfinite(warning_threshold) or not math.isfinite(danger_threshold):
         raise ValueError("WarningStatus CSV의 속도 Level이 유효한 숫자가 아닙니다.")
 
+    thresholds = {
+        metric["key"]: {
+            "warningThreshold": _optional_finite_float(
+                latest_row.get(f'{metric["thresholdPrefix"]}JudgeWarnValue')
+            ),
+            "dangerThreshold": _optional_finite_float(
+                latest_row.get(f'{metric["thresholdPrefix"]}JudgeDangValue')
+            ),
+        }
+        for metric in TREND_METRIC_DEFINITIONS
+    }
+    thresholds["velocity"] = {
+        "warningThreshold": warning_threshold,
+        "dangerThreshold": danger_threshold,
+    }
+
     return {
         "measuredAt": latest_row["GenerationTime"],
         "warningThreshold": warning_threshold,
         "dangerThreshold": danger_threshold,
+        "thresholds": thresholds,
     }
+
+
+def _build_trend_metrics(
+    trend: dict[str, Any], warning_status: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    thresholds = warning_status.get("thresholds", {}) if warning_status is not None else {}
+    metrics = []
+    for definition in TREND_METRIC_DEFINITIONS:
+        point_key = definition["pointKey"]
+        latest_value = next(
+            (
+                point[point_key]
+                for point in reversed(trend["points"])
+                if point.get(point_key) is not None
+            ),
+            None,
+        )
+        metric_thresholds = thresholds.get(definition["key"], {})
+        metrics.append(
+            {
+                "key": definition["key"],
+                "pointKey": point_key,
+                "label": definition["label"],
+                "unit": definition["unit"],
+                "latestValue": latest_value,
+                "warningThreshold": metric_thresholds.get("warningThreshold"),
+                "dangerThreshold": metric_thresholds.get("dangerThreshold"),
+                "available": latest_value is not None,
+            }
+        )
+    return metrics
 
 
 def _decode_float32_bytes(raw_value: str) -> list[float]:
@@ -418,6 +522,9 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
                     "WarningStatus CSV를 읽지 못했습니다: %s (%s)", warning_status_path, error
                 )
                 errors["warningStatus"] = str(error)
+
+        if trend is not None:
+            trend["metrics"] = _build_trend_metrics(trend, warning_status)
 
         measured_dates: list[str] = []
         current_velocity = None

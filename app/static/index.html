@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=graph-expand-modal">
+    <link rel="stylesheet" href="/static/styles.css?v=trend-metric-selector">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script defer src="/static/app.js?v=hide-plotly-modebar"></script>
+    <script defer src="/static/app.js?v=trend-metric-selector"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -148,6 +148,13 @@
               </div>
             </header>
             <div class="graph-modal-body">
+              <section class="trend-metric-selector" id="trend-metric-selector" aria-labelledby="trend-metric-selector-title" hidden>
+                <div class="trend-metric-selector-heading">
+                  <strong id="trend-metric-selector-title">표시할 측정값</strong>
+                  <span>속도와 변위는 한 번에 하나만 선택할 수 있습니다.</span>
+                </div>
+                <div class="trend-metric-grid" id="trend-metric-grid" role="group" aria-label="Trend 측정값 선택"></div>
+              </section>
               <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
               <div class="graph-modal-footer">
                 <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>

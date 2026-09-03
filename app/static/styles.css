@@ -693,7 +693,128 @@ body.graph-modal-open {
   flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
+  gap: 12px;
   padding: 12px 20px 18px;
+}
+
+.trend-metric-selector {
+  flex: 0 0 auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.trend-metric-selector-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.trend-metric-selector-heading strong {
+  color: var(--navy);
+  font-size: 12px;
+}
+
+.trend-metric-selector-heading span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.trend-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+}
+
+.trend-metric-option {
+  min-width: 150px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.trend-metric-option:hover {
+  border-color: color-mix(in srgb, var(--metric-color) 55%, var(--line));
+}
+
+.trend-metric-option.selected {
+  border-color: var(--metric-color);
+  box-shadow: inset 0 0 0 1px var(--metric-color);
+}
+
+.trend-metric-option.unavailable {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.trend-metric-option-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.trend-metric-option-header input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--metric-color);
+}
+
+.trend-metric-swatch {
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--metric-color);
+}
+
+.trend-metric-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin: 9px 0 0;
+}
+
+.trend-metric-values div {
+  min-width: 0;
+}
+
+.trend-metric-values dt,
+.trend-metric-values dd {
+  margin: 0;
+}
+
+.trend-metric-values dt {
+  margin-bottom: 2px;
+  color: #8a989f;
+  font-size: 9px;
+}
+
+.trend-metric-values dd {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend-metric-values .caution-value {
+  color: #c77f08;
+}
+
+.trend-metric-values .danger-value {
+  color: var(--danger);
 }
 
 .graph-modal-plot {
@@ -1086,6 +1207,12 @@ body.graph-modal-open {
 
   .graph-modal-body {
     padding: 8px 10px 12px;
+  }
+
+  .trend-metric-selector-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
   }
 
   .chart-card,

@@ -7,6 +7,14 @@ const palette = {
   danger: "#e25353",
 };
 
+const trendMetricStyles = {
+  accelerationAll: { color: "#0d7f78", digits: 3 },
+  accelerationBpf: { color: "#3478c5", digits: 3 },
+  accelerationPeak: { color: "#52a447", digits: 3 },
+  velocity: { color: "#7a3fb0", digits: 3 },
+  displacement: { color: "#0aa8bd", digits: 2 },
+};
+
 const plotConfig = {
   responsive: true,
   displaylogo: false,
@@ -19,6 +27,7 @@ let dashboardData;
 let currentPeriod = "90";
 let expandedGraph = null;
 let expandedGraphTrigger = null;
+let selectedTrendMetrics = new Set(["velocity"]);
 
 function formatNumber(value, digits = 2) {
   return Number.isFinite(Number(value)) && value !== null ? Number(value).toFixed(digits) : "--";
@@ -140,6 +149,164 @@ function filteredTrendPoints(period) {
   const start = new Date(latest);
   start.setDate(start.getDate() - Number(period));
   return points.filter((point) => new Date(point.timestamp.replace(" ", "T")) >= start);
+}
+
+function resetTrendMetricSelection() {
+  const availableMetrics = dashboardData?.trend?.metrics?.filter((metric) => metric.available) ?? [];
+  const defaultMetric = availableMetrics.find((metric) => metric.key === "velocity") ?? availableMetrics[0];
+  selectedTrendMetrics = new Set(defaultMetric ? [defaultMetric.key] : []);
+}
+
+function formatMetricReading(metric, value) {
+  if (value === null || !Number.isFinite(Number(value))) return "--";
+  const digits = trendMetricStyles[metric.key]?.digits ?? 2;
+  return `${formatNumber(value, digits)} ${metric.unit}`;
+}
+
+function syncTrendMetricSelector() {
+  document.querySelectorAll("[data-trend-metric]").forEach((input) => {
+    const selected = selectedTrendMetrics.has(input.dataset.trendMetric);
+    input.checked = selected;
+    input.closest(".trend-metric-option").classList.toggle("selected", selected);
+  });
+}
+
+function renderTrendMetricSelector() {
+  const grid = document.getElementById("trend-metric-grid");
+  const metrics = dashboardData?.trend?.metrics ?? [];
+  grid.innerHTML = metrics.map((metric) => {
+    const style = trendMetricStyles[metric.key] ?? { color: palette.teal, digits: 2 };
+    const selected = selectedTrendMetrics.has(metric.key);
+    return `
+      <label class="trend-metric-option${selected ? " selected" : ""}${metric.available ? "" : " unavailable"}" style="--metric-color: ${style.color}">
+        <span class="trend-metric-option-header">
+          <input type="checkbox" data-trend-metric="${metric.key}" ${selected ? "checked" : ""} ${metric.available ? "" : "disabled"}>
+          <span class="trend-metric-swatch" aria-hidden="true"></span>
+          <span>${metric.label}</span>
+        </span>
+        <dl class="trend-metric-values">
+          <div><dt>최신값</dt><dd>${formatMetricReading(metric, metric.latestValue)}</dd></div>
+          <div><dt>주의</dt><dd class="caution-value">${formatMetricReading(metric, metric.warningThreshold)}</dd></div>
+          <div><dt>위험</dt><dd class="danger-value">${formatMetricReading(metric, metric.dangerThreshold)}</dd></div>
+        </dl>
+      </label>`;
+  }).join("");
+}
+
+function bindTrendMetricSelector() {
+  document.getElementById("trend-metric-grid").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-trend-metric]");
+    if (!input) return;
+
+    const metricKey = input.dataset.trendMetric;
+    if (input.checked) {
+      if (metricKey === "velocity") selectedTrendMetrics.delete("displacement");
+      if (metricKey === "displacement") selectedTrendMetrics.delete("velocity");
+      selectedTrendMetrics.add(metricKey);
+    } else if (selectedTrendMetrics.size > 1) {
+      selectedTrendMetrics.delete(metricKey);
+    }
+
+    syncTrendMetricSelector();
+    if (expandedGraph === "trend") renderExpandedGraph();
+  });
+}
+
+function trendAxisTitle(unit) {
+  if (unit === "g") return "가속도 (g)";
+  if (unit === "µm") return "변위 (µm)";
+  return "속도 (mm/s)";
+}
+
+function buildExpandedTrendFigure(period = "90") {
+  const points = filteredTrendPoints(period);
+  const metrics = dashboardData.trend.metrics.filter(
+    (metric) => metric.available && selectedTrendMetrics.has(metric.key),
+  );
+  const units = [...new Set(metrics.map((metric) => metric.unit))];
+  const usesDualAxis = units.length > 1;
+  const traces = [];
+
+  metrics.forEach((metric) => {
+    const style = trendMetricStyles[metric.key] ?? { color: palette.teal, digits: 2 };
+    const axis = usesDualAxis && metric.unit !== "g" ? "y2" : "y";
+    const x = points.map((point) => point.timestamp);
+    const y = points.map((point) => point[metric.pointKey]);
+    const latestPoint = [...points].reverse().find((point) => point[metric.pointKey] !== null);
+
+    traces.push({
+      x,
+      y,
+      yaxis: axis,
+      type: "scatter",
+      mode: "lines",
+      name: metric.label,
+      legendgroup: metric.key,
+      line: { color: style.color, width: 2 },
+      hovertemplate: `%{x}<br><b>%{y:.${style.digits}f} ${metric.unit}</b><extra>${metric.label}</extra>`,
+    });
+
+    [
+      ["주의", metric.warningThreshold, palette.caution, "dash"],
+      ["위험", metric.dangerThreshold, palette.danger, "dot"],
+    ].forEach(([label, value, color, dash]) => {
+      if (value === null || !Number.isFinite(Number(value))) return;
+      traces.push({
+        x: [x[0], x.at(-1)],
+        y: [value, value],
+        yaxis: axis,
+        type: "scatter",
+        mode: "lines",
+        name: `${metric.label} ${label}`,
+        legendgroup: metric.key,
+        showlegend: false,
+        line: { color, width: 1.2, dash },
+        opacity: 0.8,
+        hovertemplate: `${metric.label} ${label} <b>%{y:.${style.digits}f} ${metric.unit}</b><extra></extra>`,
+      });
+    });
+
+    if (latestPoint) {
+      traces.push({
+        x: [latestPoint.timestamp],
+        y: [latestPoint[metric.pointKey]],
+        yaxis: axis,
+        type: "scatter",
+        mode: "markers",
+        name: `${metric.label} 최신값`,
+        legendgroup: metric.key,
+        showlegend: false,
+        marker: { color: style.color, line: { color: "#ffffff", width: 2 }, size: 9 },
+        hovertemplate: `최신 <b>%{y:.${style.digits}f} ${metric.unit}</b><extra>${metric.label}</extra>`,
+      });
+    }
+  });
+
+  const layout = baseLayout();
+  layout.margin = { l: 62, r: usesDualAxis ? 70 : 24, t: 54, b: 44 };
+  layout.legend.y = 1.12;
+  layout.yaxis.title = {
+    text: trendAxisTitle(usesDualAxis ? "g" : units[0]),
+    standoff: 8,
+    font: { size: 10 },
+  };
+  layout.yaxis.rangemode = "tozero";
+  layout.xaxis.hoverformat = "%Y-%m-%d %H:%M";
+  if (usesDualAxis) {
+    const secondaryUnit = units.find((unit) => unit !== "g");
+    layout.yaxis2 = {
+      title: { text: trendAxisTitle(secondaryUnit), standoff: 8, font: { size: 10 } },
+      overlaying: "y",
+      side: "right",
+      rangemode: "tozero",
+      showgrid: false,
+      linecolor: palette.grid,
+      tickfont: { color: palette.muted, size: 10 },
+      zeroline: false,
+    };
+  }
+
+  return { traces, layout };
 }
 
 function buildTrendFigure(period = "90") {
@@ -314,7 +481,7 @@ function renderLevelAnalysis(data) {
 
 function renderExpandedGraph() {
   if (expandedGraph === "trend") {
-    renderPlot("graph-modal-chart", buildTrendFigure(currentPeriod));
+    renderPlot("graph-modal-chart", buildExpandedTrendFigure(currentPeriod));
   } else if (expandedGraph === "fft") {
     renderPlot("graph-modal-chart", buildFftFigure());
   }
@@ -343,10 +510,14 @@ function openExpandedGraph(graphType, trigger) {
   const periodTabs = document.getElementById("graph-modal-period-tabs");
   const fftRange = document.getElementById("graph-modal-fft-range");
   const summary = document.getElementById("graph-modal-summary");
+  const trendMetricSelector = document.getElementById("trend-metric-selector");
   periodTabs.hidden = !isTrend;
   fftRange.hidden = isTrend;
   summary.hidden = isTrend;
-  if (!isTrend) {
+  trendMetricSelector.hidden = !isTrend;
+  if (isTrend) {
+    renderTrendMetricSelector();
+  } else {
     fftRange.textContent = `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
     summary.textContent = `측정 ${fft.measuredAt} · ${fft.amplitudes.length} Lines`;
   }
@@ -431,6 +602,7 @@ async function loadDashboard(datasetId) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     dashboardData = await response.json();
     resetPeriodTabs();
+    resetTrendMetricSelection();
     populateSummary(dashboardData);
     renderTrend(currentPeriod);
     renderFft();
@@ -486,5 +658,6 @@ async function initializeDashboard() {
 window.addEventListener("DOMContentLoaded", () => {
   bindPeriodTabs();
   bindGraphModal();
+  bindTrendMetricSelector();
   initializeDashboard();
 });

@@ -36,7 +36,19 @@ FFT_COLUMNS = [
     "TimeWaveSampling",
     "ResultData",
 ]
-WARNING_STATUS_COLUMNS = ["GenerationTime", "VELJudgeWarnValue", "VELJudgeDangValue"]
+WARNING_STATUS_COLUMNS = [
+    "GenerationTime",
+    "ACCALLJudgeWarnValue",
+    "ACCALLJudgeDangValue",
+    "ACCBPFJudgeWarnValue",
+    "ACCBPFJudgeDangValue",
+    "ACCPEAKJudgeWarnValue",
+    "ACCPEAKJudgeDangValue",
+    "VELJudgeWarnValue",
+    "VELJudgeDangValue",
+    "DISPJudgeWarnValue",
+    "DISPJudgeDangValue",
+]
 
 
 def write_csv(path: Path, columns: list[str], rows: list[dict[str, str]]) -> None:
@@ -89,8 +101,16 @@ def fft_row(
 def warning_status_row(measured_at: str, warning: float, danger: float) -> dict[str, str]:
     return {
         "GenerationTime": measured_at,
+        "ACCALLJudgeWarnValue": "2.19",
+        "ACCALLJudgeDangValue": "2.56",
+        "ACCBPFJudgeWarnValue": "1.68",
+        "ACCBPFJudgeDangValue": "2.02",
+        "ACCPEAKJudgeWarnValue": "15.0",
+        "ACCPEAKJudgeDangValue": "20.0",
         "VELJudgeWarnValue": str(warning),
         "VELJudgeDangValue": str(danger),
+        "DISPJudgeWarnValue": "60.0",
+        "DISPJudgeDangValue": "71.0",
     }
 
 
@@ -175,6 +195,33 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     dataset = datasets["1"]
 
     assert [point["value"] for point in dataset["trend"]["points"]] == [1.0, 2.0]
+    assert dataset["trend"]["points"][-1] == {
+        "timestamp": "2026-01-02 00:00:00",
+        "value": 2.0,
+        "acceleration": 0.2,
+        "accelerationBpf": 0.1,
+        "accelerationPeak": 0.2,
+        "displacement": 3.0,
+    }
+    metrics = {metric["key"]: metric for metric in dataset["trend"]["metrics"]}
+    assert metrics["accelerationAll"] == {
+        "key": "accelerationAll",
+        "pointKey": "acceleration",
+        "label": "가속도 ALL",
+        "unit": "g",
+        "latestValue": 0.2,
+        "warningThreshold": pytest.approx(2.19),
+        "dangerThreshold": pytest.approx(2.56),
+        "available": True,
+    }
+    assert metrics["accelerationBpf"]["warningThreshold"] == pytest.approx(1.68)
+    assert metrics["accelerationPeak"]["dangerThreshold"] == pytest.approx(20.0)
+    assert metrics["velocity"]["latestValue"] == 2.0
+    assert metrics["velocity"]["warningThreshold"] == pytest.approx(4.72)
+    assert metrics["displacement"]["pointKey"] == "displacement"
+    assert metrics["displacement"]["latestValue"] == 3.0
+    assert metrics["displacement"]["unit"] == "µm"
+    assert metrics["displacement"]["dangerThreshold"] == pytest.approx(71.0)
     assert dataset["current"]["velocity"] == 2.0
     assert dataset["current"]["acceleration"] == 0.2
     assert dataset["current"]["warningThreshold"] == pytest.approx(4.72)
@@ -274,6 +321,43 @@ def test_non_finite_warning_status_value_is_reported(tmp_path: Path) -> None:
     assert dataset["current"]["warningThreshold"] is None
 
 
+def test_optional_metric_thresholds_do_not_invalidate_velocity_status(tmp_path: Path) -> None:
+    write_csv(
+        tmp_path / "1.Trend_Test Pump_Point (V001).csv",
+        TREND_COLUMNS,
+        [trend_row("2026-01-01 00:00:00", 2.0, 0.1)],
+    )
+    write_csv(
+        tmp_path / "1. WarningStatus Test Pump_Point (V001).csv",
+        [
+            "GenerationTime",
+            "ACCALLJudgeWarnValue",
+            "ACCALLJudgeDangValue",
+            "VELJudgeWarnValue",
+            "VELJudgeDangValue",
+        ],
+        [
+            {
+                "GenerationTime": "2026-01-01 00:00:00",
+                "ACCALLJudgeWarnValue": "not-a-number",
+                "ACCALLJudgeDangValue": "3.0",
+                "VELJudgeWarnValue": "4.0",
+                "VELJudgeDangValue": "8.0",
+            }
+        ],
+    )
+
+    dataset = load_datasets(tmp_path)["1"]
+    metrics = {metric["key"]: metric for metric in dataset["trend"]["metrics"]}
+
+    assert dataset["meta"]["availability"]["warningStatus"] is True
+    assert dataset["current"]["warningThreshold"] == 4.0
+    assert metrics["accelerationAll"]["warningThreshold"] is None
+    assert metrics["accelerationAll"]["dangerThreshold"] == 3.0
+    assert metrics["accelerationBpf"]["warningThreshold"] is None
+    assert metrics["velocity"]["warningThreshold"] == 4.0
+
+
 def test_velave_trend_detects_rising_slope() -> None:
     analysis = analyze_velave_trend(trend_points([1.0 + index * 0.01 for index in range(143)]))
 
@@ -355,6 +439,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-expand"' in response.text
     assert 'id="graph-modal"' in response.text
     assert 'id="graph-modal-chart"' in response.text
+    assert 'id="trend-metric-selector"' in response.text
+    assert 'id="trend-metric-grid"' in response.text
     assert "후속 단계" in response.text
 
 
