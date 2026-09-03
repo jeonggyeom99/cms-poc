@@ -351,6 +351,10 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'class="overview-metrics"' in response.text
     assert "Trend Graph" in response.text
     assert "FFT Graph" in response.text
+    assert 'id="trend-expand"' in response.text
+    assert 'id="fft-expand"' in response.text
+    assert 'id="graph-modal"' in response.text
+    assert 'id="graph-modal-chart"' in response.text
     assert "후속 단계" in response.text
 
 

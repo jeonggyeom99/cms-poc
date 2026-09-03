@@ -22,6 +22,8 @@ const plotConfig = {
 
 let dashboardData;
 let currentPeriod = "90";
+let expandedGraph = null;
+let expandedGraphTrigger = null;
 
 function formatNumber(value, digits = 2) {
   return Number.isFinite(Number(value)) && value !== null ? Number(value).toFixed(digits) : "--";
@@ -120,6 +122,21 @@ function setPeriodTabsEnabled(enabled) {
   });
 }
 
+function setExpandButtonEnabled(graphType, enabled) {
+  const button = document.querySelector(`[data-expand-graph="${graphType}"]`);
+  const graphLabel = graphType === "trend" ? "Trend" : "FFT";
+  button.disabled = !enabled;
+  button.title = enabled ? `${graphLabel} Graph 크게 보기` : `${graphLabel} 데이터 없음`;
+  button.setAttribute("aria-label", button.title);
+}
+
+function renderPlot(plotId, { traces, layout }) {
+  const plot = document.getElementById(plotId);
+  plot.className = plotId === "graph-modal-chart" ? "plot graph-modal-plot" : "plot";
+  plot.textContent = "";
+  Plotly.react(plot, traces, layout, plotConfig);
+}
+
 function filteredTrendPoints(period) {
   const points = dashboardData.trend.points;
   if (period === "all") return points;
@@ -130,14 +147,7 @@ function filteredTrendPoints(period) {
   return points.filter((point) => new Date(point.timestamp.replace(" ", "T")) >= start);
 }
 
-function renderTrend(period = "90") {
-  if (!dashboardData.trend) {
-    setPeriodTabsEnabled(false);
-    setPlotEmpty("trend-chart", "이 설비에는 Trend CSV가 없습니다.");
-    return;
-  }
-
-  setPeriodTabsEnabled(true);
+function buildTrendFigure(period = "90") {
   const points = filteredTrendPoints(period);
   const x = points.map((point) => point.timestamp);
   const y = points.map((point) => point.value);
@@ -198,21 +208,24 @@ function renderTrend(period = "90") {
   layout.yaxis.rangemode = "tozero";
   layout.xaxis.hoverformat = "%Y-%m-%d %H:%M";
 
-  const plot = document.getElementById("trend-chart");
-  plot.className = "plot";
-  plot.textContent = "";
-  Plotly.react(plot, traces, layout, plotConfig);
+  return { traces, layout };
 }
 
-function renderFft() {
-  const fft = dashboardData.fft;
-  if (!fft) {
-    setPlotEmpty("fft-chart", "이 설비에는 FFT CSV가 없습니다.");
-    document.getElementById("fft-range").textContent = "주파수 범위 --";
-    document.getElementById("fft-summary").textContent = "FFT 측정 정보가 없습니다.";
+function renderTrend(period = "90") {
+  if (!dashboardData.trend) {
+    setPeriodTabsEnabled(false);
+    setExpandButtonEnabled("trend", false);
+    setPlotEmpty("trend-chart", "이 설비에는 Trend CSV가 없습니다.");
     return;
   }
 
+  setPeriodTabsEnabled(true);
+  setExpandButtonEnabled("trend", true);
+  renderPlot("trend-chart", buildTrendFigure(period));
+}
+
+function buildFftFigure() {
+  const fft = dashboardData.fft;
   const traces = [
     {
       x: fft.frequencies,
@@ -234,10 +247,21 @@ function renderFft() {
   layout.yaxis.title = { text: "진폭 (mm/s)", standoff: 8, font: { size: 10 } };
   layout.yaxis.rangemode = "tozero";
 
-  const plot = document.getElementById("fft-chart");
-  plot.className = "plot";
-  plot.textContent = "";
-  Plotly.react(plot, traces, layout, plotConfig);
+  return { traces, layout };
+}
+
+function renderFft() {
+  const fft = dashboardData.fft;
+  if (!fft) {
+    setExpandButtonEnabled("fft", false);
+    setPlotEmpty("fft-chart", "이 설비에는 FFT CSV가 없습니다.");
+    document.getElementById("fft-range").textContent = "주파수 범위 --";
+    document.getElementById("fft-summary").textContent = "FFT 측정 정보가 없습니다.";
+    return;
+  }
+
+  setExpandButtonEnabled("fft", true);
+  renderPlot("fft-chart", buildFftFigure());
 
   document.getElementById("fft-range").textContent = `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
   document.getElementById("fft-summary").textContent = `측정 ${fft.measuredAt} · ${fft.amplitudes.length} Lines`;
@@ -293,20 +317,104 @@ function renderLevelAnalysis(data) {
     <p class="level-statistics">IQR 정상 범위 ${formatNumber(analysis.lowerBound)}–${formatNumber(analysis.upperBound)} mm/s · 정상 평균 ${formatNumber(analysis.normalMean)} mm/s</p>`;
 }
 
-function resetPeriodTabs() {
-  currentPeriod = "90";
+function renderExpandedGraph() {
+  if (expandedGraph === "trend") {
+    renderPlot("graph-modal-chart", buildTrendFigure(currentPeriod));
+  } else if (expandedGraph === "fft") {
+    renderPlot("graph-modal-chart", buildFftFigure());
+  }
+}
+
+function openExpandedGraph(graphType, trigger) {
+  if (!dashboardData?.[graphType]) return;
+
+  const modal = document.getElementById("graph-modal");
+  const isTrend = graphType === "trend";
+  const fft = dashboardData.fft;
+  expandedGraph = graphType;
+  expandedGraphTrigger = trigger;
+
+  document.getElementById("graph-modal-eyebrow").textContent = isTrend
+    ? "VIBRATION TREND"
+    : "FREQUENCY SPECTRUM";
+  document.getElementById("graph-modal-title").textContent = isTrend
+    ? "Trend Graph"
+    : "FFT Graph";
+  document.getElementById("graph-modal-chart").setAttribute(
+    "aria-label",
+    isTrend ? "확대된 진동 속도 추세 그래프" : "확대된 FFT 주파수 스펙트럼 그래프",
+  );
+
+  const periodTabs = document.getElementById("graph-modal-period-tabs");
+  const fftRange = document.getElementById("graph-modal-fft-range");
+  const summary = document.getElementById("graph-modal-summary");
+  periodTabs.hidden = !isTrend;
+  fftRange.hidden = isTrend;
+  summary.hidden = isTrend;
+  if (!isTrend) {
+    fftRange.textContent = `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
+    summary.textContent = `측정 ${fft.measuredAt} · ${fft.amplitudes.length} Lines`;
+  }
+
+  modal.showModal();
+  document.body.classList.add("graph-modal-open");
+  requestAnimationFrame(() => requestAnimationFrame(renderExpandedGraph));
+}
+
+function closeExpandedGraph() {
+  const modal = document.getElementById("graph-modal");
+  if (modal.open) modal.close();
+}
+
+function bindGraphModal() {
+  const modal = document.getElementById("graph-modal");
+  const modalPlot = document.getElementById("graph-modal-chart");
+
+  document.querySelectorAll("[data-expand-graph]").forEach((button) => {
+    button.addEventListener("click", () => openExpandedGraph(button.dataset.expandGraph, button));
+  });
+  document.getElementById("graph-modal-close").addEventListener("click", closeExpandedGraph);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeExpandedGraph();
+  });
+  modal.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeExpandedGraph();
+    }
+  });
+  modal.addEventListener("close", () => {
+    Plotly.purge(modalPlot);
+    modalPlot.className = "plot graph-modal-plot";
+    modalPlot.textContent = "";
+    document.body.classList.remove("graph-modal-open");
+    expandedGraph = null;
+    expandedGraphTrigger?.focus();
+    expandedGraphTrigger = null;
+  });
+  window.addEventListener("resize", () => {
+    if (modal.open && modalPlot.data) Plotly.Plots.resize(modalPlot);
+  });
+}
+
+function syncPeriodTabs() {
   document.querySelectorAll("[data-period]").forEach((button) => {
     button.classList.toggle("active", button.dataset.period === currentPeriod);
   });
+}
+
+function resetPeriodTabs() {
+  currentPeriod = "90";
+  syncPeriodTabs();
 }
 
 function bindPeriodTabs() {
   document.querySelectorAll("[data-period]").forEach((button) => {
     button.addEventListener("click", () => {
       currentPeriod = button.dataset.period;
-      document.querySelectorAll("[data-period]").forEach((tab) => tab.classList.remove("active"));
-      button.classList.add("active");
+      syncPeriodTabs();
       renderTrend(currentPeriod);
+      if (expandedGraph === "trend") renderExpandedGraph();
     });
   });
 }
@@ -321,6 +429,8 @@ function availabilityLabel(availability) {
 async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
   select.disabled = true;
+  setExpandButtonEnabled("trend", false);
+  setExpandButtonEnabled("fft", false);
   try {
     const response = await fetch(`/api/dashboard/${encodeURIComponent(datasetId)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -332,6 +442,8 @@ async function loadDashboard(datasetId) {
     renderLevelAnalysis(dashboardData);
   } catch (error) {
     console.error("Dashboard data loading failed", error);
+    setExpandButtonEnabled("trend", false);
+    setExpandButtonEnabled("fft", false);
     setPlotEmpty("trend-chart", "설비 데이터를 불러오지 못했습니다.", true);
     setPlotEmpty("fft-chart", "설비 데이터를 불러오지 못했습니다.", true);
     renderLevelAnalysis({ levelAnalysis: null });
@@ -350,6 +462,8 @@ async function initializeDashboard() {
       select.innerHTML = '<option value="">사용 가능한 CSV 데이터가 없습니다.</option>';
       setPlotEmpty("trend-chart", "data/ 폴더에서 Trend CSV를 찾지 못했습니다.");
       setPlotEmpty("fft-chart", "data/ 폴더에서 FFT CSV를 찾지 못했습니다.");
+      setExpandButtonEnabled("trend", false);
+      setExpandButtonEnabled("fft", false);
       return;
     }
 
@@ -369,10 +483,13 @@ async function initializeDashboard() {
     select.innerHTML = '<option value="">CSV 목록을 불러오지 못했습니다.</option>';
     setPlotEmpty("trend-chart", "CSV 목록을 불러오지 못했습니다.", true);
     setPlotEmpty("fft-chart", "CSV 목록을 불러오지 못했습니다.", true);
+    setExpandButtonEnabled("trend", false);
+    setExpandButtonEnabled("fft", false);
   }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   bindPeriodTabs();
+  bindGraphModal();
   initializeDashboard();
 });

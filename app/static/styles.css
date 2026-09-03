@@ -470,6 +470,14 @@ h1 {
   letter-spacing: -0.025em;
 }
 
+.chart-header-actions,
+.graph-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
 .period-tabs {
   display: flex;
   padding: 3px;
@@ -506,6 +514,57 @@ h1 {
 .period-tabs button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.graph-expand-button,
+.graph-modal-close {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  place-items: center;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+}
+
+.graph-expand-button svg,
+.graph-modal-close svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.graph-expand-button:hover,
+.graph-modal-close:hover {
+  border-color: rgba(13, 127, 120, 0.4);
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.graph-expand-button:focus-visible,
+.graph-modal-close:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.graph-expand-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.graph-expand-button:disabled:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--muted);
 }
 
 .rpm-chip,
@@ -573,6 +632,86 @@ h1 {
   color: var(--muted);
   font-size: 11px;
   text-align: center;
+}
+
+body.graph-modal-open {
+  overflow: hidden;
+}
+
+.graph-modal {
+  width: 90vw;
+  max-width: none;
+  height: 90vh;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 30px 90px rgba(13, 47, 60, 0.28);
+}
+
+.graph-modal::backdrop {
+  background: rgba(8, 27, 38, 0.68);
+  backdrop-filter: blur(3px);
+}
+
+.graph-modal [hidden] {
+  display: none !important;
+}
+
+.graph-modal-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.graph-modal-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.graph-modal-header h2 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.025em;
+}
+
+.graph-modal-close {
+  width: 36px;
+  height: 36px;
+}
+
+.graph-modal-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  padding: 12px 20px 18px;
+}
+
+.graph-modal-plot {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.graph-modal-footer {
+  flex: 0 0 auto;
+}
+
+.graph-modal-footer .chart-interaction-hint {
+  margin: 0 2px 8px;
+}
+
+.graph-modal-footer .chart-data-summary {
+  padding-block: 8px;
 }
 
 .level-card,
@@ -920,8 +1059,33 @@ h1 {
     gap: 13px;
   }
 
+  .chart-header-actions {
+    justify-content: space-between;
+  }
+
   .period-tabs {
     align-self: flex-start;
+  }
+
+  .graph-modal {
+    width: calc(100vw - 20px);
+    height: calc(100dvh - 20px);
+    border-radius: 13px;
+  }
+
+  .graph-modal-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .graph-modal-actions {
+    justify-content: space-between;
+  }
+
+  .graph-modal-body {
+    padding: 8px 10px 12px;
   }
 
   .chart-card,

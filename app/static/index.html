@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=dark-equipment-overview">
+    <link rel="stylesheet" href="/static/styles.css?v=graph-expand-modal">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script defer src="/static/app.js?v=dark-equipment-overview"></script>
+    <script defer src="/static/app.js?v=graph-expand-modal"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -90,10 +90,17 @@
                 <span class="eyebrow">VIBRATION TREND</span>
                 <h2>Trend Graph</h2>
               </div>
-              <div class="period-tabs" role="group" aria-label="추세 기간 선택">
-                <button type="button" data-period="30">1개월</button>
-                <button type="button" data-period="90" class="active">3개월</button>
-                <button type="button" data-period="all">전체</button>
+              <div class="chart-header-actions">
+                <div class="period-tabs" role="group" aria-label="추세 기간 선택">
+                  <button type="button" data-period="30">1개월</button>
+                  <button type="button" data-period="90" class="active">3개월</button>
+                  <button type="button" data-period="all">전체</button>
+                </div>
+                <button type="button" class="graph-expand-button" id="trend-expand" data-expand-graph="trend" aria-label="Trend Graph 크게 보기" title="Trend Graph 크게 보기" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
+                  </svg>
+                </button>
               </div>
             </div>
             <div id="trend-chart" class="plot plot-empty" role="img" aria-label="진동 속도 추세 그래프">설비 데이터를 선택하세요.</div>
@@ -106,13 +113,49 @@
                 <span class="eyebrow">FREQUENCY SPECTRUM</span>
                 <h2>FFT Graph</h2>
               </div>
-              <span class="rpm-chip" id="fft-range">주파수 범위 --</span>
+              <div class="chart-header-actions">
+                <span class="rpm-chip" id="fft-range">주파수 범위 --</span>
+                <button type="button" class="graph-expand-button" id="fft-expand" data-expand-graph="fft" aria-label="FFT Graph 크게 보기" title="FFT Graph 크게 보기" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div id="fft-chart" class="plot plot-empty" role="img" aria-label="FFT 주파수 스펙트럼 그래프">설비 데이터를 선택하세요.</div>
             <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
             <div id="fft-summary" class="chart-data-summary">FFT 측정 정보가 없습니다.</div>
           </article>
         </section>
+
+        <dialog class="graph-modal" id="graph-modal" aria-labelledby="graph-modal-title">
+          <div class="graph-modal-shell">
+            <header class="graph-modal-header">
+              <div>
+                <span class="eyebrow" id="graph-modal-eyebrow">VIBRATION TREND</span>
+                <h2 id="graph-modal-title">Trend Graph</h2>
+              </div>
+              <div class="graph-modal-actions">
+                <div class="period-tabs" id="graph-modal-period-tabs" role="group" aria-label="확대 그래프 추세 기간 선택" hidden>
+                  <button type="button" data-period="30">1개월</button>
+                  <button type="button" data-period="90" class="active">3개월</button>
+                  <button type="button" data-period="all">전체</button>
+                </div>
+                <span class="rpm-chip" id="graph-modal-fft-range" hidden>주파수 범위 --</span>
+                <button type="button" class="graph-modal-close" id="graph-modal-close" aria-label="확대 그래프 닫기" title="닫기">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+            </header>
+            <div class="graph-modal-body">
+              <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
+              <div class="graph-modal-footer">
+                <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
+                <div id="graph-modal-summary" class="chart-data-summary" hidden></div>
+              </div>
+            </div>
+          </div>
+        </dialog>
 
         <section class="analysis-grid" aria-label="분석 결과">
           <article class="card level-card">
