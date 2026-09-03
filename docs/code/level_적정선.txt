@@ -1,0 +1,221 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "99ca9794-a27d-4390-8366-f24d80304cdc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import matplotlib.dates as mdates\n",
+    "import os"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f6a39f22-56b4-4afc-8f22-afd708f82cf5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "path = os.path.join(os.getcwd(), \"DataBase\")\n",
+    "listdir = os.listdir(path)\n",
+    "listdir"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "ba8b8280-e841-48d5-bd3b-22b6f7c3b110",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "file = os.path.join(path, \"Trend ARP SECTION(증설)_2ARP REACTOR COMBUSTION AIR BLOWER_MOTOR DE-V170 (V170).csv\")\n",
+    "df = pd.read_csv(file)\n",
+    "\n",
+    "# 날짜 형식 변환\n",
+    "df[\"DataDate\"] = pd.to_datetime(df[\"DataDate\"])\n",
+    "\n",
+    "df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e9b81f03-bea0-4f3d-bf7d-8817f0619eee",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## 현재 설정된 알람 Level\n",
+    "WarnLevel = 35\n",
+    "DangLevel = 50\n",
+    "\n",
+    "main_factor = \"VelAve\"\n",
+    "\n",
+    "ax = df.plot(x=\"DataDate\", y=main_factor, figsize=(12, 4))\n",
+    "ax.axhline(WarnLevel, color=\"orange\", label=\"Warning\")\n",
+    "ax.axhline(DangLevel, color=\"red\", label=\"Danger\")\n",
+    "ax.set_xlabel(\"Date\")\n",
+    "ax.set_ylabel(main_factor)\n",
+    "ax.legend(loc=2)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "ab061e3a-6457-4382-b7a3-4b76eea0a1c7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 데이터 내 가장 최근 날짜를 기준으로 최근 3개월 선별\n",
+    "latest_date = df[\"DataDate\"].max()\n",
+    "start_date = latest_date - pd.DateOffset(months=3)\n",
+    "\n",
+    "df_recent_3m = df[\n",
+    "    (df[\"DataDate\"] >= start_date) &\n",
+    "    (df[\"DataDate\"] <= latest_date)\n",
+    "].copy()\n",
+    "\n",
+    "print(df_recent_3m[main_factor])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "57786cff-381d-413c-be12-43825421de26",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 결측치 제외\n",
+    "values = df_recent_3m[main_factor].dropna()\n",
+    "\n",
+    "# IQR 계산\n",
+    "Q1 = values.quantile(0.25)\n",
+    "Q3 = values.quantile(0.75)\n",
+    "IQR = Q3 - Q1\n",
+    "\n",
+    "# 정상 범위 계산\n",
+    "lower_bound = Q1 - 1.5 * IQR\n",
+    "upper_bound = Q3 + 1.5 * IQR\n",
+    "\n",
+    "# 정상 범위 데이터만 선별\n",
+    "normal_values = values[\n",
+    "    values.between(lower_bound, upper_bound)\n",
+    "]\n",
+    "\n",
+    "# 정상값 평균\n",
+    "normal_mean = normal_values.mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9104222c-ff2f-4f2d-b492-662e622ec17f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 이상치 데이터\n",
+    "outliers = df_recent_3m[\n",
+    "    (df_recent_3m[main_factor] < lower_bound) |\n",
+    "    (df_recent_3m[main_factor] > upper_bound)\n",
+    "].dropna(subset=[\"DataDate\", main_factor])\n",
+    "\n",
+    "# Plot\n",
+    "fig, ax = plt.subplots(figsize=(12, 4))\n",
+    "\n",
+    "ax.plot(\n",
+    "    df_recent_3m[\"DataDate\"],\n",
+    "    df_recent_3m[main_factor],\n",
+    "    label=main_factor\n",
+    ")\n",
+    "\n",
+    "# 기준선\n",
+    "ax.axhline(WarnLevel, color=\"orange\", label=\"Warning\")\n",
+    "ax.axhline(DangLevel, color=\"red\", label=\"Danger\")\n",
+    "\n",
+    "# IQR 정상 범위\n",
+    "ax.axhspan(\n",
+    "    lower_bound,\n",
+    "    upper_bound,\n",
+    "    color=\"green\",\n",
+    "    alpha=0.1,\n",
+    "    label=\"IQR Normal Range\"\n",
+    ")\n",
+    "\n",
+    "# 이상치 표시: 날짜를 matplotlib 숫자로 변환\n",
+    "outlier_dates = mdates.date2num(\n",
+    "    outliers[\"DataDate\"].dt.to_pydatetime()\n",
+    ")\n",
+    "\n",
+    "ax.scatter(\n",
+    "    outlier_dates,\n",
+    "    outliers[main_factor].to_numpy(),\n",
+    "    color=\"red\",\n",
+    "    s=5,\n",
+    "    zorder=5,\n",
+    "    label=\"Out of IQR\"\n",
+    ")\n",
+    "\n",
+    "# 날짜 축 형식\n",
+    "ax.xaxis.set_major_formatter(\n",
+    "    mdates.DateFormatter(\"%Y-%m-%d\")\n",
+    ")\n",
+    "fig.autofmt_xdate()\n",
+    "\n",
+    "ax.set_xlim(\n",
+    "    df_recent_3m.DataDate.iloc[0],\n",
+    "    df_recent_3m.DataDate.iloc[-1]\n",
+    ")\n",
+    "\n",
+    "ax.set_xlabel(\"Date\")\n",
+    "ax.set_ylabel(main_factor)\n",
+    "ax.legend(loc=\"upper left\")\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "71e4915e-c779-4d8b-af5a-b932bb82f54b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(f\"적정 주의 알람 Level : {2*normal_mean:.2f}\")\n",
+    "print(f\"적정 위험 알람 Level : {4*normal_mean:.2f}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "d267d021-3810-440c-8347-aa647b41c194",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

@@ -9,6 +9,10 @@ import pytest
 from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
+    _load_equipment_rpms,
+    analyze_fft_spectrum,
+    analyze_fft_diagnosis,
+    analyze_velocity_fft,
     analyze_velave_level,
     analyze_velave_trend,
     load_datasets,
@@ -232,6 +236,8 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert dataset["fft"]["measuredAt"] == "2026-01-04 00:00:00"
     assert dataset["fft"]["recordId"] == 4
     assert [record["id"] for record in dataset["fft"]["records"]] == [4, 2, 3]
+    assert dataset["fft"]["records"][0]["hasHighAmplitude"] is False
+    assert dataset["fft"]["records"][1]["hasHighAmplitude"] is True
     assert dataset["fft"]["records"][1]["measureMode"] == {
         "code": "2",
         "label": "가속도ENV",
@@ -254,6 +260,35 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     fft_only = datasets["2"]
     assert fft_only["fft"]["frequencyRange"] == 1000.0
     assert fft_only["fft"]["frequencies"] == [0.0, 250.0, 500.0, 750.0]
+
+
+def test_fft_alert_records_require_alert_type_and_strict_amplitude_threshold(tmp_path: Path) -> None:
+    write_csv(
+        tmp_path / "1.FFT_Test Pump_Point (V001).csv",
+        FFT_COLUMNS,
+        [
+            fft_row("2026-01-01 00:00:00", [0.51], extraction_type="3"),
+            fft_row("2026-01-05 00:00:00", [0.9], extraction_type="4"),
+            fft_row("2026-01-06 00:00:00", [0.5], extraction_type="3"),
+            fft_row("2026-01-07 00:00:00", [0.9], extraction_type="2"),
+            fft_row("2026-01-08 00:00:00", [0.4], extraction_type="4"),
+        ],
+    )
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+    records = {record["id"]: record for record in fft["records"]}
+
+    assert fft["recordId"] == 3
+    assert fft["isAlertFft"] is True
+    assert fft["alertRecordCount"] == 2
+    assert records[2]["maxAmplitude"] == pytest.approx(0.51)
+    assert records[2]["isAlertFft"] is True
+    assert records[3]["isAlertFft"] is True
+    assert records[4]["hasHighAmplitude"] is False
+    assert records[4]["isAlertFft"] is False
+    assert records[5]["hasHighAmplitude"] is True
+    assert records[5]["isAlertFft"] is False
+    assert records[6]["isAlertFft"] is False
 
 
 def test_fft_supports_canonical_diag_header_all_modes_and_frequency_codes(tmp_path: Path) -> None:
@@ -316,6 +351,104 @@ def test_fft_unknown_metadata_codes_are_preserved(tmp_path: Path) -> None:
     assert fft["frequencyUnit"] == "bin"
     assert fft["amplitudeUnit"] is None
     assert fft["frequencies"] == [0.0, 1.0]
+
+
+def test_fft_analysis_groups_top_peaks_and_applies_velocity_threshold() -> None:
+    analysis = analyze_fft_spectrum(
+        [float(index) for index in range(12)],
+        [10.0, 0.4, 0.7, 0.9, 0.8, 0.3, 0.6, 0.1, 0.2, 0.55, 0.54, 0.53],
+        "3",
+    )
+
+    assert analysis["status"] == "analyzed"
+    assert analysis["amplitudeThreshold"] == 0.5
+    assert analysis["frequencyTolerance"] == 1.0
+    assert analysis["peaks"][0]["frequency"] == 3.0
+    assert analysis["peaks"][0]["amplitude"] == pytest.approx(0.9)
+    assert analysis["peaks"][0]["groupFrequencies"] == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    assert all(peak["amplitude"] >= 0.5 for peak in analysis["peaks"])
+
+
+def test_fft_analysis_reports_unknown_mode_and_no_significant_peak() -> None:
+    assert analyze_fft_spectrum([0.0, 1.0], [0.0, 1.0], "99")["status"] == "unavailable"
+    analysis = analyze_fft_spectrum([0.0, 10.0], [0.0, 0.19], "2")
+    assert analysis["status"] == "no_significant_peak"
+    assert analysis["peaks"] == []
+
+
+def velocity_spectrum(one_x: float, two_x: float, three_x: float) -> tuple[list[float], list[float]]:
+    frequencies = [float(index) for index in range(500)]
+    amplitudes = [0.0] * len(frequencies)
+    amplitudes[30] = one_x
+    amplitudes[59] = two_x
+    amplitudes[89] = three_x
+    return frequencies, amplitudes
+
+
+@pytest.mark.parametrize(
+    ("one_x", "two_x", "three_x", "diagnosis"),
+    [
+        (1.0, 0.1, 0.05, "unbalance"),
+        (1.0, 0.5, 0.1, "misalignment"),
+        (1.0, 0.3, 0.2, "complex"),
+    ],
+)
+def test_velocity_fft_diagnosis_uses_reference_harmonic_ratios(
+    one_x: float, two_x: float, three_x: float, diagnosis: str
+) -> None:
+    frequencies, amplitudes = velocity_spectrum(one_x, two_x, three_x)
+
+    analysis = analyze_velocity_fft(frequencies, amplitudes, 1780.0)
+
+    assert analysis["status"] == "analyzed"
+    assert analysis["diagnosis"] == diagnosis
+    assert analysis["shaftFrequency"] == pytest.approx(1780 / 60)
+    assert [harmonic["detectedFrequency"] for harmonic in analysis["harmonics"]] == [30.0, 59.0, 89.0]
+    assert analysis["ratios"]["twoToOne"] == pytest.approx(two_x / one_x)
+    assert analysis["ratios"]["threeToOne"] == pytest.approx(three_x / one_x)
+
+
+def test_velocity_fft_diagnosis_requires_rpm_and_sufficient_1x_peak() -> None:
+    frequencies, amplitudes = velocity_spectrum(0.4, 0.5, 0.4)
+
+    assert analyze_velocity_fft(frequencies, amplitudes, None)["status"] == "unavailable"
+    analysis = analyze_velocity_fft(frequencies, amplitudes, 1780.0)
+    assert analysis["status"] == "insufficient_1x"
+    assert analysis["diagnosis"] == "inconclusive"
+
+
+def test_acceleration_fft_diagnosis_is_explicitly_deferred() -> None:
+    analysis = analyze_fft_diagnosis([0.0, 1.0], [0.0, 1.0], "2", 1780.0)
+
+    assert analysis["status"] == "deferred"
+    assert analysis["diagnosis"] == "deferred"
+    assert analysis["shaftFrequency"] is None
+
+
+def test_v032_uses_configured_rpm_for_velocity_fft(tmp_path: Path) -> None:
+    frequencies, amplitudes = velocity_spectrum(1.0, 0.1, 0.05)
+    write_csv(
+        tmp_path / "1.FFT_Area_Test Pump_Point A (V032).csv",
+        FFT_COLUMNS,
+        [fft_row("2026-01-01 00:00:00", amplitudes)],
+    )
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+
+    assert fft["analysis"]["diagnosis"]["rpm"] == 1780.0
+    assert fft["analysis"]["diagnosis"]["rpmSource"] == "equipment_config"
+    assert fft["analysis"]["diagnosis"]["diagnosis"] == "unbalance"
+
+
+def test_equipment_rpm_config_contains_requested_equipment_values() -> None:
+    configured_rpms = _load_equipment_rpms()
+
+    assert {code: configured_rpms[code] for code in ("V056", "V041", "V035", "V191")} == {
+        "V056": 1170.0,
+        "V041": 1785.0,
+        "V035": 1500.0,
+        "V191": 1170.0,
+    }
 
 
 def test_velave_level_uses_three_calendar_months_and_excludes_iqr_outlier() -> None:
@@ -509,14 +642,19 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
+    assert 'type="module" src="/static/app.js?v=compact-fft-summary"' in response.text
     assert 'id="dataset-select"' in response.text
     assert "CSV DATA" in response.text
     assert 'class="equipment-overview"' in response.text
     assert 'id="dataset-availability"' in response.text
-    assert 'id="status-measured-at"' in response.text
-    assert 'class="overview-metrics"' in response.text
+    assert 'class="overview-fft-result is-neutral"' in response.text
+    assert 'id="overview-fft-result"' in response.text
+    assert 'class="overview-status' not in response.text
+    assert 'class="overview-metrics"' not in response.text
     assert "Trend Graph" in response.text
     assert "FFT Graph" in response.text
+    assert 'class="card chart-card fft-card"' in response.text
+    assert response.text.count('id="fft-chart"') == 1
     assert 'id="trend-expand"' in response.text
     assert 'id="fft-expand"' in response.text
     assert 'id="graph-modal"' in response.text
@@ -526,7 +664,9 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-record-list"' in response.text
     assert 'id="fft-metadata-grid"' in response.text
     assert 'id="fft-meta-measure-date"' in response.text
-    assert "후속 단계" in response.text
+    assert "FFT 분석 결과" in response.text
+    assert 'id="fft-analysis-workspace"' in response.text
+    assert 'id="fft-analysis-details"' in response.text
 
 
 def test_dataset_and_dashboard_apis_return_csv_payloads(tmp_path: Path) -> None:
@@ -592,6 +732,18 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert record["frequencyRange"] == 500.0
     assert record["frequencies"] == [0.0, 250.0]
     assert record["amplitudes"] == pytest.approx([9.0, 9.0])
+    assert record["analysis"]["diagnosis"] == {
+        "status": "deferred",
+        "diagnosis": "deferred",
+        "label": "가속도 진단 보류",
+        "message": "가속도 FFT의 베어링·기타 결함 진단은 현재 범위에서 보류했습니다.",
+        "rpm": None,
+        "rpmSource": "unavailable",
+        "shaftFrequency": None,
+        "frequencyTolerance": None,
+        "harmonics": [],
+        "ratios": {"twoToOne": None, "threeToOne": None},
+    }
     assert "records" not in record
 
     assert get(target_app, "/api/dashboard/1/fft/999").status_code == 404

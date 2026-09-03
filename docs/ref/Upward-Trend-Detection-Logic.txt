@@ -1,0 +1,416 @@
+import sys
+import time
+import math
+import re
+import os
+import json
+import socket
+import struct
+import pyodbc
+import pandas as pd
+import numpy as np
+from scipy.stats import linregress
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+plt.rcParams['font.family'] = 'Malgun Gothic'
+plt.rcParams['axes.unicode_minus'] = False
+
+import logging
+from logging.handlers import RotatingFileHandler
+
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+import warnings
+warnings.filterwarnings('ignore') # 모든 경고 무시
+
+#######################################################################################################
+
+class DBConfigLoader:
+    """
+    config.json 기반 DB 접속 및 메일 수신자 정보 로더
+    여러 DB 대상(라인/설비) 공용 사용
+    """
+
+    def __init__(self, config_path: str):
+        self.config_path = config_path
+        self._config = self._load_config()
+
+    def _load_config(self) -> dict:
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"❌ config.json 파일을 찾을 수 없습니다: {self.config_path}")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"❌ config.json 형식 오류: {e}")
+
+    def get_conn_str(self, target: str) -> str:
+        """
+        target(DB key)에 해당하는 MSSQL conn_str 생성
+        """
+        if target not in self._config:
+            raise KeyError(f"❌ '{target}' 설정이 config.json에 없습니다.")
+
+        db = self._config[target]
+
+        driver = db.get("driver", "SQL Server")
+
+        conn_str = (
+            f"DRIVER={driver};"
+            f"SERVER={db['server']};"
+            f"DATABASE={db['database']};"
+            f"UID={db['username']};"
+            f"PWD={db['password']}"
+        )
+
+        return conn_str
+    
+    def get_items(self, target: str, key: str) -> list:
+        items = self._config[target]
+
+        return items[key]
+    
+#######################################################################################################
+
+class DBReader:
+    """
+    MSSQL DB 공통 조회 유틸 Class
+    다른 모든 업무 Class에서 재사용 가능
+    """
+
+    def __init__(self, conn_str: str):
+        self.conn_str = conn_str
+
+    def read_db(self, query: str) -> pd.DataFrame:
+        """
+        SQL 실행 후 DataFrame 반환
+        """
+        try:
+            with pyodbc.connect(self.conn_str) as conn:
+                df = pd.read_sql(query, conn)
+            return df
+
+        except Exception as e:
+            logger.error("❌ DB 쿼리 실행 실패")
+            logger.error(f"Query : {query}")
+            logger.error(f"Error : {e}")
+            return pd.DataFrame()
+
+#######################################################################################################
+        
+def setup_logging(log_dir, max_mb=20, backup_count=5):
+    logger = logging.getLogger("Smart-CMS")
+    logger.setLevel(logging.INFO)
+    
+    # 이미 핸들러가 설정되어 있다면 중복 방지
+    if logger.handlers:
+        return logger
+
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    # 파일 핸들러
+    try:
+        log_filename = f"smart_cms.log"
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, log_filename),
+            maxBytes=max_mb * 1024 * 1024,
+            backupCount=backup_count,
+            encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"❌ 로깅 파일 핸들러 설정 실패: {e}")
+
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    return logger
+
+#######################################################################################################
+
+def read_cms(SignalID, now):
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+    
+    query = f"""
+        SELECT DataDate, VelAve
+        FROM FacilitiesMeasureHourly
+        WHERE SignalID = {SignalID}
+            AND DataDate > DATEADD(DAY, -21, '{now_str}')
+            AND DataDate <= '{now_str}'
+        ORDER BY DataDate ASC
+        """
+    
+    return db_reader.read_db(query).set_index(['DataDate'])
+
+#######################################################################################################
+
+def moving_slope(cms):
+    data = cms.copy()
+
+    # 이동 평균 적용 (노이즈 제거)
+    window_size = 24 * 3  ## 수정 가능 Parameter
+    data['smoothed'] = data['restored'].rolling(window=window_size).mean()
+
+    # 기울기 계산 함수 (최근 N개 데이터의 추세 확인)
+    def get_trend(data):
+        x = np.arange(len(data))
+        slope, intercept, r_value, p_value, std_err = linregress(x, data)
+        return slope
+
+    # 슬라이딩 윈도우로 기울기 계산
+    trend_window = window_size
+    data['slope'] = data['smoothed'].rolling(window=trend_window).apply(get_trend)
+
+    # 상승 추세 판단
+    threshold = 1/(24 * 14) ## 14일 이내 1mm/s 이상 상승 (수정 가능 Parameter)
+    data['is_rising'] = data['slope'] > threshold
+
+    change_point = None
+    if sum(data['is_rising'] == True) > 0:
+        change_point = data[data['is_rising'] == True].index[0]
+
+    return data, threshold, change_point
+
+#######################################################################################################
+
+def is_rising(cms):
+    # 설비 비가동 Data 전처리
+    mean = cms.mean()[0]
+    std = cms.std()[0]
+    
+    cms['restored'] = cms['VelAve']
+    cms.loc[cms['VelAve'] < mean - 3 * std, 'restored'] = np.nan
+    cms['restored'] = cms['restored'].interpolate(method='linear')
+    cms['restored'] = cms['restored'].ffill().bfill()
+
+    cms_mslope, threshold_mslope, point_mslope = moving_slope(cms)
+    
+    return cms_mslope['is_rising'].iloc[-1]
+
+#######################################################################################################
+
+def send_data(host, port, data, max_retries=5):
+    retry_delay = 5  # 재시도 간격 (초 단위)
+    
+    for attempt in range(1, max_retries + 1):
+        sock = None
+        try:
+            logger.info(f"연결 시도 중... ({attempt}/{max_retries})")
+            
+            # 소켓 생성 및 연결
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5) # 연결 타임아웃
+            sock.connect((host, port))
+            
+            # 데이터 전송
+            ## [★중요★] 수신측(iba)는 LSB-first 해석하므로 송신 前 Byte 內 Bit 반전 필요
+            data_reverse = bytes(int(f"{x:08b}"[::-1], 2) for x in data)
+            sock.sendall(data_reverse)
+            logger.info(f"데이터 전송 성공! (길이: {byte_len} bytes, {bit_len} bits)")
+            logger.info(f"전송된 값(이진수): {''.join(f'{b:08b}' for b in data)}")
+            time.sleep(1)
+            
+            return True # 성공 시 함수 종료
+            
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            line_no = exc_tb.tb_lineno
+            logger.info(f"전송 실패 (시도 {attempt}/{max_retries}): {e}, {line_no}")
+            
+            # 마지막 시도가 아니면 대기 후 재시도
+            if attempt < max_retries:
+                logger.info(f"{retry_delay}초 후 재시도합니다...")
+                time.sleep(retry_delay)
+            else:
+                logger.info("최대 재시도 횟수를 초과했습니다. 전송을 포기합니다.")
+                
+        finally:
+            # 소켓이 생성되었다면 닫기
+            if sock:
+                logger.info("TCP 소켓 종료")
+                sock.close()
+                
+    return False # 모든 재시도 실패 시
+
+#######################################################################################################
+
+def send_html_email_from_file(html_file_path, plant_name, now, to):
+    now_str = now.strftime("%y.%m.%d %H")
+    
+    # 1. HTML 파일 존재 여부 확인 및 읽기
+    if not os.path.exists(html_file_path):
+        logger.info(f"❌ 오류: 지정한 경로에 HTML 파일이 없습니다. 경로를 확인해주세요: {html_file_path}")
+        return
+
+    try:
+        # 파일을 읽을 때 반드시 encoding='utf-8'을 지정해야 한글이 깨지지 않습니다.
+        with open(html_file_path, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+    except Exception as e:
+        logger.info(f"❌ 파일 읽기 실패: {e}")
+        return
+
+    # 2. SMTP 서버 설정
+    smtp_server = "172.18.109.203"
+    smtp_port = 25000
+    
+    # 3. 송수신자 및 메일 제목 설정
+    sender_email = "pimc@posco.com"      # 보내는 사람 이메일
+    receiver_email = to
+    subject = f"[CMS 일일 속보] {plant_name} 공장 진동 상승 경향 모니터링 결과 ('{now_str}시 기준)"
+
+    # 4. 이메일 메시지 컨테이너 생성
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = ", ".join(receiver_email) 
+
+    # 5. 읽어온 HTML 내용을 MIMEText 객체로 변환
+    html_part = MIMEText(html_content, 'html', 'utf-8')
+    msg.attach(html_part)
+
+    # 6. SMTP 서버 연결 및 메일 발송
+    try:
+        logger.info(f"SMTP 서버({smtp_server}:{smtp_port})에 연결 중...")
+        server = smtplib.SMTP(smtp_server, smtp_port)
+
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        logger.info("✅ 메일이 성공적으로 발송되었습니다!")
+
+    except Exception as e:
+        logger.info(f"❌ 메일 발송 실패: {e}")
+        
+    finally:
+        try:
+            server.quit()
+        except:
+            pass
+
+#######################################################################################################
+
+# 함수 실행
+if __name__ == "__main__":
+    server_port = 14842
+    
+    now = pd.Timestamp.now()
+    is_mail_time = now.hour in [7, 7]
+        
+    base_dir = os.getcwd()
+    log_dir = os.path.join(base_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    logger = setup_logging(log_dir)
+    
+    config_path = os.path.join(base_dir, "config.json")
+    config_loader = DBConfigLoader(config_path)
+    
+    folder_dir = os.path.join(base_dir, "Plant")
+    plant_list = [x for x in os.listdir(folder_dir) if '.xlsx' in x]
+    
+#     for plant in plant_list:
+    for plant in ['1PCM.xlsx']:
+        plant_name = plant[:-5]
+        server_ip = config_loader.get_items(plant_name, 'pims_ip')
+                
+        db_reader = DBReader(config_loader.get_conn_str(plant_name))
+        
+        logger.info(f"✅ 성공! '{plant_name}' 공장 CMS DB 연결이 정상적으로 처리되었습니다.")
+        
+        sensor_list = pd.read_excel(os.path.join(folder_dir, plant), header=None).values.reshape(-1).tolist()
+        formatted_tags = [f"V{num:03d}" for num in sensor_list]
+        #tag_string = ', '.join([f"'{tag}'" for tag in formatted_tags])
+
+        query_1 = f"SELECT SignalID, FacilitiesID, TAGNo FROM SignalMaster"
+        SignalMaster = db_reader.read_db(query_1)
+        SignalMaster_ = SignalMaster[SignalMaster['TAGNo'].isin(formatted_tags)].reset_index(drop=True)
+        #missing_tags = [tag for tag in formatted_tags if tag not in SignalMaster['TAGNo'].values]
+
+        query_2 = "SELECT FacilitiesID, HierarchyName FROM FacilitiesHierarchy"
+        FacilitiesHierarchy = db_reader.read_db(query_2)
+
+        SignalMaster_ = SignalMaster_.merge(FacilitiesHierarchy, on='FacilitiesID', how='left')
+        SignalMaster_ = SignalMaster_.sort_values(by='TAGNo', ascending=True).reset_index(drop=True)
+        
+        logger.info(f"✅ 성공! 'SignalMaster' 기본 정보 처리가 완료되었습니다.")
+
+        all_datasets = []
+        rising_list = []
+
+        for i in range(len(SignalMaster_)):
+            try:
+                SignalID = SignalMaster_.loc[i, "SignalID"]
+                FacilitiesName = ' - '.join(SignalMaster_.loc[i, "HierarchyName"].split('~')[1:-1]) + f' ({SignalMaster_.iloc[i,:].TAGNo})'
+                cms = read_cms(SignalID, now)
+
+                rising_bool = is_rising(cms)
+                rising_list.append(rising_bool)
+
+                if is_mail_time: ## is_mail_time: ## 07~08시 사이 메일링 작동
+                    # DataDate가 인덱스인 경우를 대비해 reset_index() 사용
+                    df_tmp = cms.reset_index()
+
+                    # NaN(결측치) 값을 JavaScript가 인식할 수 있는 None(null)으로 변환
+                    df_tmp = df_tmp.where(pd.notnull(df_tmp), None)
+
+                    # 날짜 문자열 변환
+                    df_tmp['DataDate'] = df_tmp['DataDate'].astype(str)
+
+                    dataset_dict = {
+                        "title": FacilitiesName,
+                        "labels": df_tmp['DataDate'].tolist(),
+                        "velAve": df_tmp['VelAve'].tolist()
+                    }
+
+                    all_datasets.append(dataset_dict)
+
+            except Exception as e:
+                logger.info(f"❌ 센서번호(V{SignalID:03d}) 전처리 실패: {e}")
+                continue
+                
+        ## 송신 Data 전처리 (True/False → Bit 처리 → Byte 처리)
+        bit_list = [1 if x else 0 for x in rising_list]
+        byte_len = math.ceil(len(bit_list) / 8)
+        bit_len = byte_len * 8
+
+        # 8배수 비트로 패딩
+        bits = bit_list + [0] * (bit_len - len(bit_list))
+        
+        # 비트열을 정수로 만든 뒤 4바이트 변환 (MSB-first)
+        tcp_value = 0
+        for b in bits:
+            tcp_value = (tcp_value << 1) | b
+
+        byte_data = tcp_value.to_bytes(byte_len, byteorder="big")
+        send_data(server_ip, server_port, byte_data) ## Byte_Data 송신
+        
+        logger.info(f"✅ 성공! '{plant_name}' 공장 CMS Data 처리 & 전송이 정상적으로 완료되었습니다.")
+
+        if len(all_datasets) != 0:
+            multiple_datasets_js = json.dumps(all_datasets)
+            template_path = os.path.join(base_dir, "multi_dynamic_template.html")
+            dashboard_path = os.path.join(base_dir, "final_dashboard.html")
+
+            try:
+                with open(template_path, 'r', encoding='utf-8') as file:
+                    html_content = file.read()
+
+                # 단 하나의 치환 태그만 사용합니다.
+                html_content = html_content.replace('{{ MULTIPLE_DATASETS_JSON }}', multiple_datasets_js)
+
+                with open(dashboard_path, 'w', encoding='utf-8') as file:
+                    file.write(html_content)
+
+                logger.info(f"✅ 성공! 최종 HTML 파일이 생성되었습니다.")
+                
+                to = config_loader.get_items(plant_name, 'to')
+                send_html_email_from_file(dashboard_path, plant_name, now, to)
+
+            except Exception as e:
+                logger.info(f"❌ HTML 생성 실패: {e}")
+        
+        logger.info('=='*60)        
+        break
