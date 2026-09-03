@@ -41,6 +41,10 @@ def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
         }
 
     @application.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def equipment_status() -> str:
+        return (STATIC_DIR / "equipment-status.html").read_text(encoding="utf-8")
+
+    @application.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard() -> str:
         return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 

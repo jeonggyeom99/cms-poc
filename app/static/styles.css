@@ -66,6 +66,41 @@ select {
   text-decoration: none;
 }
 
+.dashboard-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  color: #dfe9ec;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.dashboard-home-link svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.dashboard-home-link:hover {
+  border-color: rgba(217, 255, 77, 0.68);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-home-link:focus-visible {
+  outline: 3px solid rgba(217, 255, 77, 0.52);
+  outline-offset: 3px;
+}
+
 .brand strong,
 .brand small {
   display: block;
@@ -1400,12 +1435,22 @@ body.graph-modal-open {
 
 @media (max-width: 760px) {
   .topbar {
+    gap: 12px;
     height: 64px;
     padding: 0 18px;
   }
 
   .brand small,
-  #last-updated {
+  #last-updated,
+  .topbar-meta {
+    display: none;
+  }
+
+  .dashboard-home-link {
+    padding: 7px;
+  }
+
+  .dashboard-home-link span {
     display: none;
   }
 

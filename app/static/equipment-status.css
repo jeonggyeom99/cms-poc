@@ -1,0 +1,426 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: #eaf1f5;
+  color: #172b40;
+  font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.equipment-status-page {
+  --es-surface: rgba(255, 255, 255, 0.88);
+  --es-border: rgba(31, 61, 88, 0.16);
+  --es-text: #172b40;
+  --es-muted: #5f7183;
+  --es-accent: #168f9a;
+  --es-normal: #2ba969;
+  --es-attention: #d79620;
+  --es-critical: #df655e;
+  --es-unknown: #7b8b99;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 0, rgba(67, 208, 218, 0.2), transparent 32%),
+    radial-gradient(circle at 90% 15%, rgba(255, 138, 76, 0.16), transparent 25%),
+    linear-gradient(180deg, #f4f8fb, #eaf1f5 52%, #f7fafc);
+}
+
+.equipment-status-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--es-border);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px);
+}
+
+.equipment-status-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.equipment-status-brand:focus-visible,
+.equipment-status-item__link:focus-visible,
+.equipment-status-search button:focus-visible,
+.equipment-status-search select:focus-visible {
+  outline: 3px solid rgba(22, 143, 154, 0.35);
+  outline-offset: 3px;
+}
+
+.equipment-status-brand__mark {
+  display: flex;
+  gap: 4px;
+}
+
+.equipment-status-brand__mark i {
+  width: 7px;
+  height: 23px;
+  border-radius: 99px;
+  background: linear-gradient(var(--es-accent), rgba(22, 143, 154, 0.22));
+}
+
+.equipment-status-brand small,
+.equipment-status-kicker {
+  display: block;
+  color: var(--es-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+
+.equipment-status-brand strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.equipment-status-live {
+  color: var(--es-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.equipment-status-live b {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #36b66b;
+  box-shadow: 0 0 12px #36b66b;
+}
+
+.equipment-status-content {
+  display: grid;
+  gap: 16px;
+  width: min(1160px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 30px 0;
+}
+
+.equipment-status-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.equipment-status-heading h1,
+.equipment-status-panel h2,
+.equipment-status-empty,
+.equipment-status-notice {
+  margin-top: 0;
+}
+
+.equipment-status-heading h1 {
+  margin-bottom: 0;
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.equipment-status-heading time {
+  padding-bottom: 3px;
+  color: var(--es-muted);
+  font-size: 13px;
+}
+
+.equipment-status-search,
+.equipment-status-panel {
+  border: 1px solid var(--es-border);
+  border-radius: 24px;
+  background: var(--es-surface);
+  box-shadow: 0 20px 70px rgba(35, 68, 88, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.equipment-status-search {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 18px;
+}
+
+.equipment-status-search label {
+  display: grid;
+  gap: 7px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.equipment-status-search select,
+.equipment-status-search button {
+  box-sizing: border-box;
+  height: 44px;
+  border: 1px solid var(--es-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--es-text);
+  padding: 0 13px;
+}
+
+.equipment-status-search select {
+  cursor: pointer;
+}
+
+.equipment-status-search button {
+  min-width: 120px;
+  padding-inline: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.equipment-status-search button:hover {
+  border-color: rgba(22, 143, 154, 0.5);
+  background: rgba(22, 143, 154, 0.08);
+  color: #0a6670;
+  transform: translateY(-1px);
+}
+
+.equipment-status-notice {
+  margin-bottom: 0;
+  padding: 12px 16px;
+  border: 1px solid rgba(215, 150, 32, 0.35);
+  border-radius: 14px;
+  background: rgba(255, 242, 217, 0.78);
+  color: #875500;
+  font-size: 13px;
+}
+
+.equipment-status-panel {
+  min-height: 0;
+  padding: 20px;
+}
+
+.equipment-status-panel__head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.equipment-status-panel h2 {
+  margin-bottom: 0;
+  font-size: 20px;
+  letter-spacing: -0.025em;
+}
+
+.equipment-status-panel__head > span {
+  color: var(--es-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.equipment-status-list {
+  height: min(58vh, 560px);
+  overflow: auto;
+  padding-right: 5px;
+  scrollbar-color: rgba(22, 143, 154, 0.38) transparent;
+  scrollbar-width: thin;
+}
+
+.equipment-status-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.equipment-status-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(22, 143, 154, 0.38);
+  background-clip: padding-box;
+}
+
+.equipment-status-item,
+.equipment-status-item__link {
+  min-width: 0;
+}
+
+.equipment-status-item {
+  border-bottom: 1px solid rgba(31, 61, 88, 0.1);
+}
+
+.equipment-status-item:last-child {
+  border-bottom: 0;
+}
+
+.equipment-status-item__content,
+.equipment-status-item__link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 14px 10px;
+}
+
+.equipment-status-item__link {
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.equipment-status-item--live .equipment-status-item__link:hover {
+  background: rgba(22, 143, 154, 0.075);
+  transform: translateX(2px);
+}
+
+.equipment-status-item--demo {
+  opacity: 0.86;
+}
+
+.equipment-status-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 1.38;
+}
+
+.equipment-status-item small {
+  display: block;
+  margin-top: 5px;
+  color: var(--es-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.equipment-status-item__details {
+  min-width: 0;
+}
+
+.equipment-status-dot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.5);
+}
+
+.equipment-status-dot--normal {
+  background: var(--es-normal);
+  box-shadow: 0 0 16px rgba(43, 169, 105, 0.5);
+}
+
+.equipment-status-dot--attention {
+  background: #e2ac3c;
+  box-shadow: 0 0 16px rgba(226, 172, 60, 0.48);
+}
+
+.equipment-status-dot--critical {
+  background: #ee746c;
+  box-shadow: 0 0 16px rgba(238, 116, 108, 0.5);
+}
+
+.equipment-status-dot--unknown {
+  background: var(--es-unknown);
+  box-shadow: 0 0 16px rgba(123, 139, 153, 0.34);
+}
+
+.equipment-status-label {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.equipment-status-label--normal {
+  color: #168554;
+}
+
+.equipment-status-label--attention {
+  color: #aa7000;
+}
+
+.equipment-status-label--critical {
+  color: #c34c45;
+}
+
+.equipment-status-label--unknown {
+  color: #647585;
+}
+
+.equipment-status-data-note {
+  color: #7d8c98;
+  font-weight: 700;
+}
+
+.equipment-status-empty {
+  padding: 50px 0;
+  color: var(--es-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .equipment-status-topbar,
+  .equipment-status-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .equipment-status-topbar {
+    gap: 14px;
+    padding: 17px 18px;
+  }
+
+  .equipment-status-content {
+    width: calc(100% - 28px);
+    padding: 22px 0;
+  }
+
+  .equipment-status-search {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-status-search button {
+    width: 100%;
+  }
+
+  .equipment-status-panel {
+    padding: 16px;
+  }
+
+  .equipment-status-list {
+    height: 55vh;
+  }
+
+  .equipment-status-item__content,
+  .equipment-status-item__link {
+    gap: 12px;
+    padding-inline: 4px;
+  }
+
+  .equipment-status-item strong {
+    font-size: 14px;
+  }
+
+  .equipment-status-label {
+    font-size: 11px;
+  }
+}

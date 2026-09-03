@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=compact-fft-summary">
+    <link rel="stylesheet" href="/static/styles.css?v=equipment-status-landing">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=compact-fft-summary"></script>
+    <script type="module" src="/static/app.js?v=equipment-status-landing"></script>
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="/" aria-label="CMS AI Dashboard 홈">
+        <a class="brand" href="/dashboard" aria-label="CMS AI Dashboard">
           <span>
             <strong>CMS AI</strong>
             <small>Condition Monitoring System</small>
           </span>
+        </a>
+        <a class="dashboard-home-link" href="/" aria-label="설비 현황으로 돌아가기">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+          <span>설비 현황</span>
         </a>
         <div class="dataset-select-wrap">
           <label for="dataset-select">설비</label>

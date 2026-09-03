@@ -93,6 +93,17 @@ function handleOpenExpandedGraph(graphType, trigger) {
   openExpandedGraph(graphType, trigger, renderExpandedGraph);
 }
 
+function requestedDatasetId(items) {
+  const datasetId = new URLSearchParams(window.location.search).get("dataset");
+  return items.some((item) => item.id === datasetId) ? datasetId : items[0].id;
+}
+
+function replaceDatasetIdInUrl(datasetId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("dataset", datasetId);
+  window.history.replaceState(window.history.state, "", url);
+}
+
 async function selectFftRecord(recordId) {
   const dashboardData = getDashboardData();
   const fft = dashboardData?.fft;
@@ -201,8 +212,13 @@ async function initializeDashboard() {
       ),
     );
     select.disabled = false;
-    select.addEventListener("change", () => loadDashboard(select.value));
-    await loadDashboard(items[0].id);
+    select.addEventListener("change", () => {
+      replaceDatasetIdInUrl(select.value);
+      loadDashboard(select.value);
+    });
+    const initialDatasetId = requestedDatasetId(items);
+    select.value = initialDatasetId;
+    await loadDashboard(initialDatasetId);
   } catch (error) {
     console.error("Dataset list loading failed", error);
     select.innerHTML = '<option value="">CSV 목록을 불러오지 못했습니다.</option>';

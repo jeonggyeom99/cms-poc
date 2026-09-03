@@ -638,12 +638,26 @@ def test_dashboard_api_returns_trend_analysis_and_derived_statuses(tmp_path: Pat
         assert payload["equipment"]["statusColor"].startswith("#")
 
 
-def test_dashboard_page_is_served(tmp_path: Path) -> None:
+def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=compact-fft-summary"' in response.text
+    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-landing">' in response.text
+    assert 'src="/static/modules/equipment-status/controller.js?v=equipment-status-landing"' in response.text
+    assert "설비 현황" in response.text
+    assert 'id="equipment-status-process"' in response.text
+    assert 'id="equipment-status-state"' in response.text
+    assert 'id="equipment-status-reset"' in response.text
+    assert 'id="equipment-status-list"' in response.text
+
+
+def test_dashboard_page_is_served(tmp_path: Path) -> None:
+    response = get(create_app(make_data_dir(tmp_path)), "/dashboard")
+
+    assert response.status_code == 200
+    assert 'type="module" src="/static/app.js?v=equipment-status-landing"' in response.text
     assert 'id="dataset-select"' in response.text
+    assert 'class="dashboard-home-link" href="/"' in response.text
     assert "CSV DATA" in response.text
     assert 'class="equipment-overview"' in response.text
     assert 'id="dataset-availability"' in response.text
@@ -682,6 +696,13 @@ def test_dataset_and_dashboard_apis_return_csv_payloads(tmp_path: Path) -> None:
         "fft": True,
         "warningStatus": False,
     }
+    assert items[0]["plant"] == "Area"
+    assert items[0]["line"] == "CSV Dataset #1"
+    assert items[0]["status"] == "unknown"
+    assert items[0]["statusLabel"] == "추세 판단 불가"
+    assert items[0]["statusDescription"]
+    assert items[0]["statusColor"] == "#94a3aa"
+    assert items[0]["lastMeasuredAt"] == "2026-01-05 00:00:00"
 
     detail_response = get(target_app, "/api/dashboard/3")
     assert detail_response.status_code == 200

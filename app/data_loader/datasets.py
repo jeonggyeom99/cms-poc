@@ -193,6 +193,13 @@ def dataset_summaries(datasets: dict[str, dict[str, Any]]) -> list[dict[str, Any
                 "name": equipment["name"],
                 "measurementPoint": equipment["measurementPoint"],
                 "displayName": equipment["displayName"],
+                "plant": equipment["plant"],
+                "line": equipment["line"],
+                "status": equipment["status"],
+                "statusLabel": equipment["statusLabel"],
+                "statusDescription": equipment["statusDescription"],
+                "statusColor": equipment["statusColor"],
+                "lastMeasuredAt": equipment["lastMeasuredAt"],
                 "availability": dataset["meta"]["availability"],
             }
         )
