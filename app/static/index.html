@@ -13,12 +13,17 @@
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="/" aria-label="CMS AI Dashboard 홈">
-          <span class="brand-mark" aria-hidden="true">C</span>
           <span>
             <strong>CMS AI</strong>
             <small>Condition Monitoring System</small>
           </span>
         </a>
+        <div class="dataset-select-wrap">
+          <label for="dataset-select">설비</label>
+          <select id="dataset-select" disabled>
+            <option>CSV 목록을 불러오는 중...</option>
+          </select>
+        </div>
         <div class="topbar-meta">
           <span class="mock-label">CSV DATA</span>
           <span id="last-updated">최근 측정 --</span>
@@ -26,19 +31,6 @@
       </header>
 
       <main>
-        <section class="dataset-selector" aria-labelledby="dataset-selector-title">
-          <div>
-            <span class="eyebrow">EQUIPMENT DATASET</span>
-            <h2 id="dataset-selector-title">설비 데이터 선택</h2>
-          </div>
-          <div class="dataset-select-wrap">
-            <label for="dataset-select">설비</label>
-            <select id="dataset-select" disabled>
-              <option>CSV 목록을 불러오는 중...</option>
-            </select>
-          </div>
-        </section>
-
         <section class="hero" aria-labelledby="equipment-title">
           <div>
             <nav class="breadcrumb" aria-label="설비 위치">
