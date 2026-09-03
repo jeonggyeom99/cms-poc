@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=trend-metric-selector">
+    <link rel="stylesheet" href="/static/styles.css?v=fft-history-metadata">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script defer src="/static/app.js?v=trend-metric-selector"></script>
+    <script defer src="/static/app.js?v=fft-history-metadata"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -155,10 +155,32 @@
                 </div>
                 <div class="trend-metric-grid" id="trend-metric-grid" role="group" aria-label="Trend 측정값 선택"></div>
               </section>
-              <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
-              <div class="graph-modal-footer">
-                <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
-                <div id="graph-modal-summary" class="chart-data-summary" hidden></div>
+              <div class="graph-modal-workspace">
+                <aside class="fft-record-browser" id="fft-record-browser" aria-labelledby="fft-record-list-title" hidden>
+                  <div class="fft-record-browser-heading">
+                    <div>
+                      <span class="eyebrow">FFT HISTORY</span>
+                      <strong id="fft-record-list-title">측정 이력</strong>
+                    </div>
+                    <span id="fft-record-count">0건</span>
+                  </div>
+                  <p class="fft-record-list-status" id="fft-record-list-status" role="status">측정 이력을 불러왔습니다.</p>
+                  <div class="fft-record-list" id="fft-record-list" role="list" aria-label="FFT 측정일시 목록"></div>
+                </aside>
+                <section class="graph-modal-main">
+                  <dl class="fft-metadata-grid" id="fft-metadata-grid" aria-label="선택한 FFT 메타데이터" hidden>
+                    <div><dt>채취일시</dt><dd id="fft-meta-measure-date">--</dd></div>
+                    <div><dt>채취종류</dt><dd id="fft-meta-extraction-type">--</dd></div>
+                    <div><dt>진단모드</dt><dd id="fft-meta-diag-mode">--</dd></div>
+                    <div><dt>측정모드</dt><dd id="fft-meta-measure-mode">--</dd></div>
+                    <div><dt>분해능</dt><dd id="fft-meta-measure-freq">--</dd></div>
+                  </dl>
+                  <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
+                  <div class="graph-modal-footer">
+                    <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
+                    <div id="graph-modal-summary" class="chart-data-summary" hidden></div>
+                  </div>
+                </section>
               </div>
             </div>
           </div>

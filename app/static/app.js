@@ -28,6 +28,8 @@ let currentPeriod = "90";
 let expandedGraph = null;
 let expandedGraphTrigger = null;
 let selectedTrendMetrics = new Set(["velocity"]);
+let fftRecordCache = new Map();
+let fftSelectionRequest = 0;
 
 function formatNumber(value, digits = 2) {
   return Number.isFinite(Number(value)) && value !== null ? Number(value).toFixed(digits) : "--";
@@ -386,27 +388,37 @@ function renderTrend(period = "90") {
   renderPlot("trend-chart", buildTrendFigure(period));
 }
 
-function buildFftFigure() {
-  const fft = dashboardData.fft;
+function buildFftFigure(fft = dashboardData.fft) {
+  const measureModeLabel = fft.metadata?.measureMode?.label ?? "진폭";
+  const frequencySuffix = fft.frequencyUnit === "Hz" ? " Hz" : " bin";
+  const amplitudeSuffix = fft.amplitudeUnit ? ` ${fft.amplitudeUnit}` : "";
   const traces = [
     {
       x: fft.frequencies,
       y: fft.amplitudes,
       type: "scatter",
       mode: "lines",
-      name: "진폭",
+      name: measureModeLabel,
       line: { color: palette.teal, width: 1.6 },
       fill: "tozeroy",
       fillcolor: palette.tealFill,
-      hovertemplate: "%{x:.2f} Hz<br><b>%{y:.4f} mm/s</b><extra></extra>",
+      hovertemplate: `%{x:.2f}${frequencySuffix}<br><b>%{y:.4f}${amplitudeSuffix}</b><extra></extra>`,
     },
   ];
 
   const layout = baseLayout();
   layout.margin = { l: 52, r: 15, t: 36, b: 43 };
   layout.showlegend = false;
-  layout.xaxis.title = { text: "Frequency (Hz)", standoff: 8, font: { size: 10 } };
-  layout.yaxis.title = { text: "진폭 (mm/s)", standoff: 8, font: { size: 10 } };
+  layout.xaxis.title = {
+    text: fft.frequencyUnit === "Hz" ? "Frequency (Hz)" : "FFT bin",
+    standoff: 8,
+    font: { size: 10 },
+  };
+  layout.yaxis.title = {
+    text: fft.amplitudeUnit ? `${measureModeLabel} (${fft.amplitudeUnit})` : measureModeLabel,
+    standoff: 8,
+    font: { size: 10 },
+  };
   layout.yaxis.rangemode = "tozero";
 
   return { traces, layout };
@@ -425,8 +437,140 @@ function renderFft() {
   setExpandButtonEnabled("fft", true);
   renderPlot("fft-chart", buildFftFigure());
 
-  document.getElementById("fft-range").textContent = `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
-  document.getElementById("fft-summary").textContent = `측정 ${fft.measuredAt} · ${fft.amplitudes.length} Lines`;
+  document.getElementById("fft-range").textContent = fftRangeText(fft);
+  document.getElementById("fft-summary").textContent = fftSummaryText(fft);
+}
+
+function formatCodedValue(value) {
+  if (!value) return "--";
+  return `${value.label || "알 수 없음"} (${value.code || "--"})`;
+}
+
+function fftSummaryText(fft) {
+  const mode = fft.metadata?.measureMode?.label ?? "측정모드 미상";
+  return `측정 ${fft.measuredAt} · ${mode} · ${fft.lineCount ?? fft.amplitudes.length} Lines`;
+}
+
+function fftRangeText(fft) {
+  return fft.frequencyRange === null
+    ? "주파수 범위 미상"
+    : `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
+}
+
+function fftExtractionClass(code) {
+  if (code === "3") return "caution";
+  if (code === "4") return "danger";
+  return "";
+}
+
+function setFftRecordStatus(message, isError = false) {
+  const status = document.getElementById("fft-record-list-status");
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+
+function syncFftRecordSelection(pendingId = null) {
+  document.querySelectorAll("[data-fft-record-id]").forEach((button) => {
+    const recordId = Number(button.dataset.fftRecordId);
+    const selected = recordId === dashboardData?.fft?.recordId;
+    button.classList.toggle("active", selected);
+    button.classList.toggle("pending", recordId === pendingId);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function renderFftRecordList() {
+  const fft = dashboardData?.fft;
+  const records = fft?.records ?? [];
+  const list = document.getElementById("fft-record-list");
+  document.getElementById("fft-record-count").textContent = `${records.length.toLocaleString("ko-KR")}건`;
+
+  const buttons = records.map((record) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "fft-record-item";
+    button.dataset.fftRecordId = String(record.id);
+    button.setAttribute(
+      "aria-label",
+      `${record.measuredAt}, ${formatCodedValue(record.measureMode)}, ${formatCodedValue(record.extractionType)}`,
+    );
+
+    const time = document.createElement("span");
+    time.className = "fft-record-time";
+    time.textContent = record.measuredAt;
+
+    const badges = document.createElement("span");
+    badges.className = "fft-record-badges";
+    const modeBadge = document.createElement("span");
+    modeBadge.className = "fft-record-badge";
+    modeBadge.textContent = formatCodedValue(record.measureMode);
+    const extractionBadge = document.createElement("span");
+    const extractionClass = fftExtractionClass(record.extractionType?.code);
+    extractionBadge.className = `fft-record-badge${extractionClass ? ` ${extractionClass}` : ""}`;
+    extractionBadge.textContent = formatCodedValue(record.extractionType);
+    badges.append(modeBadge, extractionBadge);
+    button.append(time, badges);
+    return button;
+  });
+  list.replaceChildren(...buttons);
+  syncFftRecordSelection();
+  setFftRecordStatus(records.length ? `${records.length.toLocaleString("ko-KR")}개 측정 기록` : "측정 이력이 없습니다.");
+  list.querySelector(".fft-record-item.active")?.scrollIntoView({ block: "nearest" });
+}
+
+function renderFftMetadata() {
+  const metadata = dashboardData?.fft?.metadata;
+  document.getElementById("fft-meta-measure-date").textContent = metadata?.measureDate ?? "--";
+  document.getElementById("fft-meta-extraction-type").textContent = formatCodedValue(metadata?.extractionType);
+  document.getElementById("fft-meta-diag-mode").textContent = formatCodedValue(metadata?.diagMode);
+  document.getElementById("fft-meta-measure-mode").textContent = formatCodedValue(metadata?.measureMode);
+  document.getElementById("fft-meta-measure-freq").textContent = formatCodedValue(metadata?.measureFreq);
+}
+
+function updateExpandedFftDetails() {
+  const fft = dashboardData.fft;
+  document.getElementById("graph-modal-fft-range").textContent = fftRangeText(fft);
+  document.getElementById("graph-modal-summary").textContent = fftSummaryText(fft);
+  renderFftMetadata();
+  syncFftRecordSelection();
+}
+
+async function selectFftRecord(recordId) {
+  const fft = dashboardData?.fft;
+  if (!fft || recordId === fft.recordId) return;
+
+  const requestId = ++fftSelectionRequest;
+  const list = document.getElementById("fft-record-list");
+  list.setAttribute("aria-busy", "true");
+  syncFftRecordSelection(recordId);
+  setFftRecordStatus("선택한 FFT를 불러오는 중...");
+
+  try {
+    let record = fftRecordCache.get(recordId);
+    if (!record) {
+      const datasetId = dashboardData.meta.datasetId;
+      const response = await fetch(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      record = await response.json();
+      fftRecordCache.set(recordId, record);
+    }
+    if (requestId !== fftSelectionRequest) return;
+
+    dashboardData.fft = { ...record, records: fft.records };
+    renderFft();
+    if (expandedGraph === "fft") {
+      updateExpandedFftDetails();
+      renderExpandedGraph();
+    }
+    setFftRecordStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
+  } catch (error) {
+    if (requestId !== fftSelectionRequest) return;
+    console.error("FFT record loading failed", error);
+    syncFftRecordSelection();
+    setFftRecordStatus("선택한 FFT를 불러오지 못했습니다.", true);
+  } finally {
+    if (requestId === fftSelectionRequest) list.removeAttribute("aria-busy");
+  }
 }
 
 function levelDifferenceLabel(value) {
@@ -491,8 +635,8 @@ function openExpandedGraph(graphType, trigger) {
   if (!dashboardData?.[graphType]) return;
 
   const modal = document.getElementById("graph-modal");
+  const modalBody = modal.querySelector(".graph-modal-body");
   const isTrend = graphType === "trend";
-  const fft = dashboardData.fft;
   expandedGraph = graphType;
   expandedGraphTrigger = trigger;
 
@@ -511,15 +655,20 @@ function openExpandedGraph(graphType, trigger) {
   const fftRange = document.getElementById("graph-modal-fft-range");
   const summary = document.getElementById("graph-modal-summary");
   const trendMetricSelector = document.getElementById("trend-metric-selector");
+  const fftRecordBrowser = document.getElementById("fft-record-browser");
+  const fftMetadataGrid = document.getElementById("fft-metadata-grid");
   periodTabs.hidden = !isTrend;
   fftRange.hidden = isTrend;
   summary.hidden = isTrend;
   trendMetricSelector.hidden = !isTrend;
+  fftRecordBrowser.hidden = isTrend;
+  fftMetadataGrid.hidden = isTrend;
+  modalBody.classList.toggle("fft-expanded", !isTrend);
   if (isTrend) {
     renderTrendMetricSelector();
   } else {
-    fftRange.textContent = `주파수 범위 ${formatNumber(fft.frequencyRange, 0)} Hz`;
-    summary.textContent = `측정 ${fft.measuredAt} · ${fft.amplitudes.length} Lines`;
+    renderFftRecordList();
+    updateExpandedFftDetails();
   }
 
   modal.showModal();
@@ -540,6 +689,10 @@ function bindGraphModal() {
     button.addEventListener("click", () => openExpandedGraph(button.dataset.expandGraph, button));
   });
   document.getElementById("graph-modal-close").addEventListener("click", closeExpandedGraph);
+  document.getElementById("fft-record-list").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-fft-record-id]");
+    if (button) selectFftRecord(Number(button.dataset.fftRecordId));
+  });
   modal.addEventListener("click", (event) => {
     if (event.target === modal) closeExpandedGraph();
   });
@@ -553,6 +706,7 @@ function bindGraphModal() {
     Plotly.purge(modalPlot);
     modalPlot.className = "plot graph-modal-plot";
     modalPlot.textContent = "";
+    modal.querySelector(".graph-modal-body").classList.remove("fft-expanded");
     document.body.classList.remove("graph-modal-open");
     expandedGraph = null;
     expandedGraphTrigger?.focus();
@@ -594,6 +748,8 @@ function availabilityLabel(availability) {
 
 async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
+  fftSelectionRequest += 1;
+  fftRecordCache = new Map();
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
@@ -601,6 +757,10 @@ async function loadDashboard(datasetId) {
     const response = await fetch(`/api/dashboard/${encodeURIComponent(datasetId)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     dashboardData = await response.json();
+    if (dashboardData.fft) {
+      const { records, ...selectedRecord } = dashboardData.fft;
+      fftRecordCache.set(selectedRecord.recordId, selectedRecord);
+    }
     resetPeriodTabs();
     resetTrendMetricSelection();
     populateSummary(dashboardData);

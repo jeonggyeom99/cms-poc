@@ -83,13 +83,15 @@ def fft_row(
     *,
     measure_mode: str = "3",
     frequency_code: str = "5",
+    extraction_type: str = "2",
+    diag_mode: str = "1",
 ) -> dict[str, str]:
     result_data = struct.pack(f"<{len(amplitudes)}f", *amplitudes)
     return {
         "SignalID": "1",
         "MeasureDate": measured_at,
-        "ExtractionType": "2",
-        "DaiagMode": "1",
+        "ExtractionType": extraction_type,
+        "DaiagMode": diag_mode,
         "MeasureMode": measure_mode,
         "MeasureFreq": frequency_code,
         "MeasureLineNum": str(len(amplitudes)),
@@ -228,12 +230,92 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert dataset["current"]["dangerThreshold"] == pytest.approx(5.44)
     assert dataset["levelAnalysis"]["configured"]["measuredAt"] == "2026-01-05 00:00:00"
     assert dataset["fft"]["measuredAt"] == "2026-01-04 00:00:00"
+    assert dataset["fft"]["recordId"] == 4
+    assert [record["id"] for record in dataset["fft"]["records"]] == [4, 2, 3]
+    assert dataset["fft"]["records"][1]["measureMode"] == {
+        "code": "2",
+        "label": "가속도ENV",
+    }
+    assert dataset["fft"]["metadata"]["extractionType"] == {
+        "code": "2",
+        "label": "정기",
+    }
+    assert dataset["fft"]["metadata"]["diagMode"] == {"code": "1", "label": "기구부"}
+    assert dataset["fft"]["metadata"]["measureFreq"] == {
+        "code": "5",
+        "label": "500 Hz",
+        "frequencyRange": 500.0,
+    }
+    assert dataset["fft"]["lineCount"] == 2
+    assert dataset["fft"]["amplitudeUnit"] == "mm/s"
     assert dataset["fft"]["frequencies"] == [0.0, 250.0]
     assert dataset["fft"]["amplitudes"] == pytest.approx([0.3, 0.4])
 
     fft_only = datasets["2"]
     assert fft_only["fft"]["frequencyRange"] == 1000.0
     assert fft_only["fft"]["frequencies"] == [0.0, 250.0, 500.0, 750.0]
+
+
+def test_fft_supports_canonical_diag_header_all_modes_and_frequency_codes(tmp_path: Path) -> None:
+    canonical_columns = ["DiagMode" if column == "DaiagMode" else column for column in FFT_COLUMNS]
+    rows = []
+    for measured_at, mode, frequency, extraction, diag in (
+        ("2026-01-01 00:00:00", "0", "9", "3", "11"),
+        ("2026-01-02 00:00:00", "2", "10", "4", "12"),
+    ):
+        row = fft_row(
+            measured_at,
+            [1.0, 2.0],
+            measure_mode=mode,
+            frequency_code=frequency,
+            extraction_type=extraction,
+            diag_mode=diag,
+        )
+        row["DiagMode"] = row.pop("DaiagMode")
+        rows.append(row)
+    write_csv(tmp_path / "1.FFT_Test Pump_Point (V001).csv", canonical_columns, rows)
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+
+    assert fft["measuredAt"] == "2026-01-02 00:00:00"
+    assert fft["metadata"]["measureMode"] == {"code": "2", "label": "가속도ENV"}
+    assert fft["metadata"]["measureFreq"]["frequencyRange"] == 20000.0
+    assert fft["metadata"]["diagMode"] == {"code": "12", "label": "기어1"}
+    assert fft["metadata"]["extractionType"] == {"code": "4", "label": "위험경보"}
+    assert fft["amplitudeUnit"] == "g"
+    assert fft["frequencies"] == [0.0, 10000.0]
+    assert fft["records"][1]["measureFreq"]["frequencyRange"] == 10000.0
+
+
+def test_fft_unknown_metadata_codes_are_preserved(tmp_path: Path) -> None:
+    write_csv(
+        tmp_path / "1.FFT_Test Pump_Point (V001).csv",
+        FFT_COLUMNS,
+        [
+            fft_row(
+                "2026-01-01 00:00:00",
+                [1.0, 2.0],
+                measure_mode="99",
+                frequency_code="99",
+                extraction_type="99",
+                diag_mode="99",
+            )
+        ],
+    )
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+
+    assert fft["metadata"]["measureMode"] == {"code": "99", "label": "알 수 없음"}
+    assert fft["metadata"]["measureFreq"] == {
+        "code": "99",
+        "label": "알 수 없음",
+        "frequencyRange": None,
+    }
+    assert fft["metadata"]["extractionType"] == {"code": "99", "label": "알 수 없음"}
+    assert fft["metadata"]["diagMode"] == {"code": "99", "label": "알 수 없음"}
+    assert fft["frequencyUnit"] == "bin"
+    assert fft["amplitudeUnit"] is None
+    assert fft["frequencies"] == [0.0, 1.0]
 
 
 def test_velave_level_uses_three_calendar_months_and_excludes_iqr_outlier() -> None:
@@ -441,6 +523,9 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="graph-modal-chart"' in response.text
     assert 'id="trend-metric-selector"' in response.text
     assert 'id="trend-metric-grid"' in response.text
+    assert 'id="fft-record-list"' in response.text
+    assert 'id="fft-metadata-grid"' in response.text
+    assert 'id="fft-meta-measure-date"' in response.text
     assert "후속 단계" in response.text
 
 
@@ -484,6 +569,34 @@ def test_dashboard_api_returns_level_comparison_states(tmp_path: Path) -> None:
     assert compared["levelAnalysis"]["difference"] is not None
     assert unavailable["levelAnalysis"]["status"] == "unavailable"
     assert recommendation_only["levelAnalysis"]["status"] == "recommendation_only"
+
+
+def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_path: Path) -> None:
+    target_app = create_app(make_data_dir(tmp_path))
+
+    dashboard_response = get(target_app, "/api/dashboard/1")
+    assert dashboard_response.status_code == 200
+    fft = dashboard_response.json()["fft"]
+    assert fft["recordId"] == 4
+    assert "_sourcePath" not in fft
+    assert len(fft["records"]) == 3
+    assert all("amplitudes" not in record for record in fft["records"])
+
+    record_response = get(target_app, "/api/dashboard/1/fft/2")
+    assert record_response.status_code == 200
+    record = record_response.json()
+    assert record["recordId"] == 2
+    assert record["measuredAt"] == "2026-01-03 00:00:00"
+    assert record["metadata"]["measureMode"] == {"code": "2", "label": "가속도ENV"}
+    assert record["amplitudeUnit"] == "g"
+    assert record["frequencyRange"] == 500.0
+    assert record["frequencies"] == [0.0, 250.0]
+    assert record["amplitudes"] == pytest.approx([9.0, 9.0])
+    assert "records" not in record
+
+    assert get(target_app, "/api/dashboard/1/fft/999").status_code == 404
+    assert get(target_app, "/api/dashboard/3/fft/2").status_code == 404
+    assert get(target_app, "/api/dashboard/99/fft/2").status_code == 404
 
 
 def test_default_dashboard_and_missing_dataset_responses(tmp_path: Path) -> None:

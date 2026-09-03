@@ -23,6 +23,35 @@ INLINE_CODE_PATTERN = re.compile(r"-V\d+$", re.IGNORECASE)
 FREQUENCY_RANGES_HZ = {
     "5": 500.0,
     "6": 1000.0,
+    "9": 10000.0,
+    "10": 20000.0,
+}
+
+EXTRACTION_TYPE_LABELS = {
+    "2": "정기",
+    "3": "주의경보",
+    "4": "위험경보",
+}
+
+DIAG_MODE_LABELS = {
+    "0": "없음",
+    "1": "기구부",
+    "2": "구름베어링",
+    "11": "기어2",
+    "12": "기어1",
+}
+
+MEASURE_MODE_DEFINITIONS = {
+    "0": {"label": "가속도ALL", "amplitudeUnit": "g"},
+    "2": {"label": "가속도ENV", "amplitudeUnit": "g"},
+    "3": {"label": "속도", "amplitudeUnit": "mm/s"},
+}
+
+MEASURE_FREQ_LABELS = {
+    "5": "500 Hz",
+    "6": "1 kHz",
+    "9": "10 kHz",
+    "10": "20 kHz",
 }
 
 TREND_MOVING_AVERAGE_POINTS = 72
@@ -437,45 +466,109 @@ def _decode_float32_bytes(raw_value: str) -> list[float]:
     return list(struct.unpack(f"<{value_count}f", decoded))
 
 
-def _load_fft(path: Path) -> dict[str, Any]:
-    latest_row: dict[str, str] | None = None
-    with path.open(encoding="utf-8-sig", newline="") as fft_file:
-        reader = csv.DictReader(fft_file)
-        required_columns = {"MeasureDate", "MeasureMode", "MeasureFreq", "MeasureLineNum", "ResultData"}
-        if not required_columns.issubset(reader.fieldnames or []):
-            missing = ", ".join(sorted(required_columns - set(reader.fieldnames or [])))
-            raise ValueError(f"FFT CSV 필수 컬럼 누락: {missing}")
+def _coded_value(code: str, labels: dict[str, str]) -> dict[str, str]:
+    return {"code": code, "label": labels.get(code, "알 수 없음")}
 
-        for row in reader:
-            if row["MeasureMode"] != "3":
-                continue
-            if latest_row is None or row["MeasureDate"] > latest_row["MeasureDate"]:
-                latest_row = row
 
-    if latest_row is None:
-        raise ValueError("FFT CSV에 속도(MeasureMode=3) 데이터가 없습니다.")
+def _fft_metadata(row: dict[str, str]) -> dict[str, Any]:
+    frequency_code = row["MeasureFreq"]
+    measure_mode = row["MeasureMode"]
+    diag_mode = row.get("DiagMode") or row.get("DaiagMode") or ""
+    frequency = _coded_value(frequency_code, MEASURE_FREQ_LABELS)
+    frequency["frequencyRange"] = FREQUENCY_RANGES_HZ.get(frequency_code)
+    return {
+        "measureDate": row["MeasureDate"],
+        "extractionType": _coded_value(row["ExtractionType"], EXTRACTION_TYPE_LABELS),
+        "diagMode": _coded_value(diag_mode, DIAG_MODE_LABELS),
+        "measureMode": _coded_value(
+            measure_mode,
+            {code: definition["label"] for code, definition in MEASURE_MODE_DEFINITIONS.items()},
+        ),
+        "measureFreq": frequency,
+    }
 
-    frequency_code = latest_row["MeasureFreq"]
-    if frequency_code not in FREQUENCY_RANGES_HZ:
-        raise ValueError(f"지원하지 않는 FFT 주파수 코드: {frequency_code}")
 
-    amplitudes = _decode_float32_bytes(latest_row["ResultData"])
-    line_count = int(latest_row["MeasureLineNum"])
+def _fft_record_summary(row: dict[str, str], record_id: int) -> dict[str, Any]:
+    metadata = _fft_metadata(row)
+    return {
+        "id": record_id,
+        "measuredAt": metadata["measureDate"],
+        "extractionType": metadata["extractionType"],
+        "diagMode": metadata["diagMode"],
+        "measureMode": metadata["measureMode"],
+        "measureFreq": metadata["measureFreq"],
+    }
+
+
+def _build_fft_record(row: dict[str, str], record_id: int) -> dict[str, Any]:
+    frequency_code = row["MeasureFreq"]
+    measure_mode = row["MeasureMode"]
+    amplitudes = _decode_float32_bytes(row["ResultData"])
+    line_count = int(row["MeasureLineNum"])
     if len(amplitudes) != line_count:
         raise ValueError(
             f"FFT 라인 수 불일치: MeasureLineNum={line_count}, ResultData={len(amplitudes)}"
         )
 
-    frequency_range = FREQUENCY_RANGES_HZ[frequency_code]
-    frequency_step = frequency_range / line_count
+    frequency_range = FREQUENCY_RANGES_HZ.get(frequency_code)
+    frequency_step = frequency_range / line_count if frequency_range is not None else 1.0
     return {
-        "measuredAt": latest_row["MeasureDate"],
-        "frequencyUnit": "Hz",
-        "amplitudeUnit": "mm/s",
+        "recordId": record_id,
+        "measuredAt": row["MeasureDate"],
+        "metadata": _fft_metadata(row),
+        "frequencyUnit": "Hz" if frequency_range is not None else "bin",
+        "amplitudeUnit": MEASURE_MODE_DEFINITIONS.get(measure_mode, {}).get("amplitudeUnit"),
         "frequencyRange": frequency_range,
+        "lineCount": line_count,
         "frequencies": [index * frequency_step for index in range(line_count)],
         "amplitudes": amplitudes,
     }
+
+
+def _load_fft(path: Path) -> dict[str, Any]:
+    rows: list[tuple[int, dict[str, str]]] = []
+    with path.open(encoding="utf-8-sig", newline="") as fft_file:
+        reader = csv.DictReader(fft_file)
+        fieldnames = set(reader.fieldnames or [])
+        required_columns = {
+            "MeasureDate",
+            "ExtractionType",
+            "MeasureMode",
+            "MeasureFreq",
+            "MeasureLineNum",
+            "ResultData",
+        }
+        if not required_columns.issubset(reader.fieldnames or []):
+            missing = ", ".join(sorted(required_columns - fieldnames))
+            raise ValueError(f"FFT CSV 필수 컬럼 누락: {missing}")
+        if not {"DiagMode", "DaiagMode"} & fieldnames:
+            raise ValueError("FFT CSV 필수 컬럼 누락: DiagMode (또는 DaiagMode)")
+
+        rows = [(row_number, row) for row_number, row in enumerate(reader, start=2)]
+
+    if not rows:
+        raise ValueError("FFT CSV에 데이터 행이 없습니다.")
+
+    rows.sort(key=lambda item: (item[1]["MeasureDate"], item[0]), reverse=True)
+    default_record = next((item for item in rows if item[1]["MeasureMode"] == "3"), rows[0])
+    fft = _build_fft_record(default_record[1], default_record[0])
+    fft["records"] = [_fft_record_summary(row, record_id) for record_id, row in rows]
+    fft["_sourcePath"] = path
+    return fft
+
+
+def load_fft_record(fft: dict[str, Any], record_id: int) -> dict[str, Any]:
+    if not any(record["id"] == record_id for record in fft["records"]):
+        raise KeyError(record_id)
+
+    path = fft["_sourcePath"]
+    with path.open(encoding="utf-8-sig", newline="") as fft_file:
+        reader = csv.DictReader(fft_file)
+        for row_number, row in enumerate(reader, start=2):
+            if row_number == record_id:
+                return _build_fft_record(row, record_id)
+
+    raise KeyError(record_id)
 
 
 def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:

@@ -15,8 +15,10 @@
 
 - 같은 번호의 `WarningStatus` CSV가 있으면 최신 행에서 가속도 ALL/BPF/PEAK, 속도, 변위의 주의·위험 Level을 읽습니다. 속도 외 Level 컬럼은 선택 사항입니다.
 - Trend는 `DataDate`, `VelAve`, `AccAllAve`를 필수로 사용하며, 확대 화면의 측정값 선택에는 `AccBpfAve`, `AccPeakAve`, `CrestfactorAve`를 추가로 사용합니다. 현재 PoC에서는 `CrestfactorAve`를 변위(`µm`)로 표시합니다.
-- FFT는 최신 `MeasureMode=3` 행의 `ResultData`를 속도 스펙트럼으로 사용합니다.
-- `MeasureFreq` 코드 `5`는 500 Hz, `6`은 1000 Hz 범위로 변환합니다.
+- FFT는 모든 측정모드의 이력을 제공하며, 기본 화면에서는 최신 `MeasureMode=3` 속도 기록을 선택합니다. 속도 기록이 없으면 가장 최신 FFT를 사용합니다.
+- FFT 확대 화면의 왼쪽 측정일시 목록에서 다른 기록을 선택할 수 있으며, 선택 결과는 기본 FFT 그래프에도 반영됩니다.
+- `MeasureMode`에 따라 가속도 ALL/ENV는 `g`, 속도는 `mm/s`로 표시합니다. `MeasureFreq` 코드 `5`, `6`, `9`, `10`은 각각 500 Hz, 1 kHz, 10 kHz, 20 kHz 범위로 변환합니다.
+- FFT 메타데이터 코드표는 [`docs/fft-data-metadata.md`](docs/fft-data-metadata.md)를 참고합니다.
 - Trend 또는 FFT 한쪽이 없어도 설비 목록에 표시되며, 해당 그래프에는 데이터 없음 상태가 표시됩니다.
 - `data/`의 실제 CSV는 저장소에 포함되지 않으므로 실행 환경에서 별도로 제공해야 합니다.
 
