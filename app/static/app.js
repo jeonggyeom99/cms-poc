@@ -430,7 +430,6 @@ function renderFft() {
     setExpandButtonEnabled("fft", false);
     setPlotEmpty("fft-chart", "이 설비에는 FFT CSV가 없습니다.");
     document.getElementById("fft-range").textContent = "주파수 범위 --";
-    document.getElementById("fft-summary").textContent = "FFT 측정 정보가 없습니다.";
     return;
   }
 
@@ -438,7 +437,6 @@ function renderFft() {
   renderPlot("fft-chart", buildFftFigure());
 
   document.getElementById("fft-range").textContent = fftRangeText(fft);
-  document.getElementById("fft-summary").textContent = fftSummaryText(fft);
 }
 
 function formatCodedValue(value) {
