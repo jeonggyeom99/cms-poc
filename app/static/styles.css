@@ -1213,8 +1213,7 @@ body.graph-modal-open {
   font-weight: 800;
 }
 
-.level-comparison-item > p,
-.level-statistics {
+.level-comparison-item > p {
   color: var(--muted);
   font-size: 11px;
 }
@@ -1223,15 +1222,6 @@ body.graph-modal-open {
   margin: 10px 0 0;
   padding-top: 9px;
   border-top: 1px solid var(--line);
-}
-
-.level-statistics {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 9px;
-  background: var(--teal-soft);
-  line-height: 1.5;
-  text-align: center;
 }
 
 .level-metrics {

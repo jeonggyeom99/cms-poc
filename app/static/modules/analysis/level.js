@@ -39,6 +39,5 @@ export function renderLevelAnalysis(data) {
           </dl>
           <p>${levelDifferenceLabel(analysis.difference?.[key] ?? null)}</p>
         </section>`).join("")}
-    </div>
-    <p class="level-statistics">IQR 정상 범위 ${formatNumber(analysis.lowerBound)}–${formatNumber(analysis.upperBound)} mm/s · 정상 평균 ${formatNumber(analysis.normalMean)} mm/s</p>`;
+    </div>`;
 }
