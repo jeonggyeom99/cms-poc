@@ -30,6 +30,7 @@ let expandedGraphTrigger = null;
 let selectedTrendMetrics = new Set(["velocity"]);
 let fftRecordCache = new Map();
 let fftSelectionRequest = 0;
+const plotRenderVersions = new WeakMap();
 
 function formatNumber(value, digits = 2) {
   return Number.isFinite(Number(value)) && value !== null ? Number(value).toFixed(digits) : "--";
@@ -136,11 +137,33 @@ function setExpandButtonEnabled(graphType, enabled) {
   button.setAttribute("aria-label", button.title);
 }
 
+function limitPlotAxesToInitialRange(plot) {
+  const updates = {};
+
+  Object.entries(plot._fullLayout ?? {}).forEach(([axisName, axis]) => {
+    if (!/^[xy]axis\d*$/.test(axisName) || !Array.isArray(axis?.range)) return;
+
+    const [minimum, maximum] = axis.range;
+    if (minimum === null || minimum === undefined || maximum === null || maximum === undefined) return;
+
+    updates[`${axisName}.minallowed`] = minimum;
+    updates[`${axisName}.maxallowed`] = maximum;
+  });
+
+  if (Object.keys(updates).length) return Plotly.relayout(plot, updates);
+}
+
 function renderPlot(plotId, { traces, layout }) {
   const plot = document.getElementById(plotId);
   plot.className = plotId === "graph-modal-chart" ? "plot graph-modal-plot" : "plot";
   plot.textContent = "";
-  Plotly.react(plot, traces, layout, plotConfig);
+  const renderVersion = (plotRenderVersions.get(plot) ?? 0) + 1;
+  plotRenderVersions.set(plot, renderVersion);
+  void Promise.resolve(Plotly.react(plot, traces, layout, plotConfig)).then(() => {
+    if (plotRenderVersions.get(plot) === renderVersion) {
+      return limitPlotAxesToInitialRange(plot);
+    }
+  });
 }
 
 function filteredTrendPoints(period) {
