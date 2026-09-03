@@ -39,9 +39,11 @@ export function openExpandedGraph(graphType, trigger, renderExpandedGraph) {
 
   const periodTabs = document.getElementById("graph-modal-period-tabs");
   const trendMetricSelector = document.getElementById("trend-metric-selector");
+  const fftHistoryBrowser = document.getElementById("fft-history-browser");
   periodTabs.hidden = !isTrend;
   trendMetricSelector.hidden = !isTrend;
-  modalBody.classList.remove("fft-expanded");
+  fftHistoryBrowser.hidden = isTrend;
+  modalBody.classList.toggle("fft-expanded", !isTrend);
   if (isTrend) {
     renderTrendMetricSelector(dashboardData);
   }
@@ -66,11 +68,11 @@ export function bindGraphModal({ onExpandGraph, onFftRecordSelect }) {
     button.addEventListener("click", () => onExpandGraph(button.dataset.expandGraph, button));
   });
   document.getElementById("graph-modal-close").addEventListener("click", closeExpandedGraph);
-  document.getElementById("fft-record-list").addEventListener("click", (event) => {
+  ["fft-record-list", "fft-history-list"].forEach((listId) => document.getElementById(listId).addEventListener("click", (event) => {
     const button = event.target.closest("[data-fft-record-id]");
     if (button) onFftRecordSelect(Number(button.dataset.fftRecordId));
-  });
-  document.getElementById("fft-record-list").addEventListener("keydown", (event) => {
+  }));
+  ["fft-record-list", "fft-history-list"].forEach((listId) => document.getElementById(listId).addEventListener("keydown", (event) => {
     if (event.key !== "ArrowDown") return;
     const current = event.target.closest("[data-fft-record-id]");
     const next = current?.nextElementSibling;
@@ -78,7 +80,7 @@ export function bindGraphModal({ onExpandGraph, onFftRecordSelect }) {
     event.preventDefault();
     next.focus();
     onFftRecordSelect(Number(next.dataset.fftRecordId));
-  });
+  }));
   modal.addEventListener("click", (event) => {
     if (event.target === modal) closeExpandedGraph();
   });

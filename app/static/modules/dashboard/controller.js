@@ -30,8 +30,10 @@ import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v
 import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=plot-zoom-bounds";
 import {
   renderFftMetadata,
+  renderFftHistoryList,
   renderFftRecordList,
   setFftRecordStatus,
+  setFftHistoryStatus,
   syncFftRecordSelection,
 } from "../fft/records.js";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=plot-zoom-bounds";
@@ -90,6 +92,7 @@ function handleTrendMetricSelectionChange() {
 }
 
 function handleOpenExpandedGraph(graphType, trigger) {
+  if (graphType === "fft") renderFftHistoryList(getDashboardData()?.fft);
   openExpandedGraph(graphType, trigger, renderExpandedGraph);
 }
 
@@ -107,16 +110,15 @@ function replaceDatasetIdInUrl(datasetId) {
 async function selectFftRecord(recordId) {
   const dashboardData = getDashboardData();
   const fft = dashboardData?.fft;
-  const isAlertRecord = fft?.records?.some(
-    (record) => record.id === recordId && record.isAlertFft,
-  );
-  if (!fft || !isAlertRecord || recordId === fft.recordId) return;
+  const recordExists = fft?.records?.some((record) => record.id === recordId);
+  if (!fft || !recordExists || recordId === fft.recordId) return;
 
   const requestId = createFftSelectionRequest();
   const list = document.getElementById("fft-record-list");
   list.setAttribute("aria-busy", "true");
   syncFftRecordSelection(fft, recordId);
   setFftRecordStatus("선택한 FFT를 불러오는 중...");
+  setFftHistoryStatus("선택한 FFT를 불러오는 중...");
 
   try {
     let record = getCachedFftRecord(recordId);
@@ -136,6 +138,7 @@ async function selectFftRecord(recordId) {
     };
     setDashboardData(updatedDashboardData);
     renderFft();
+    setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
       renderExpandedGraph();
     }
@@ -144,6 +147,7 @@ async function selectFftRecord(recordId) {
     console.error("FFT record loading failed", error);
     syncFftRecordSelection(fft);
     setFftRecordStatus("선택한 FFT를 불러오지 못했습니다.", true);
+    setFftHistoryStatus("선택한 FFT를 불러오지 못했습니다.", true);
   } finally {
     if (isCurrentFftSelectionRequest(requestId)) list.removeAttribute("aria-busy");
   }

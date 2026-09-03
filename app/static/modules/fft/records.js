@@ -7,6 +7,12 @@ export function setFftRecordStatus(message, isError = false) {
   status.classList.toggle("error", isError);
 }
 
+export function setFftHistoryStatus(message, isError = false) {
+  const status = document.getElementById("fft-history-list-status");
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+
 export function syncFftRecordSelection(fft, pendingId = null) {
   document.querySelectorAll("[data-fft-record-id]").forEach((button) => {
     const recordId = Number(button.dataset.fftRecordId);
@@ -17,10 +23,9 @@ export function syncFftRecordSelection(fft, pendingId = null) {
   });
 }
 
-export function renderFftRecordList(fft) {
-  const records = (fft?.records ?? []).filter((record) => record.isAlertFft);
-  const list = document.getElementById("fft-record-list");
-  document.getElementById("fft-record-count").textContent = `${records.length.toLocaleString("ko-KR")}건`;
+function renderRecordList(fft, records, { listId, countId, setStatus, statusText }) {
+  const list = document.getElementById(listId);
+  document.getElementById(countId).textContent = `${records.length.toLocaleString("ko-KR")}건`;
 
   const buttons = records.map((record) => {
     const button = document.createElement("button");
@@ -51,12 +56,32 @@ export function renderFftRecordList(fft) {
   });
   list.replaceChildren(...buttons);
   syncFftRecordSelection(fft);
-  setFftRecordStatus(
-    records.length
-      ? `0.5 초과 주의·위험경보 FFT ${records.length.toLocaleString("ko-KR")}개`
-      : "0.5 초과 주의·위험경보 FFT가 없습니다.",
-  );
+  setStatus(statusText(records));
   list.querySelector(".fft-record-item.active")?.scrollIntoView({ block: "nearest" });
+}
+
+export function renderFftRecordList(fft) {
+  const records = (fft?.records ?? []).filter((record) => record.isAlertFft);
+  renderRecordList(fft, records, {
+    listId: "fft-record-list",
+    countId: "fft-record-count",
+    setStatus: setFftRecordStatus,
+    statusText: (items) => items.length
+      ? `0.5 초과 주의·위험경보 FFT ${items.length.toLocaleString("ko-KR")}개`
+      : "0.5 초과 주의·위험경보 FFT가 없습니다.",
+  });
+}
+
+export function renderFftHistoryList(fft) {
+  const records = fft?.records ?? [];
+  renderRecordList(fft, records, {
+    listId: "fft-history-list",
+    countId: "fft-history-count",
+    setStatus: setFftHistoryStatus,
+    statusText: (items) => items.length
+      ? `${items.length.toLocaleString("ko-KR")}개 측정 기록`
+      : "측정 이력이 없습니다.",
+  });
 }
 
 export function renderFftMetadata(fft) {

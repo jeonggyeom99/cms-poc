@@ -120,6 +120,17 @@
                 <div class="trend-metric-grid" id="trend-metric-grid" role="group" aria-label="Trend 측정값 선택"></div>
               </section>
               <div class="graph-modal-workspace">
+                <aside class="fft-record-browser" id="fft-history-browser" aria-labelledby="fft-history-list-title" hidden>
+                  <div class="fft-record-browser-heading">
+                    <div>
+                      <span class="eyebrow">FFT HISTORY</span>
+                      <strong id="fft-history-list-title">측정 이력</strong>
+                    </div>
+                    <span id="fft-history-count">0건</span>
+                  </div>
+                  <p class="fft-record-list-status" id="fft-history-list-status" role="status">측정 이력을 불러오는 중입니다.</p>
+                  <div class="fft-record-list" id="fft-history-list" role="list" aria-label="FFT 측정일시 목록"></div>
+                </aside>
                 <section class="graph-modal-main">
                   <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
                   <div class="graph-modal-footer">

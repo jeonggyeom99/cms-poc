@@ -673,6 +673,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-expand"' in response.text
     assert 'id="graph-modal"' in response.text
     assert 'id="graph-modal-chart"' in response.text
+    assert 'id="fft-history-browser"' in response.text
+    assert 'id="fft-history-list"' in response.text
     assert 'id="trend-metric-selector"' in response.text
     assert 'id="trend-metric-grid"' in response.text
     assert 'id="fft-record-list"' in response.text
