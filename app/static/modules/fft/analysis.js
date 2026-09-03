@@ -64,7 +64,8 @@ export function renderFftAnalysis(fft, emptyState = {}) {
     return;
   }
 
-  if (diagnosis.status === "analyzed") {
+  const hasVelocityDiagnosis = diagnosis.status === "analyzed";
+  if (hasVelocityDiagnosis) {
     result.className = `result-chip ${fftDiagnosisClass(diagnosis)}`;
     result.textContent = diagnosis.label;
     result.hidden = false;
@@ -95,6 +96,11 @@ export function renderFftAnalysis(fft, emptyState = {}) {
     ${showDiagnosisChart ? `
     <section class="fft-analysis-chart-section">
       <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 FFT 분석 그래프"></div>
+    </section>` : ""}
+    ${hasVelocityDiagnosis ? `
+    <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 FFT 진단 결과">
+      <span>속도 FFT 진단 결과</span>
+      <strong>${diagnosis.label}</strong>
     </section>` : ""}`;
   if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft));
 }

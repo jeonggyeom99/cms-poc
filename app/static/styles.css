@@ -1162,6 +1162,36 @@ body.graph-modal-open {
   height: 250px;
 }
 
+.fft-diagnosis-card {
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 4px solid #94a3aa;
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.fft-diagnosis-card span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.fft-diagnosis-card strong {
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.fft-diagnosis-card.caution {
+  border-left-color: var(--caution);
+  background: var(--caution-soft);
+}
+
+.fft-diagnosis-card.danger {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
 .level-comparison-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
