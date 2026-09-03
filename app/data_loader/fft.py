@@ -218,8 +218,10 @@ def _maximum_finite_amplitude(amplitudes: list[float]) -> float | None:
 def _is_alert_fft_record(metadata: dict[str, Any], maximum_amplitude: float | None) -> bool:
     return (
         metadata["extractionType"]["code"] in FFT_ALERT_EXTRACTION_TYPES
-        and maximum_amplitude is not None
-        and maximum_amplitude > FFT_ALERT_AMPLITUDE_THRESHOLD
+        or (
+            maximum_amplitude is not None
+            and maximum_amplitude > FFT_ALERT_AMPLITUDE_THRESHOLD
+        )
     )
 
 

@@ -58,8 +58,8 @@ function renderFft() {
   renderFftMetadata(null);
   renderFftAnalysis(null, fft ? {
     resultLabel: "대상 없음",
-    description: "주의·위험경보 중 최대 진폭이 0.5를 초과한 FFT 기록만 표시합니다.",
-    heading: "표시할 경보 FFT가 없습니다.",
+    description: "최대 진폭이 0.5를 초과하거나 주의·위험경보인 FFT 기록만 표시합니다.",
+    heading: "표시할 FFT 분석 대상이 없습니다.",
     detail: "좌측 목록에 대상 기록이 생기면 그래프와 분석 결과를 확인할 수 있습니다.",
   } : {});
 }

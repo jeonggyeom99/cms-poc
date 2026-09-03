@@ -233,8 +233,8 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert dataset["current"]["warningThreshold"] == pytest.approx(4.72)
     assert dataset["current"]["dangerThreshold"] == pytest.approx(5.44)
     assert dataset["levelAnalysis"]["configured"]["measuredAt"] == "2026-01-05 00:00:00"
-    assert dataset["fft"]["measuredAt"] == "2026-01-04 00:00:00"
-    assert dataset["fft"]["recordId"] == 4
+    assert dataset["fft"]["measuredAt"] == "2026-01-03 00:00:00"
+    assert dataset["fft"]["recordId"] == 2
     assert [record["id"] for record in dataset["fft"]["records"]] == [4, 2, 3]
     assert dataset["fft"]["records"][0]["hasHighAmplitude"] is False
     assert dataset["fft"]["records"][1]["hasHighAmplitude"] is True
@@ -253,16 +253,16 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
         "frequencyRange": 500.0,
     }
     assert dataset["fft"]["lineCount"] == 2
-    assert dataset["fft"]["amplitudeUnit"] == "mm/s"
+    assert dataset["fft"]["amplitudeUnit"] == "g"
     assert dataset["fft"]["frequencies"] == [0.0, 250.0]
-    assert dataset["fft"]["amplitudes"] == pytest.approx([0.3, 0.4])
+    assert dataset["fft"]["amplitudes"] == pytest.approx([9.0, 9.0])
 
     fft_only = datasets["2"]
     assert fft_only["fft"]["frequencyRange"] == 1000.0
     assert fft_only["fft"]["frequencies"] == [0.0, 250.0, 500.0, 750.0]
 
 
-def test_fft_alert_records_require_alert_type_and_strict_amplitude_threshold(tmp_path: Path) -> None:
+def test_fft_analysis_records_include_alert_type_or_strict_amplitude_threshold(tmp_path: Path) -> None:
     write_csv(
         tmp_path / "1.FFT_Test Pump_Point (V001).csv",
         FFT_COLUMNS,
@@ -278,17 +278,17 @@ def test_fft_alert_records_require_alert_type_and_strict_amplitude_threshold(tmp
     fft = load_datasets(tmp_path)["1"]["fft"]
     records = {record["id"]: record for record in fft["records"]}
 
-    assert fft["recordId"] == 3
+    assert fft["recordId"] == 6
     assert fft["isAlertFft"] is True
-    assert fft["alertRecordCount"] == 2
+    assert fft["alertRecordCount"] == 5
     assert records[2]["maxAmplitude"] == pytest.approx(0.51)
     assert records[2]["isAlertFft"] is True
     assert records[3]["isAlertFft"] is True
     assert records[4]["hasHighAmplitude"] is False
-    assert records[4]["isAlertFft"] is False
+    assert records[4]["isAlertFft"] is True
     assert records[5]["hasHighAmplitude"] is True
-    assert records[5]["isAlertFft"] is False
-    assert records[6]["isAlertFft"] is False
+    assert records[5]["isAlertFft"] is True
+    assert records[6]["isAlertFft"] is True
 
 
 def test_fft_supports_canonical_diag_header_all_modes_and_frequency_codes(tmp_path: Path) -> None:
@@ -744,7 +744,7 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     dashboard_response = get(target_app, "/api/dashboard/1")
     assert dashboard_response.status_code == 200
     fft = dashboard_response.json()["fft"]
-    assert fft["recordId"] == 4
+    assert fft["recordId"] == 2
     assert "_sourcePath" not in fft
     assert len(fft["records"]) == 3
     assert all("amplitudes" not in record for record in fft["records"])

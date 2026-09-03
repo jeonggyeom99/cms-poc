@@ -67,8 +67,8 @@ export function renderFftRecordList(fft) {
     countId: "fft-record-count",
     setStatus: setFftRecordStatus,
     statusText: (items) => items.length
-      ? `0.5 초과 주의·위험경보 FFT ${items.length.toLocaleString("ko-KR")}개`
-      : "0.5 초과 주의·위험경보 FFT가 없습니다.",
+      ? `0.5 초과 또는 주의·위험경보 FFT ${items.length.toLocaleString("ko-KR")}개`
+      : "0.5 초과 또는 주의·위험경보 FFT가 없습니다.",
   });
 }
 
