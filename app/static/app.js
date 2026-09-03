@@ -10,12 +10,7 @@ const palette = {
 const plotConfig = {
   responsive: true,
   displaylogo: false,
-  modeBarButtonsToRemove: [
-    "select2d",
-    "lasso2d",
-    "autoScale2d",
-    "toggleSpikelines",
-  ],
+  displayModeBar: false,
   scrollZoom: true,
   doubleClick: "reset",
 };
