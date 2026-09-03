@@ -683,7 +683,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert "FFT 분석 결과" in response.text
     assert 'id="fft-analysis-workspace"' in response.text
     assert 'id="fft-analysis-details"' in response.text
-    assert 'id="fft-analysis-result"' not in response.text
+    assert 'id="fft-analysis-result"' in response.text
+    assert 'id="fft-analysis-result" hidden' in response.text
     assert 'id="fft-analysis-description"' not in response.text
 
 

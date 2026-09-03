@@ -33,10 +33,18 @@ export function fftExtractionClass(code) {
   return "";
 }
 
+function fftDiagnosisClass(diagnosis) {
+  if (diagnosis?.diagnosis === "misalignment") return "danger";
+  if (diagnosis?.diagnosis === "unbalance") return "caution";
+  return "unknown";
+}
+
 export function renderFftAnalysis(fft, emptyState = {}) {
+  const result = document.getElementById("fft-analysis-result");
   const details = document.getElementById("fft-analysis-details");
   const existingChart = document.getElementById("fft-analysis-chart");
   if (existingChart?.data) getPlotly().purge(existingChart);
+  result.hidden = true;
   if (!fft) {
     const {
       heading = "FFT 분석에 필요한 스펙트럼 데이터가 없습니다.",
@@ -54,6 +62,12 @@ export function renderFftAnalysis(fft, emptyState = {}) {
     details.className = "analysis-placeholder";
     details.innerHTML = `<strong>${analysis?.message ?? "회전수 기반 FFT 분석 결과를 계산할 수 없습니다."}</strong>`;
     return;
+  }
+
+  if (diagnosis.status === "analyzed") {
+    result.className = `result-chip ${fftDiagnosisClass(diagnosis)}`;
+    result.textContent = diagnosis.label;
+    result.hidden = false;
   }
 
   const frequencyUnit = fft.frequencyUnit === "Hz" ? "Hz" : "bin";
