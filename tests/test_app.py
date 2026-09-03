@@ -683,6 +683,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert "FFT 분석 결과" in response.text
     assert 'id="fft-analysis-workspace"' in response.text
     assert 'id="fft-analysis-details"' in response.text
+    assert 'id="fft-analysis-result"' not in response.text
+    assert 'id="fft-analysis-description"' not in response.text
 
 
 def test_dataset_and_dashboard_apis_return_csv_payloads(tmp_path: Path) -> None:
