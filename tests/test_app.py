@@ -386,15 +386,15 @@ def velocity_spectrum(one_x: float, two_x: float, three_x: float) -> tuple[list[
 
 
 @pytest.mark.parametrize(
-    ("one_x", "two_x", "three_x", "diagnosis"),
+    ("one_x", "two_x", "three_x", "diagnosis", "label"),
     [
-        (1.0, 0.1, 0.05, "unbalance"),
-        (1.0, 0.5, 0.1, "misalignment"),
-        (1.0, 0.3, 0.2, "complex"),
+        (1.0, 0.1, 0.05, "unbalance", "Unbalance"),
+        (1.0, 0.5, 0.1, "misalignment", "Misalignment"),
+        (1.0, 0.3, 0.2, "complex", "복합 또는 판정 불확실"),
     ],
 )
 def test_velocity_fft_diagnosis_uses_reference_harmonic_ratios(
-    one_x: float, two_x: float, three_x: float, diagnosis: str
+    one_x: float, two_x: float, three_x: float, diagnosis: str, label: str
 ) -> None:
     frequencies, amplitudes = velocity_spectrum(one_x, two_x, three_x)
 
@@ -402,6 +402,7 @@ def test_velocity_fft_diagnosis_uses_reference_harmonic_ratios(
 
     assert analysis["status"] == "analyzed"
     assert analysis["diagnosis"] == diagnosis
+    assert analysis["label"] == label
     assert analysis["shaftFrequency"] == pytest.approx(1780 / 60)
     assert [harmonic["detectedFrequency"] for harmonic in analysis["harmonics"]] == [30.0, 59.0, 89.0]
     assert analysis["ratios"]["twoToOne"] == pytest.approx(two_x / one_x)

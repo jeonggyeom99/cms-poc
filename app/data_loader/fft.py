@@ -96,9 +96,9 @@ def analyze_velocity_fft(
     ratios = {"twoToOne": two_x / one_x, "threeToOne": three_x / one_x}
     analysis["ratios"] = ratios
     if ratios["twoToOne"] > 0.4 or ratios["threeToOne"] > 0.3:
-        diagnosis, label = "misalignment", "축정렬 불량 의심"
+        diagnosis, label = "misalignment", "Misalignment"
     elif ratios["twoToOne"] < 0.2 and ratios["threeToOne"] < 0.1:
-        diagnosis, label = "unbalance", "불평형 의심"
+        diagnosis, label = "unbalance", "Unbalance"
     else:
         diagnosis, label = "complex", "복합 또는 판정 불확실"
     analysis.update(
