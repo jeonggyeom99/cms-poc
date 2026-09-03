@@ -73,13 +73,15 @@ export function bindGraphModal({ onExpandGraph, onFftRecordSelect }) {
     if (button) onFftRecordSelect(Number(button.dataset.fftRecordId));
   }));
   ["fft-record-list", "fft-history-list"].forEach((listId) => document.getElementById(listId).addEventListener("keydown", (event) => {
-    if (event.key !== "ArrowDown") return;
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
     const current = event.target.closest("[data-fft-record-id]");
-    const next = current?.nextElementSibling;
-    if (!next?.matches("[data-fft-record-id]")) return;
+    const target = event.key === "ArrowDown"
+      ? current?.nextElementSibling
+      : current?.previousElementSibling;
+    if (!target?.matches("[data-fft-record-id]")) return;
     event.preventDefault();
-    next.focus();
-    onFftRecordSelect(Number(next.dataset.fftRecordId));
+    target.focus();
+    onFftRecordSelect(Number(target.dataset.fftRecordId));
   }));
   modal.addEventListener("click", (event) => {
     if (event.target === modal) closeExpandedGraph();
