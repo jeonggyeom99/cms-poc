@@ -1,4 +1,6 @@
 import { formatNumber } from "../core/format.js";
+import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
+import { buildFftDiagnosisFigure } from "./chart.js?v=plot-zoom-bounds";
 
 const COMPACT_FFT_DIAGNOSES = Object.freeze({
   unbalance: { label: "Unbalance", state: "caution" },
@@ -33,6 +35,8 @@ export function fftExtractionClass(code) {
 
 export function renderFftAnalysis(fft, emptyState = {}) {
   const details = document.getElementById("fft-analysis-details");
+  const existingChart = document.getElementById("fft-analysis-chart");
+  if (existingChart?.data) getPlotly().purge(existingChart);
   if (!fft) {
     const {
       heading = "FFT 분석에 필요한 스펙트럼 데이터가 없습니다.",
@@ -57,6 +61,7 @@ export function renderFftAnalysis(fft, emptyState = {}) {
   const harmonicDetails = (diagnosis?.harmonics ?? []).filter(
     (harmonic) => harmonic.order >= 1 && harmonic.order <= 3,
   );
+  const showDiagnosisChart = fft.frequencyUnit === "Hz" && harmonicDetails.length > 0;
   details.className = "fft-analysis-details";
   details.innerHTML = `
     <div class="fft-analysis-grid">
@@ -73,5 +78,9 @@ export function renderFftAnalysis(fft, emptyState = {}) {
         <small>${harmonic.detected ? `${formatNumber(harmonic.detectedFrequency, 2)} ${frequencyUnit}` : "검출 범위 없음"}</small>
       </section>`).join("")}
     </div>
-    `;
+    ${showDiagnosisChart ? `
+    <section class="fft-analysis-chart-section">
+      <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 FFT 분석 그래프"></div>
+    </section>` : ""}`;
+  if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft));
 }
