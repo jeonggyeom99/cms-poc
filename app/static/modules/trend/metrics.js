@@ -46,8 +46,6 @@ export function bindTrendMetricSelector(onSelectionChanged) {
     const selectedTrendMetrics = new Set(getSelectedTrendMetrics());
     const metricKey = input.dataset.trendMetric;
     if (input.checked) {
-      if (metricKey === "velocity") selectedTrendMetrics.delete("displacement");
-      if (metricKey === "displacement") selectedTrendMetrics.delete("velocity");
       selectedTrendMetrics.add(metricKey);
     } else if (selectedTrendMetrics.size > 1) {
       selectedTrendMetrics.delete(metricKey);

@@ -15,7 +15,6 @@ export function filteredTrendPoints(period, data = getDashboardData()) {
 
 export function trendAxisTitle(unit) {
   if (unit === "g") return "가속도 (g)";
-  if (unit === "µm") return "변위 (µm)";
   return "속도 (mm/s)";
 }
 

@@ -49,7 +49,6 @@ def _load_trend(path: Path) -> dict[str, Any]:
                     "acceleration": float(row["AccAllAve"]),
                     "accelerationBpf": _optional_finite_float(row.get("AccBpfAve")),
                     "accelerationPeak": _optional_finite_float(row.get("AccPeakAve")),
-                    "displacement": _optional_finite_float(row.get("CrestfactorAve")),
                 }
             )
 

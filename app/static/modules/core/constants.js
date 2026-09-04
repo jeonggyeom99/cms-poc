@@ -12,7 +12,6 @@ export const trendMetricStyles = {
   accelerationBpf: { color: "#3478c5", digits: 3 },
   accelerationPeak: { color: "#52a447", digits: 3 },
   velocity: { color: "#7a3fb0", digits: 3 },
-  displacement: { color: "#0aa8bd", digits: 2 },
 };
 
 export const plotConfig = {

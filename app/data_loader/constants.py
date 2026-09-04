@@ -93,12 +93,4 @@ TREND_METRIC_DEFINITIONS = (
         "unit": "mm/s",
         "thresholdPrefix": "VEL",
     },
-    {
-        "key": "displacement",
-        "pointKey": "displacement",
-        "column": "CrestfactorAve",
-        "label": "변위",
-        "unit": "µm",
-        "thresholdPrefix": "DISP",
-    },
 )

@@ -27,7 +27,6 @@ TREND_COLUMNS = [
     "AccBpfAve",
     "AccPeakAve",
     "VelAve",
-    "CrestfactorAve",
 ]
 FFT_COLUMNS = [
     "SignalID",
@@ -70,7 +69,6 @@ def trend_row(timestamp: str, velocity: float, acceleration: float) -> dict[str,
         "AccBpfAve": "0.1",
         "AccPeakAve": "0.2",
         "VelAve": str(velocity),
-        "CrestfactorAve": "3.0",
     }
 
 
@@ -207,7 +205,6 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
         "acceleration": 0.2,
         "accelerationBpf": 0.1,
         "accelerationPeak": 0.2,
-        "displacement": 3.0,
     }
     metrics = {metric["key"]: metric for metric in dataset["trend"]["metrics"]}
     assert metrics["accelerationAll"] == {
@@ -224,10 +221,6 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert metrics["accelerationPeak"]["dangerThreshold"] == pytest.approx(20.0)
     assert metrics["velocity"]["latestValue"] == 2.0
     assert metrics["velocity"]["warningThreshold"] == pytest.approx(4.72)
-    assert metrics["displacement"]["pointKey"] == "displacement"
-    assert metrics["displacement"]["latestValue"] == 3.0
-    assert metrics["displacement"]["unit"] == "µm"
-    assert metrics["displacement"]["dangerThreshold"] == pytest.approx(71.0)
     assert dataset["current"]["velocity"] == 2.0
     assert dataset["current"]["acceleration"] == 0.2
     assert dataset["current"]["warningThreshold"] == pytest.approx(4.72)
