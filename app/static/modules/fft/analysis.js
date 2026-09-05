@@ -1,6 +1,6 @@
 import { formatNumber } from "../core/format.js";
 import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
-import { buildFftDiagnosisFigure } from "./chart.js?v=plot-zoom-bounds";
+import { buildFftDiagnosisFigure } from "./chart.js?v=acceleration-bearing-fft";
 
 const COMPACT_FFT_DIAGNOSES = Object.freeze({
   unbalance: { label: "Unbalance", state: "caution" },
@@ -39,7 +39,14 @@ function fftDiagnosisClass(diagnosis) {
   return "unknown";
 }
 
-export function renderFftAnalysis(fft, emptyState = {}) {
+function bearingFaultView(fft, selectedFaultType) {
+  const diagnosis = fft.analysis?.diagnosis;
+  return diagnosis?.faults?.find((fault) => fault.type === selectedFaultType)
+    ?? diagnosis?.faults?.find((fault) => fault.type === diagnosis.defaultFaultType)
+    ?? null;
+}
+
+export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}) {
   const result = document.getElementById("fft-analysis-result");
   const details = document.getElementById("fft-analysis-details");
   const existingChart = document.getElementById("fft-analysis-chart");
@@ -64,7 +71,9 @@ export function renderFftAnalysis(fft, emptyState = {}) {
     return;
   }
 
-  const hasVelocityDiagnosis = diagnosis.status === "analyzed";
+  const bearingFault = bearingFaultView(fft, selectedFaultType);
+  const hasBearingDiagnosis = Array.isArray(diagnosis?.faults);
+  const hasVelocityDiagnosis = diagnosis.status === "analyzed" && !hasBearingDiagnosis;
   if (hasVelocityDiagnosis) {
     result.className = `result-chip ${fftDiagnosisClass(diagnosis)}`;
     result.textContent = diagnosis.label;
@@ -73,12 +82,33 @@ export function renderFftAnalysis(fft, emptyState = {}) {
 
   const frequencyUnit = fft.frequencyUnit === "Hz" ? "Hz" : "bin";
   const amplitudeUnit = fft.amplitudeUnit ?? "";
-  const harmonicDetails = (diagnosis?.harmonics ?? []).filter(
+  const harmonicDetails = (bearingFault?.harmonics ?? diagnosis?.harmonics ?? []).filter(
     (harmonic) => harmonic.order >= 1 && harmonic.order <= 3,
   );
   const showDiagnosisChart = fft.frequencyUnit === "Hz" && harmonicDetails.length > 0;
   details.className = "fft-analysis-details";
+  const bearingControls = hasBearingDiagnosis ? `
+    <section class="bearing-analysis-summary" aria-label="가속도 베어링 분석">
+      <div class="bearing-analysis-heading">
+        <div><span>베어링</span><strong>${diagnosis.bearing?.maker ?? "--"} ${diagnosis.bearing?.number ?? "--"}</strong></div>
+        <p>${diagnosis.message}</p>
+      </div>
+      ${diagnosis.bearing?.available ? `
+        <div class="bearing-coefficients" aria-label="베어링 마스터 결함계수">
+          ${diagnosis.faults.map((fault) => `<span class="${fault.type === bearingFault?.type ? "active" : ""}">${fault.type} ${formatNumber(fault.coefficient, 4)}</span>`).join("")}
+        </div>
+        <div class="bearing-fault-selector" role="group" aria-label="베어링 결함 유형 선택">
+          ${diagnosis.faults.map((fault) => `<button type="button" data-bearing-fault="${fault.type}" class="${fault.type === bearingFault?.type ? "active" : ""}" aria-pressed="${fault.type === bearingFault?.type}">${fault.type}</button>`).join("")}
+        </div>` : ""}
+    </section>` : "";
+  const bearingCard = hasBearingDiagnosis && bearingFault ? `
+    <section class="fft-diagnosis-card ${bearingFault.hasAnomaly ? "danger" : "normal"}" aria-label="가속도 베어링 분석 결과">
+      <span>가속도 FFT 베어링 분석</span>
+      <strong>${bearingFault.type} · ${bearingFault.label}</strong>
+      <small>결함계수 ${formatNumber(bearingFault.coefficient, 2)} · 기준주파수 ${formatNumber(bearingFault.baseFrequency, 2)} Hz · 점수 ${formatNumber(bearingFault.score, 3)}</small>
+    </section>` : "";
   details.innerHTML = `
+    ${bearingControls}
     <div class="fft-analysis-grid">
       ${diagnosis ? `
       <section class="fft-analysis-item peak">
@@ -87,8 +117,8 @@ export function renderFftAnalysis(fft, emptyState = {}) {
         <small>${formatNumber(diagnosis.shaftFrequency, 2)} Hz</small>
       </section>` : ""}
       ${harmonicDetails.map((harmonic) => `
-      <section class="fft-analysis-item${harmonic.order === 1 ? " peak" : ""}">
-        <span>${harmonic.order}X 피크</span>
+      <section class="fft-analysis-item${harmonic.significant || harmonic.order === 1 ? " peak" : ""}">
+        <span>${bearingFault ? `${bearingFault.type} ${harmonic.order}X` : `${harmonic.order}X`} 피크</span>
         <strong>${formatNumber(harmonic.amplitude, 4)} ${amplitudeUnit}</strong>
         <small>${harmonic.detected ? `${formatNumber(harmonic.detectedFrequency, 2)} ${frequencyUnit}` : "검출 범위 없음"}</small>
       </section>`).join("")}
@@ -97,10 +127,11 @@ export function renderFftAnalysis(fft, emptyState = {}) {
     <section class="fft-analysis-chart-section">
       <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 FFT 분석 그래프"></div>
     </section>` : ""}
+    ${bearingCard}
     ${hasVelocityDiagnosis ? `
     <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 FFT 진단 결과">
       <span>속도 FFT 진단 결과</span>
       <strong>${diagnosis.label}</strong>
     </section>` : ""}`;
-  if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft));
+  if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft, bearingFault?.type));
 }

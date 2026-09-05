@@ -1,6 +1,50 @@
 import { formatCodedLabel } from "../core/format.js";
 import { fftExtractionClass } from "./analysis.js";
 
+const fftRecordFilters = {
+  measureMode: new Set(),
+  extractionType: new Set(),
+  abnormal: new Set(),
+};
+
+export function resetFftRecordFilters() {
+  Object.values(fftRecordFilters).forEach((filters) => filters.clear());
+}
+
+export function toggleFftRecordFilter(group, value) {
+  const filters = fftRecordFilters[group];
+  if (!filters) return;
+  if (filters.has(value)) filters.delete(value);
+  else filters.add(value);
+}
+
+function hasActiveFftRecordFilters() {
+  return Object.values(fftRecordFilters).some((filters) => filters.size > 0);
+}
+
+function matchesFftRecordFilters(record) {
+  const isAbnormal = record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5;
+  const extractionMatches = !fftRecordFilters.extractionType.size
+    || fftRecordFilters.extractionType.has(record.extractionType?.code)
+    || (
+      fftRecordFilters.extractionType.has("alert")
+      && ["3", "4"].includes(record.extractionType?.code)
+    );
+  return (
+    (!fftRecordFilters.measureMode.size || fftRecordFilters.measureMode.has(record.measureMode?.code))
+    && extractionMatches
+    && (!fftRecordFilters.abnormal.size || isAbnormal)
+  );
+}
+
+function syncFftRecordFilters() {
+  document.querySelectorAll("[data-fft-filter-group]").forEach((button) => {
+    const selected = fftRecordFilters[button.dataset.fftFilterGroup]?.has(button.dataset.fftFilterValue);
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
 export function setFftRecordStatus(message, isError = false) {
   const status = document.getElementById("fft-record-list-status");
   status.textContent = message;
@@ -25,7 +69,8 @@ export function syncFftRecordSelection(fft, pendingId = null) {
 
 function renderRecordList(fft, records, { listId, countId, setStatus, statusText }) {
   const list = document.getElementById(listId);
-  document.getElementById(countId).textContent = `${records.length.toLocaleString("ko-KR")}건`;
+  const count = document.getElementById(countId);
+  if (count) count.textContent = `${records.length.toLocaleString("ko-KR")}건`;
 
   const buttons = records.map((record) => {
     const button = document.createElement("button");
@@ -51,6 +96,12 @@ function renderRecordList(fft, records, { listId, countId, setStatus, statusText
     extractionBadge.className = `fft-record-badge${extractionClass ? ` ${extractionClass}` : ""}`;
     extractionBadge.textContent = formatCodedLabel(record.extractionType);
     badges.append(modeBadge, extractionBadge);
+    if (record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5) {
+      const abnormalBadge = document.createElement("span");
+      abnormalBadge.className = "fft-record-badge abnormal";
+      abnormalBadge.textContent = "이상발생";
+      badges.append(abnormalBadge);
+    }
     button.append(time, badges);
     return button;
   });
@@ -61,14 +112,21 @@ function renderRecordList(fft, records, { listId, countId, setStatus, statusText
 }
 
 export function renderFftRecordList(fft) {
-  const records = (fft?.records ?? []).filter((record) => record.isAlertFft);
+  const allRecords = (fft?.records ?? []).filter(
+    (record) => record.isAlertFft && record.measureMode?.code !== "0",
+  );
+  const records = allRecords.filter(matchesFftRecordFilters);
+  syncFftRecordFilters();
   renderRecordList(fft, records, {
     listId: "fft-record-list",
-    countId: "fft-record-count",
     setStatus: setFftRecordStatus,
     statusText: (items) => items.length
-      ? `0.5 초과 또는 주의·위험경보 FFT ${items.length.toLocaleString("ko-KR")}개`
-      : "0.5 초과 또는 주의·위험경보 FFT가 없습니다.",
+      ? (hasActiveFftRecordFilters()
+        ? `필터 결과 ${items.length.toLocaleString("ko-KR")}개`
+        : `가속도ENV·속도 중 0.5 초과 또는 주의·위험경보 FFT ${allRecords.length.toLocaleString("ko-KR")}개`)
+      : (hasActiveFftRecordFilters()
+        ? "선택한 필터 조건에 맞는 FFT가 없습니다."
+        : "가속도ENV·속도 중 분석 대상 FFT가 없습니다."),
   });
 }
 

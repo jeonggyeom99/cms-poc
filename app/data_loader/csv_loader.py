@@ -111,7 +111,9 @@ def _load_warning_status(path: Path) -> dict[str, Any]:
     }
 
 
-def _load_fft(path: Path, rpm: float | None = None) -> dict[str, Any]:
+def _load_fft(
+    path: Path, rpm: float | None = None, bearing: dict[str, Any] | None = None
+) -> dict[str, Any]:
     rows: list[tuple[int, dict[str, str]]] = []
     with path.open(encoding="utf-8-sig", newline="") as fft_file:
         reader = csv.DictReader(fft_file)
@@ -141,14 +143,19 @@ def _load_fft(path: Path, rpm: float | None = None) -> dict[str, Any]:
         record["id"] for record in record_summaries if record["isAlertFft"]
     }
     default_record = next(
-        (item for item in rows if item[0] in alert_record_ids),
+        (
+            item
+            for item in rows
+            if item[0] in alert_record_ids and item[1]["MeasureMode"] != "0"
+        ),
         next((item for item in rows if item[1]["MeasureMode"] == "3"), rows[0]),
     )
-    fft = _build_fft_record(default_record[1], default_record[0], rpm)
+    fft = _build_fft_record(default_record[1], default_record[0], rpm, bearing)
     fft["records"] = record_summaries
     fft["alertRecordCount"] = len(alert_record_ids)
     fft["_recordsById"] = {record_id: row for record_id, row in rows}
     fft["_rpm"] = rpm
+    fft["_bearing"] = bearing
     return fft
 
 
@@ -156,4 +163,4 @@ def load_fft_record(fft: dict[str, Any], record_id: int) -> dict[str, Any]:
     row = fft.get("_recordsById", {}).get(record_id)
     if row is None:
         raise KeyError(record_id)
-    return _build_fft_record(row, record_id, fft.get("_rpm"))
+    return _build_fft_record(row, record_id, fft.get("_rpm"), fft.get("_bearing"))

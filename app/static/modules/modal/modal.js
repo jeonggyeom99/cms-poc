@@ -2,7 +2,7 @@ import {
   clearExpandedGraph,
   getDashboardData,
   setExpandedGraph,
-} from "../core/state.js";
+} from "../core/state.js?v=acceleration-bearing-fft";
 import { getPlotly } from "../core/plot.js?v=plot-zoom-bounds";
 import { renderTrendMetricSelector } from "../trend/metrics.js";
 

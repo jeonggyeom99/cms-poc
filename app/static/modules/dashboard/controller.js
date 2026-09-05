@@ -15,27 +15,32 @@ import {
   getCachedFftRecord,
   getCurrentPeriod,
   getDashboardData,
+  getSelectedBearingFaultType,
   getExpandedGraph,
   getSelectedTrendMetrics,
   isCurrentFftSelectionRequest,
   resetCurrentPeriod,
   resetFftRecordState,
   resetSelectedTrendMetrics,
+  resetSelectedBearingFaultType,
   setCurrentPeriod,
   setDashboardData,
-} from "../core/state.js";
+  setSelectedBearingFaultType,
+} from "../core/state.js?v=acceleration-bearing-fft";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=compact-fft-summary";
-import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=plot-zoom-bounds";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=acceleration-bearing-fft-v3";
+import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=acceleration-bearing-fft";
 import {
   renderFftMetadata,
   renderFftHistoryList,
   renderFftRecordList,
+  resetFftRecordFilters,
   setFftRecordStatus,
   setFftHistoryStatus,
   syncFftRecordSelection,
-} from "../fft/records.js";
+  toggleFftRecordFilter,
+} from "../fft/records.js?v=acceleration-bearing-fft-v7";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=plot-zoom-bounds";
 import { populateSummary } from "../summary/summary.js?v=compact-fft-summary";
 import {
@@ -46,17 +51,21 @@ import { bindTrendMetricSelector } from "../trend/metrics.js";
 
 function renderFft() {
   const fft = getDashboardData()?.fft;
+  if (fft?.analysis?.diagnosis?.faults?.length && !getSelectedBearingFaultType()) {
+    resetSelectedBearingFaultType(fft);
+  }
+  const selectedBearingFaultType = getSelectedBearingFaultType();
   renderOverviewFftResult(fft);
   renderFftRecordList(fft);
-  renderFftChart(fft);
+  renderFftChart(fft, selectedBearingFaultType);
   if (fft?.isAlertFft) {
     renderFftMetadata(fft);
-    renderFftAnalysis(fft);
+    renderFftAnalysis(fft, selectedBearingFaultType);
     return;
   }
 
   renderFftMetadata(null);
-  renderFftAnalysis(null, fft ? {
+  renderFftAnalysis(null, null, fft ? {
     resultLabel: "대상 없음",
     description: "최대 진폭이 0.5를 초과하거나 주의·위험경보인 FFT 기록만 표시합니다.",
     heading: "표시할 FFT 분석 대상이 없습니다.",
@@ -76,7 +85,7 @@ function renderExpandedGraph() {
       ),
     );
   } else if (getExpandedGraph() === "fft" && dashboardData?.fft) {
-    renderPlot("graph-modal-chart", buildFftFigure(dashboardData.fft));
+    renderPlot("graph-modal-chart", buildFftFigure(dashboardData.fft, getSelectedBearingFaultType()));
   }
 }
 
@@ -137,6 +146,7 @@ async function selectFftRecord(recordId) {
       fft: { ...fft, ...record, records: fft.records },
     };
     setDashboardData(updatedDashboardData);
+    resetSelectedBearingFaultType(updatedDashboardData.fft);
     renderFft();
     setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
@@ -156,6 +166,7 @@ async function selectFftRecord(recordId) {
 export async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
   resetFftRecordState();
+  resetFftRecordFilters();
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
@@ -169,6 +180,7 @@ export async function loadDashboard(datasetId) {
     resetCurrentPeriod();
     syncPeriodTabs(getCurrentPeriod());
     resetSelectedTrendMetrics(dashboardData);
+    resetSelectedBearingFaultType(dashboardData.fft);
     populateSummary(dashboardData);
     renderTrend(getCurrentPeriod(), dashboardData);
     renderFft();
@@ -182,7 +194,7 @@ export async function loadDashboard(datasetId) {
     renderOverviewFftResult(null);
     renderFftRecordList(null);
     renderFftMetadata(null);
-    renderFftAnalysis(null, {
+    renderFftAnalysis(null, null, {
       resultLabel: "불러오기 실패",
       description: "FFT 분석 데이터를 불러오지 못했습니다.",
       heading: "FFT 분석을 표시할 수 없습니다.",
@@ -240,5 +252,18 @@ export function initializeDashboardApplication() {
     onFftRecordSelect: selectFftRecord,
   });
   bindTrendMetricSelector(handleTrendMetricSelectionChange);
+  document.getElementById("fft-analysis-details").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-bearing-fault]");
+    if (!button) return;
+    setSelectedBearingFaultType(button.dataset.bearingFault);
+    renderFft();
+    if (getExpandedGraph() === "fft") renderExpandedGraph();
+  });
+  document.getElementById("fft-record-browser").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-fft-filter-group]");
+    if (!button) return;
+    toggleFftRecordFilter(button.dataset.fftFilterGroup, button.dataset.fftFilterValue);
+    renderFftRecordList(getDashboardData()?.fft);
+  });
   initializeDashboard();
 }

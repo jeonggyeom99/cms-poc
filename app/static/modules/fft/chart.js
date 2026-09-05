@@ -2,7 +2,14 @@ import { palette } from "../core/constants.js";
 import { baseLayout, renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { setExpandButtonEnabled } from "../controls/controls.js";
 
-export function buildFftFigure(fft) {
+function selectedBearingFault(fft, selectedFaultType) {
+  const diagnosis = fft.analysis?.diagnosis;
+  return diagnosis?.faults?.find((fault) => fault.type === selectedFaultType)
+    ?? diagnosis?.faults?.find((fault) => fault.type === diagnosis.defaultFaultType)
+    ?? null;
+}
+
+export function buildFftFigure(fft, selectedFaultType = null) {
   const measureModeLabel = fft.metadata?.measureMode?.label ?? "진폭";
   const frequencySuffix = fft.frequencyUnit === "Hz" ? " Hz" : " bin";
   const amplitudeSuffix = fft.amplitudeUnit ? ` ${fft.amplitudeUnit}` : "";
@@ -41,10 +48,39 @@ export function buildFftFigure(fft) {
   layout.yaxis.tick0 = 0;
   layout.yaxis.dtick = maximumAmplitude > 5 ? 1 : 0.5;
 
+  const bearingFault = selectedBearingFault(fft, selectedFaultType);
+  if (fft.frequencyUnit === "Hz" && bearingFault) {
+    const harmonics = bearingFault.harmonics.filter(
+      (harmonic) => harmonic.targetFrequency > 0 && harmonic.targetFrequency <= Math.max(...fft.frequencies),
+    );
+    layout.shapes = harmonics.map((harmonic) => ({
+      type: "line", x0: harmonic.targetFrequency, x1: harmonic.targetFrequency, xref: "x",
+      y0: 0, y1: 1, yref: "paper",
+      line: { color: "rgba(226, 83, 83, 0.52)", width: 1, dash: "dash" },
+    }));
+    layout.annotations = harmonics.map((harmonic) => ({
+      x: harmonic.targetFrequency, xref: "x", y: 1, yref: "paper",
+      text: `${bearingFault.type} ${harmonic.order}X`, showarrow: false, yshift: 8,
+      font: { color: palette.danger, size: 10 },
+    }));
+    const detected = harmonics.filter((harmonic) => harmonic.detected && harmonic.amplitude > 0);
+    traces.push({
+      x: detected.map((harmonic) => harmonic.detectedFrequency),
+      y: detected.map((harmonic) => harmonic.amplitude),
+      type: "scatter", mode: "markers+text", name: `${bearingFault.type} Peak`,
+      text: detected.map((harmonic) => `${harmonic.order}X`), textposition: "top center",
+      textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
+      marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
+      hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} ${amplitudeSuffix.trim()}</b><extra>${bearingFault.type} 결함 Peak</extra>`,
+    });
+  }
+
   return { traces, layout };
 }
 
-export function buildFftDiagnosisFigure(fft) {
+export function buildFftDiagnosisFigure(fft, selectedFaultType = null) {
+  const bearingFault = selectedBearingFault(fft, selectedFaultType);
+  if (bearingFault) return buildFftFigure(fft, bearingFault.type);
   const { traces, layout } = buildFftFigure(fft);
   const diagnosis = fft.analysis?.diagnosis;
   const harmonicPeaks = diagnosis?.harmonics?.filter(
@@ -97,7 +133,9 @@ export function buildFftDiagnosisFigure(fft) {
   return { traces, layout };
 }
 
-export function renderFftChart(fft, emptyMessage = "이 설비에는 FFT CSV가 없습니다.") {
+export function renderFftChart(
+  fft, selectedFaultType = null, emptyMessage = "이 설비에는 FFT CSV가 없습니다."
+) {
   if (!fft) {
     setExpandButtonEnabled("fft", false);
     setPlotEmpty("fft-chart", emptyMessage);
@@ -105,5 +143,5 @@ export function renderFftChart(fft, emptyMessage = "이 설비에는 FFT CSV가 
   }
 
   setExpandButtonEnabled("fft", true);
-  renderPlot("fft-chart", buildFftFigure(fft));
+  renderPlot("fft-chart", buildFftFigure(fft, selectedFaultType));
 }

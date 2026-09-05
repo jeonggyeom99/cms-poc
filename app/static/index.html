@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=equipment-status-landing">
+    <link rel="stylesheet" href="/static/styles.css?v=acceleration-bearing-fft-v7">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=equipment-status-landing"></script>
+    <script type="module" src="/static/app.js?v=acceleration-bearing-fft-v7"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -162,12 +162,17 @@
               <aside class="fft-record-browser" id="fft-record-browser" aria-labelledby="fft-record-list-title">
                 <div class="fft-record-browser-heading">
                   <div>
-                    <span class="eyebrow">FFT ANALYSIS</span>
                     <strong id="fft-record-list-title">FFT 분석 목록</strong>
                   </div>
-                  <span id="fft-record-count">0건</span>
                 </div>
                 <p class="fft-record-list-status" id="fft-record-list-status" role="status">조건을 충족하는 FFT를 불러오는 중입니다.</p>
+                <div class="fft-record-filters" role="group" aria-label="FFT 분석 목록 필터">
+                  <button type="button" data-fft-filter-group="abnormal" data-fft-filter-value="true" aria-pressed="false">이상발생</button>
+                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="2" aria-pressed="false">가속도ENV</button>
+                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="3" aria-pressed="false">속도</button>
+                  <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="2" aria-pressed="false">정기</button>
+                  <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="alert" aria-pressed="false">주의·위험경보</button>
+                </div>
                 <div class="fft-record-list" id="fft-record-list" role="list" aria-label="0.5 초과 또는 주의·위험경보 FFT 목록"></div>
               </aside>
               <section class="fft-analysis-main" aria-label="선택한 FFT 분석 결과">

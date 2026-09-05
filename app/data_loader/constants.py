@@ -4,6 +4,7 @@ import re
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 EQUIPMENT_METADATA_CONFIG_PATH = BASE_DIR / "equipment_metadata.json"
+BEARING_FAULT_MASTER_PATH = BASE_DIR.parent / "data" / "0. Bearing_Fault_Frequency_Master_File.txt"
 
 DATASET_NUMBER_PATTERN = re.compile(r"^\s*(\d+)\.")
 EQUIPMENT_CODE_PATTERN = re.compile(r"\b(V\d+)\b", re.IGNORECASE)
@@ -46,6 +47,9 @@ FFT_PEAK_SETTINGS = {
 
 FFT_ALERT_AMPLITUDE_THRESHOLD = 0.5
 FFT_ALERT_EXTRACTION_TYPES = frozenset({"3", "4"})
+BEARING_FAULT_TYPES = ("BPFO", "BPFI", "BSF", "FTF")
+BEARING_PEAK_THRESHOLD = 0.5
+BEARING_FREQUENCY_TOLERANCE = 5.0
 
 MEASURE_FREQ_LABELS = {
     "5": "500 Hz",
