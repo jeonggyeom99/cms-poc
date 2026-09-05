@@ -28,23 +28,18 @@
             <option>CSV 목록을 불러오는 중...</option>
           </select>
         </div>
-        <div class="topbar-meta">
-          <span class="mock-label">CSV DATA</span>
-          <span id="last-updated">최근 측정 --</span>
-        </div>
       </header>
 
       <main>
         <section class="equipment-overview" aria-labelledby="equipment-title">
           <div class="equipment-overview-main">
             <div class="equipment-summary">
-              <div class="equipment-kicker">
-                <span class="equipment-code" id="equipment-code">--</span>
-                <span id="dataset-availability">CSV DATA</span>
-                <time id="overview-measured-at">최근 측정 데이터 없음</time>
-              </div>
               <h1 id="equipment-title">설비를 선택하세요</h1>
-              <p class="equipment-location"><strong id="plant-name">CMS 설비</strong><span aria-hidden="true">/</span><span id="line-name">CSV Dataset</span><span aria-hidden="true">·</span><span id="measurement-point">측정 위치 --</span></p>
+              <dl class="equipment-metadata" aria-label="설비 메타데이터">
+                <div><dt>공장</dt><dd id="plant-name">--</dd></div>
+                <div><dt>정비섹션</dt><dd id="line-name">--</dd></div>
+                <div><dt>센서번호</dt><dd id="sensor-number">--</dd></div>
+              </dl>
             </div>
             <aside class="overview-fft-result is-neutral" aria-label="FFT 분석 결과">
               <span class="overview-fft-result-label">FFT ANALYSIS</span>

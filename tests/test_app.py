@@ -661,9 +661,11 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'type="module" src="/static/app.js?v=equipment-status-landing"' in response.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
-    assert "CSV DATA" in response.text
     assert 'class="equipment-overview"' in response.text
-    assert 'id="dataset-availability"' in response.text
+    assert 'id="plant-name"' in response.text
+    assert 'id="line-name"' in response.text
+    assert 'id="sensor-number"' in response.text
+    assert 'id="equipment-title"' in response.text
     assert 'class="overview-fft-result is-neutral"' in response.text
     assert 'id="overview-fft-result"' in response.text
     assert 'class="overview-status' not in response.text
