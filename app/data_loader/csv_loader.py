@@ -147,20 +147,13 @@ def _load_fft(path: Path, rpm: float | None = None) -> dict[str, Any]:
     fft = _build_fft_record(default_record[1], default_record[0], rpm)
     fft["records"] = record_summaries
     fft["alertRecordCount"] = len(alert_record_ids)
-    fft["_sourcePath"] = path
+    fft["_recordsById"] = {record_id: row for record_id, row in rows}
     fft["_rpm"] = rpm
     return fft
 
 
 def load_fft_record(fft: dict[str, Any], record_id: int) -> dict[str, Any]:
-    if not any(record["id"] == record_id for record in fft["records"]):
+    row = fft.get("_recordsById", {}).get(record_id)
+    if row is None:
         raise KeyError(record_id)
-
-    path = fft["_sourcePath"]
-    with path.open(encoding="utf-8-sig", newline="") as fft_file:
-        reader = csv.DictReader(fft_file)
-        for row_number, row in enumerate(reader, start=2):
-            if row_number == record_id:
-                return _build_fft_record(row, record_id, fft.get("_rpm"))
-
-    raise KeyError(record_id)
+    return _build_fft_record(row, record_id, fft.get("_rpm"))

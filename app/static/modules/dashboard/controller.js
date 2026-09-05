@@ -2,7 +2,7 @@ import {
   fetchDashboard,
   fetchDatasetSummaries,
   fetchFftRecord,
-} from "../api/dashboard.js";
+} from "../api/dashboard.js?v=fft-load-fix";
 import { renderLevelAnalysis } from "../analysis/level.js";
 import {
   bindPeriodTabs,

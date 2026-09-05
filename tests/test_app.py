@@ -16,6 +16,7 @@ from app.data_loader import (
     analyze_velave_level,
     analyze_velave_trend,
     load_datasets,
+    load_fft_record,
 )
 from app.main import create_app
 
@@ -439,18 +440,11 @@ def test_equipment_metadata_config_contains_presentation_values() -> None:
 
     assert configured_equipment["V191"] == {
         "plant": "1 냉연",
-        "line": "냉연정비 1",
-        "name": "1CAL_NO.1 DUST COLLECT FAN",
-        "measurementPoint": "IMPELLER SIDE",
-        "displayName": "1CAL_NO.1 DUST COLLECT FAN / IMPELLER SIDE",
-        "reportDate": "2026-04-27",
-        "author": "설비관제 최상준",
-        "cmsMaker": "우진",
+        "name": "1CAL_NO.1 DUST COLLECT FAN IMPELLER SIDE",
+        "maker": "NSK",
         "sensorNumber": 191,
         "rpm": 1750.0,
         "bearing": "6315",
-        "velocityAlarm": {"caution": 4.5, "danger": 8.0, "unit": "mm/s"},
-        "accelerationAlarm": {"caution": 10.0, "danger": 20.0, "unit": "g"},
     }
 
 
@@ -780,6 +774,17 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert get(target_app, "/api/dashboard/1/fft/999").status_code == 404
     assert get(target_app, "/api/dashboard/3/fft/2").status_code == 404
     assert get(target_app, "/api/dashboard/99/fft/2").status_code == 404
+
+
+def test_fft_record_can_be_loaded_after_its_source_file_is_removed(tmp_path: Path) -> None:
+    data_dir = make_data_dir(tmp_path)
+    fft = load_datasets(data_dir)["1"]["fft"]
+    (data_dir / "1.FFT_Area_Test Pump_Point A (V001).csv").unlink()
+
+    record = load_fft_record(fft, 2)
+
+    assert record["recordId"] == 2
+    assert record["amplitudes"] == pytest.approx([9.0, 9.0])
 
 
 def test_default_dashboard_and_missing_dataset_responses(tmp_path: Path) -> None:

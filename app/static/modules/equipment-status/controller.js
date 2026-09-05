@@ -1,4 +1,4 @@
-import { fetchDatasetSummaries } from "../api/dashboard.js?v=equipment-status-landing";
+import { fetchDatasetSummaries } from "../api/dashboard.js?v=fft-load-fix";
 import {
   equipmentStatusCatalog,
   featuredEquipmentCodes,

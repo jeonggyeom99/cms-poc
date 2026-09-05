@@ -1,5 +1,7 @@
 async function fetchJson(url) {
-  const response = await fetch(url);
+  // CSV data is loaded when the API application starts. Avoid reusing a
+  // cached error/empty response after the data directory or server changes.
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }

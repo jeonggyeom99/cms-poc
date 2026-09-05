@@ -2,78 +2,44 @@
   "equipment": {
     "V032": {
       "plant": "4 선재",
-      "line": "선재 정비섹션",
-      "name": "#2 Direct Cooling Pump",
-      "measurementPoint": "DS",
+      "name": "#2 Direct Cooling Pump DS",
       "displayName": "#2 Direct Cooling Pump / DS",
-      "reportDate": "2026-04-03",
-      "author": "설비관제 최상준",
-      "cmsMaker": "우진",
+      "maker": "NSK",
       "sensorNumber": 32,
       "rpm": 1780,
-      "bearing": "6318",
-      "velocityAlarm": {"caution": 4.7, "danger": 5.4, "unit": "mm/s"},
-      "accelerationAlarm": {"caution": 1.6, "danger": 2.0, "unit": "g"}
+      "bearing": "6318"
     },
     "V056": {
-      "plant": "3 전기강판",
-      "line": "3DNL / 전기강판정비",
+      "plant": "3 전기강판 3DNL",
       "name": "Cleaning Unit Fume Exhaust Fan",
-      "measurementPoint": "Motor DE",
-      "displayName": "Cleaning Unit Fume Exhaust Fan / Motor DE",
-      "reportDate": "2026-06-23",
-      "author": "설비관제 임홍석",
-      "cmsMaker": "우진",
+      "maker": "NSK",
       "sensorNumber": 56,
       "rpm": 1170,
-      "bearing": "-",
-      "velocityAlarm": {"caution": 1.4, "danger": 2.8, "unit": "mm/s"},
-      "accelerationAlarm": {"caution": 0.6, "danger": 1.2, "unit": "g"}
+      "bearing": "-"
     },
     "V041": {
       "plant": "1 냉연",
-      "line": "냉연정비 1",
-      "name": "#3 TENSION BRIDLE ROLL-4",
-      "measurementPoint": "1단 부하",
-      "displayName": "#3 TENSION BRIDLE ROLL-4 / 1단 부하",
-      "reportDate": "2026-04-08",
-      "author": "설비관제 최상준",
-      "cmsMaker": "우진",
+      "name": "#3 TENSION BRIDLE ROLL-4 1단 부하",
+      "maker": "NSK",
       "sensorNumber": 41,
       "rpm": 1785,
-      "bearing": "22222E1",
-      "velocityAlarm": {"caution": 0.5, "danger": 1.0, "unit": "mm/s"},
-      "accelerationAlarm": {"caution": 0.4, "danger": 0.8, "unit": "g"}
+      "bearing": "22222E1"
     },
     "V035": {
       "plant": "2 선재",
-      "line": "선재 정비섹션",
-      "name": "NO.5B RM Stand Motor",
-      "measurementPoint": "NDE",
-      "displayName": "NO.5B RM Stand Motor / NDE",
-      "reportDate": "2026-04-16",
-      "author": "설비관제 최상준",
-      "cmsMaker": "우진",
+      "name": "NO.5B RM Stand Motor NDE",
+      "maker": "NSK",
       "sensorNumber": 35,
       "rpm": 1500,
-      "bearing": "6320",
-      "velocityAlarm": {"caution": 1.14, "danger": 1.5, "unit": "mm/s"},
-      "accelerationAlarm": {"caution": 3.5, "danger": 5.0, "unit": "g"}
+      "bearing": "6320"
     },
     "V191": {
       "plant": "1 냉연",
-      "line": "냉연정비 1",
-      "name": "1CAL_NO.1 DUST COLLECT FAN",
-      "measurementPoint": "IMPELLER SIDE",
-      "displayName": "1CAL_NO.1 DUST COLLECT FAN / IMPELLER SIDE",
-      "reportDate": "2026-04-27",
-      "author": "설비관제 최상준",
-      "cmsMaker": "우진",
+      "name": "1CAL_NO.1 DUST COLLECT FAN IMPELLER SIDE",
+      "maker": "NSK",
       "sensorNumber": 191,
       "rpm": 1750,
-      "bearing": "6315",
-      "velocityAlarm": {"caution": 4.5, "danger": 8.0, "unit": "mm/s"},
-      "accelerationAlarm": {"caution": 10.0, "danger": 20.0, "unit": "g"}
+      "bearing": "6315"
     }
   }
 }
