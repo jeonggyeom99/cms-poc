@@ -261,7 +261,8 @@ def _build_fft_record(row: dict[str, str], record_id: int, rpm: float | None = N
 
     frequency_range = FREQUENCY_RANGES_HZ.get(frequency_code)
     frequency_step = frequency_range / line_count if frequency_range is not None else 1.0
-    frequencies = [index * frequency_step for index in range(line_count)]
+    # CSV ResultData excludes the 0 Hz DC component, so its first value is bin 1.
+    frequencies = [(index + 1) * frequency_step for index in range(line_count)]
     return {
         "recordId": record_id,
         "measuredAt": row["MeasureDate"],

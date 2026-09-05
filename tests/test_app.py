@@ -248,12 +248,12 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     }
     assert dataset["fft"]["lineCount"] == 2
     assert dataset["fft"]["amplitudeUnit"] == "g"
-    assert dataset["fft"]["frequencies"] == [0.0, 250.0]
+    assert dataset["fft"]["frequencies"] == [250.0, 500.0]
     assert dataset["fft"]["amplitudes"] == pytest.approx([9.0, 9.0])
 
     fft_only = datasets["2"]
     assert fft_only["fft"]["frequencyRange"] == 1000.0
-    assert fft_only["fft"]["frequencies"] == [0.0, 250.0, 500.0, 750.0]
+    assert fft_only["fft"]["frequencies"] == [250.0, 500.0, 750.0, 1000.0]
 
 
 def test_fft_analysis_records_include_alert_type_or_strict_amplitude_threshold(tmp_path: Path) -> None:
@@ -312,7 +312,7 @@ def test_fft_supports_canonical_diag_header_all_modes_and_frequency_codes(tmp_pa
     assert fft["metadata"]["diagMode"] == {"code": "12", "label": "기어1"}
     assert fft["metadata"]["extractionType"] == {"code": "4", "label": "위험경보"}
     assert fft["amplitudeUnit"] == "g"
-    assert fft["frequencies"] == [0.0, 10000.0]
+    assert fft["frequencies"] == [10000.0, 20000.0]
     assert fft["records"][1]["measureFreq"]["frequencyRange"] == 10000.0
 
 
@@ -344,7 +344,7 @@ def test_fft_unknown_metadata_codes_are_preserved(tmp_path: Path) -> None:
     assert fft["metadata"]["diagMode"] == {"code": "99", "label": "알 수 없음"}
     assert fft["frequencyUnit"] == "bin"
     assert fft["amplitudeUnit"] is None
-    assert fft["frequencies"] == [0.0, 1.0]
+    assert fft["frequencies"] == [1.0, 2.0]
 
 
 def test_fft_analysis_groups_top_peaks_and_applies_velocity_threshold() -> None:
@@ -371,11 +371,11 @@ def test_fft_analysis_reports_unknown_mode_and_no_significant_peak() -> None:
 
 
 def velocity_spectrum(one_x: float, two_x: float, three_x: float) -> tuple[list[float], list[float]]:
-    frequencies = [float(index) for index in range(500)]
+    frequencies = [float(index + 1) for index in range(500)]
     amplitudes = [0.0] * len(frequencies)
-    amplitudes[30] = one_x
-    amplitudes[59] = two_x
-    amplitudes[89] = three_x
+    amplitudes[29] = one_x
+    amplitudes[58] = two_x
+    amplitudes[88] = three_x
     return frequencies, amplitudes
 
 
@@ -755,7 +755,7 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert record["metadata"]["measureMode"] == {"code": "2", "label": "가속도ENV"}
     assert record["amplitudeUnit"] == "g"
     assert record["frequencyRange"] == 500.0
-    assert record["frequencies"] == [0.0, 250.0]
+    assert record["frequencies"] == [250.0, 500.0]
     assert record["amplitudes"] == pytest.approx([9.0, 9.0])
     assert record["analysis"]["diagnosis"] == {
         "status": "deferred",
