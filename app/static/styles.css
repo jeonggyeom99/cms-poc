@@ -717,6 +717,11 @@ body.graph-modal-open {
   grid-template-columns: 280px minmax(0, 1fr);
 }
 
+.graph-modal-body.fft-expanded .fft-record-browser {
+  align-self: stretch;
+  max-height: none;
+}
+
 .graph-modal-main {
   display: flex;
   min-width: 0;
