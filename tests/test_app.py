@@ -9,7 +9,7 @@ import pytest
 from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
-    _load_equipment_rpms,
+    _load_equipment_metadata,
     analyze_fft_spectrum,
     analyze_fft_diagnosis,
     analyze_velocity_fft,
@@ -434,14 +434,23 @@ def test_v032_uses_configured_rpm_for_velocity_fft(tmp_path: Path) -> None:
     assert fft["analysis"]["diagnosis"]["diagnosis"] == "unbalance"
 
 
-def test_equipment_rpm_config_contains_requested_equipment_values() -> None:
-    configured_rpms = _load_equipment_rpms()
+def test_equipment_metadata_config_contains_presentation_values() -> None:
+    configured_equipment = _load_equipment_metadata()
 
-    assert {code: configured_rpms[code] for code in ("V056", "V041", "V035", "V191")} == {
-        "V056": 1170.0,
-        "V041": 1785.0,
-        "V035": 1500.0,
-        "V191": 1170.0,
+    assert configured_equipment["V191"] == {
+        "plant": "1 냉연",
+        "line": "냉연정비 1",
+        "name": "1CAL_NO.1 DUST COLLECT FAN",
+        "measurementPoint": "IMPELLER SIDE",
+        "displayName": "1CAL_NO.1 DUST COLLECT FAN / IMPELLER SIDE",
+        "reportDate": "2026-04-27",
+        "author": "설비관제 최상준",
+        "cmsMaker": "우진",
+        "sensorNumber": 191,
+        "rpm": 1750.0,
+        "bearing": "6315",
+        "velocityAlarm": {"caution": 4.5, "danger": 8.0, "unit": "mm/s"},
+        "accelerationAlarm": {"caution": 10.0, "danger": 20.0, "unit": "g"},
     }
 
 

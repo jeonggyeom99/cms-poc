@@ -10,7 +10,7 @@ from .constants import (
     DATASET_NUMBER_PATTERN,
     DIAG_MODE_LABELS,
     EQUIPMENT_CODE_PATTERN,
-    EQUIPMENT_RPM_CONFIG_PATH,
+    EQUIPMENT_METADATA_CONFIG_PATH,
     EXTRACTION_TYPE_LABELS,
     FFT_PEAK_SETTINGS,
     FREQUENCY_RANGES_HZ,
@@ -34,7 +34,7 @@ from .csv_loader import (
 )
 from .datasets import (
     _dataset_sort_key,
-    _load_equipment_rpms,
+    _load_equipment_metadata,
     dataset_summaries,
     load_datasets,
 )
@@ -63,7 +63,7 @@ __all__ = [
     "DATASET_NUMBER_PATTERN",
     "DIAG_MODE_LABELS",
     "EQUIPMENT_CODE_PATTERN",
-    "EQUIPMENT_RPM_CONFIG_PATH",
+    "EQUIPMENT_METADATA_CONFIG_PATH",
     "EXTRACTION_TYPE_LABELS",
     "FFT_PEAK_SETTINGS",
     "FREQUENCY_RANGES_HZ",
@@ -88,7 +88,7 @@ __all__ = [
     "_fft_record_summary",
     "_fill_low_outliers",
     "_linear_quantile",
-    "_load_equipment_rpms",
+    "_load_equipment_metadata",
     "_load_fft",
     "_load_trend",
     "_load_warning_status",

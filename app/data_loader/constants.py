@@ -3,7 +3,7 @@ import re
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-EQUIPMENT_RPM_CONFIG_PATH = BASE_DIR / "equipment_rpm.json"
+EQUIPMENT_METADATA_CONFIG_PATH = BASE_DIR / "equipment_metadata.json"
 
 DATASET_NUMBER_PATTERN = re.compile(r"^\s*(\d+)\.")
 EQUIPMENT_CODE_PATTERN = re.compile(r"\b(V\d+)\b", re.IGNORECASE)
