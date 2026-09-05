@@ -6,12 +6,16 @@ import struct
 from typing import Any
 
 from .constants import (
+    BEARING_FAULT_TYPES,
+    BEARING_FREQUENCY_TOLERANCE,
+    BEARING_PEAK_THRESHOLD,
     FFT_ALERT_AMPLITUDE_THRESHOLD,
     FFT_ALERT_EXTRACTION_TYPES,
     FFT_PEAK_SETTINGS,
     FREQUENCY_RANGES_HZ,
     MEASURE_MODE_DEFINITIONS,
 )
+from .bearing import lookup_bearing_coefficients
 from .metadata import _fft_metadata
 
 
@@ -115,24 +119,172 @@ def analyze_velocity_fft(
     return analysis
 
 
+def _bearing_diagnosis_key(fault_type: str) -> tuple[str, str]:
+    return {
+        "BPFO": ("bearing_outer_race", "베어링 외륜 결함"),
+        "BPFI": ("bearing_inner_race", "베어링 내륜 결함"),
+        "BSF": ("bearing_ball", "베어링 볼 결함"),
+        "FTF": ("bearing_cage", "베어링 케이지 결함"),
+    }[fault_type]
+
+
+def analyze_acceleration_bearing_fft(
+    frequencies: list[float],
+    amplitudes: list[float],
+    rpm: float | None,
+    bearing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Analyse acceleration spectra at bearing-fault 1X/2X/3X orders."""
+    maker = (bearing or {}).get("maker")
+    bearing_number = (bearing or {}).get("number")
+    analysis: dict[str, Any] = {
+        "status": "unavailable",
+        "diagnosis": "unavailable",
+        "label": "가속도 베어링 분석 불가",
+        "message": "베어링 분석에 필요한 정보가 없습니다.",
+        "rpm": rpm,
+        "rpmSource": "equipment_config" if rpm is not None else "unavailable",
+        "shaftFrequency": None,
+        "frequencyTolerance": BEARING_FREQUENCY_TOLERANCE,
+        "amplitudeThreshold": BEARING_PEAK_THRESHOLD,
+        "bearing": {"maker": maker, "number": bearing_number},
+        "faults": [],
+        "defaultFaultType": None,
+        "harmonics": [],
+        "ratios": {"twoToOne": None, "threeToOne": None},
+    }
+    if rpm is None or not math.isfinite(rpm) or rpm <= 0:
+        analysis["message"] = "설비 RPM이 설정되지 않아 베어링 결함 주파수를 계산할 수 없습니다."
+        return analysis
+    if len(frequencies) != len(amplitudes) or not frequencies:
+        analysis["message"] = "FFT 주파수와 진폭 배열이 유효하지 않습니다."
+        return analysis
+
+    master = lookup_bearing_coefficients(maker, bearing_number)
+    analysis["bearing"].update(
+        {
+            "available": master["available"],
+            "reason": master.get("reason"),
+            "coefficients": master.get("coefficients", {}),
+        }
+    )
+    if not master["available"]:
+        messages = {
+            "bearing_not_configured": "설비 베어링 제조사 또는 형번이 설정되지 않았습니다.",
+            "bearing_not_found": "베어링 마스터에서 제조사와 형번에 일치하는 결함계수를 찾지 못했습니다.",
+            "bearing_master_ambiguous": "베어링 마스터에 서로 다른 결함계수를 가진 중복 항목이 있습니다.",
+            "bearing_coefficients_invalid": "베어링 마스터의 결함계수가 유효하지 않습니다.",
+            "bearing_master_unavailable": "베어링 마스터 파일을 읽을 수 없습니다.",
+        }
+        analysis["message"] = messages.get(master.get("reason"), analysis["message"])
+        return analysis
+
+    shaft_frequency = rpm / 60.0
+    valid_points = [
+        (float(frequency), float(amplitude))
+        for frequency, amplitude in zip(frequencies, amplitudes)
+        if math.isfinite(frequency) and math.isfinite(amplitude)
+    ]
+    if not valid_points:
+        analysis["message"] = "분석할 유효 FFT 진폭값이 없습니다."
+        return analysis
+
+    def find_peak(target_frequency: float) -> tuple[float | None, float]:
+        candidates = [
+            point for point in valid_points
+            if abs(point[0] - target_frequency) <= BEARING_FREQUENCY_TOLERANCE
+        ]
+        return max(candidates, key=lambda item: item[1]) if candidates else (None, 0.0)
+
+    faults = []
+    for fault_type in BEARING_FAULT_TYPES:
+        coefficient = master["coefficients"].get(fault_type)
+        if coefficient is None:
+            continue
+        base_frequency = shaft_frequency * coefficient
+        harmonics = []
+        weighted_score = 0.0
+        sideband_score = 0.0
+        for order in range(1, 4):
+            target_frequency = base_frequency * order
+            detected_frequency, amplitude = find_peak(target_frequency)
+            weighted_score += amplitude / order
+            harmonics.append(
+                {
+                    "order": order,
+                    "targetFrequency": target_frequency,
+                    "detectedFrequency": detected_frequency,
+                    "amplitude": amplitude,
+                    "detected": detected_frequency is not None,
+                    "significant": amplitude >= BEARING_PEAK_THRESHOLD,
+                }
+            )
+            for direction in (-1, 1):
+                sideband_frequency = target_frequency + direction * shaft_frequency
+                if sideband_frequency > 0:
+                    _, sideband_amplitude = find_peak(sideband_frequency)
+                    sideband_score += sideband_amplitude * 0.25
+        diagnosis, label = _bearing_diagnosis_key(fault_type)
+        faults.append(
+            {
+                "type": fault_type,
+                "diagnosis": diagnosis,
+                "label": label,
+                "coefficient": coefficient,
+                "baseFrequency": base_frequency,
+                "harmonics": harmonics,
+                "score": weighted_score + sideband_score,
+                "harmonicScore": weighted_score,
+                "sidebandScore": sideband_score,
+                "hasAnomaly": any(harmonic["significant"] for harmonic in harmonics),
+                "largestPeak": max(harmonic["amplitude"] for harmonic in harmonics),
+            }
+        )
+
+    if not faults:
+        analysis["message"] = "베어링 마스터에 사용할 수 있는 결함계수가 없습니다."
+        return analysis
+    anomalous = [fault for fault in faults if fault["hasAnomaly"]]
+    ranking = anomalous or [fault for fault in faults if fault["type"] == "BPFO"] or faults
+    order_index = {fault_type: index for index, fault_type in enumerate(BEARING_FAULT_TYPES)}
+    selected = sorted(
+        ranking,
+        key=lambda fault: (-fault["score"], -fault["largestPeak"], order_index[fault["type"]]),
+    )[0]
+    highest_scores = sorted((fault["score"] for fault in faults), reverse=True)
+    dominance = (
+        highest_scores[0] / highest_scores[1]
+        if len(highest_scores) > 1 and highest_scores[1] > 0
+        else None
+    )
+    analysis.update(
+        {
+            "status": "analyzed" if anomalous else "no_anomaly",
+            "diagnosis": selected["diagnosis"] if anomalous else "normal",
+            "label": selected["label"] if anomalous else "베어링 결함 Peak 없음",
+            "message": (
+                f"{selected['type']}의 1X/2X/3X 결함 주파수에서 유의 Peak를 확인했습니다."
+                if anomalous
+                else f"{BEARING_PEAK_THRESHOLD:.1f} g 이상의 결함 1X/2X/3X Peak가 없습니다."
+            ),
+            "shaftFrequency": shaft_frequency,
+            "faults": faults,
+            "defaultFaultType": selected["type"],
+            "harmonics": selected["harmonics"],
+            "dominance": dominance,
+        }
+    )
+    return analysis
+
+
 def analyze_fft_diagnosis(
-    frequencies: list[float], amplitudes: list[float], measure_mode: str, rpm: float | None
+    frequencies: list[float], amplitudes: list[float], measure_mode: str, rpm: float | None,
+    bearing: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if measure_mode == "3":
         return analyze_velocity_fft(frequencies, amplitudes, rpm)
     if measure_mode in {"0", "2"}:
-        return {
-            "status": "deferred",
-            "diagnosis": "deferred",
-            "label": "가속도 진단 보류",
-            "message": "가속도 FFT의 베어링·기타 결함 진단은 현재 범위에서 보류했습니다.",
-            "rpm": rpm,
-            "rpmSource": "equipment_config" if rpm is not None else "unavailable",
-            "shaftFrequency": None,
-            "frequencyTolerance": None,
-            "harmonics": [],
-            "ratios": {"twoToOne": None, "threeToOne": None},
-        }
+        return analyze_acceleration_bearing_fft(frequencies, amplitudes, rpm, bearing)
     return {
         "status": "unavailable",
         "diagnosis": "unavailable",
@@ -245,7 +397,10 @@ def _fft_record_summary(row: dict[str, str], record_id: int) -> dict[str, Any]:
     }
 
 
-def _build_fft_record(row: dict[str, str], record_id: int, rpm: float | None = None) -> dict[str, Any]:
+def _build_fft_record(
+    row: dict[str, str], record_id: int, rpm: float | None = None,
+    bearing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     frequency_code = row["MeasureFreq"]
     measure_mode = row["MeasureMode"]
     amplitudes = _decode_float32_bytes(row["ResultData"])
@@ -277,6 +432,6 @@ def _build_fft_record(row: dict[str, str], record_id: int, rpm: float | None = N
         "amplitudes": amplitudes,
         "analysis": {
             **analyze_fft_spectrum(frequencies, amplitudes, measure_mode),
-            "diagnosis": analyze_fft_diagnosis(frequencies, amplitudes, measure_mode, rpm),
+            "diagnosis": analyze_fft_diagnosis(frequencies, amplitudes, measure_mode, rpm, bearing),
         },
     }

@@ -1,5 +1,5 @@
 import { palette, trendMetricStyles } from "../core/constants.js";
-import { getDashboardData, getSelectedTrendMetrics } from "../core/state.js";
+import { getDashboardData, getSelectedTrendMetrics } from "../core/state.js?v=acceleration-bearing-fft";
 import { baseLayout, renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { setExpandButtonEnabled, setPeriodTabsEnabled } from "../controls/controls.js";
 

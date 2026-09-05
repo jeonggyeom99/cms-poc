@@ -5,6 +5,7 @@ let expandedGraphTrigger = null;
 let selectedTrendMetrics = new Set(["velocity"]);
 let fftRecordCache = new Map();
 let fftSelectionRequest = 0;
+let selectedBearingFaultType = null;
 
 export function getDashboardData() {
   return dashboardData;
@@ -61,6 +62,20 @@ export function resetSelectedTrendMetrics(data = dashboardData) {
 export function resetFftRecordState() {
   fftSelectionRequest += 1;
   fftRecordCache = new Map();
+  selectedBearingFaultType = null;
+}
+
+export function getSelectedBearingFaultType() {
+  return selectedBearingFaultType;
+}
+
+export function setSelectedBearingFaultType(faultType) {
+  selectedBearingFaultType = faultType;
+}
+
+export function resetSelectedBearingFaultType(fft) {
+  selectedBearingFaultType = fft?.analysis?.diagnosis?.defaultFaultType ?? null;
+  return selectedBearingFaultType;
 }
 
 export function createFftSelectionRequest() {

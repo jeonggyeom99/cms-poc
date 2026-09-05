@@ -784,6 +784,34 @@ body.graph-modal-open {
   color: var(--danger);
 }
 
+.fft-record-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 4px 9px;
+}
+
+.fft-record-filters button {
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.fft-record-filters button:hover {
+  border-color: var(--teal);
+}
+
+.fft-record-filters button.active {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
 .fft-record-list {
   display: flex;
   min-height: 0;
@@ -883,6 +911,11 @@ body.graph-modal-open {
 }
 
 .fft-record-badge.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.fft-record-badge.abnormal {
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -1121,6 +1154,94 @@ body.graph-modal-open {
   margin: 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.bearing-analysis-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.bearing-analysis-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bearing-analysis-heading span,
+.bearing-analysis-heading strong {
+  display: block;
+}
+
+.bearing-analysis-heading span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.bearing-analysis-heading strong {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.bearing-analysis-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.bearing-fault-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.bearing-coefficients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bearing-coefficients span.active {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.bearing-fault-selector button {
+  min-width: 60px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bearing-fault-selector button.active {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.fft-diagnosis-card small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.fft-diagnosis-card.normal {
+  border-left-color: var(--normal);
+  background: var(--normal-soft);
 }
 
 .fft-analysis-chart-section {

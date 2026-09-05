@@ -10,6 +10,7 @@ from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
     _load_equipment_metadata,
+    analyze_acceleration_bearing_fft,
     analyze_fft_spectrum,
     analyze_fft_diagnosis,
     analyze_velocity_fft,
@@ -285,6 +286,22 @@ def test_fft_analysis_records_include_alert_type_or_strict_amplitude_threshold(t
     assert records[6]["isAlertFft"] is True
 
 
+def test_fft_default_selection_excludes_acceleration_all_records(tmp_path: Path) -> None:
+    write_csv(
+        tmp_path / "1.FFT_Test Pump_Point (V001).csv",
+        FFT_COLUMNS,
+        [
+            fft_row("2026-01-03 00:00:00", [0.8], measure_mode="0"),
+            fft_row("2026-01-02 00:00:00", [0.7], measure_mode="2"),
+        ],
+    )
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+
+    assert fft["recordId"] == 3
+    assert fft["metadata"]["measureMode"]["code"] == "2"
+
+
 def test_fft_supports_canonical_diag_header_all_modes_and_frequency_codes(tmp_path: Path) -> None:
     canonical_columns = ["DiagMode" if column == "DaiagMode" else column for column in FFT_COLUMNS]
     rows = []
@@ -412,12 +429,37 @@ def test_velocity_fft_diagnosis_requires_rpm_and_sufficient_1x_peak() -> None:
     assert analysis["diagnosis"] == "inconclusive"
 
 
-def test_acceleration_fft_diagnosis_is_explicitly_deferred() -> None:
+def test_acceleration_fft_diagnosis_reports_missing_bearing_metadata() -> None:
     analysis = analyze_fft_diagnosis([0.0, 1.0], [0.0, 1.0], "2", 1780.0)
 
-    assert analysis["status"] == "deferred"
-    assert analysis["diagnosis"] == "deferred"
-    assert analysis["shaftFrequency"] is None
+    assert analysis["status"] == "unavailable"
+    assert analysis["bearing"]["reason"] == "bearing_not_configured"
+
+
+def test_acceleration_bearing_fft_selects_anomalous_fault_and_bpfo_when_normal() -> None:
+    frequencies = [float(index) for index in range(400)]
+    amplitudes = [0.0] * len(frequencies)
+    # NSK 6318 at 1800 RPM: BPFI 1X is 147 Hz.  The 0.7 g peak is significant.
+    amplitudes[147] = 0.7
+
+    analysis = analyze_acceleration_bearing_fft(
+        frequencies, amplitudes, 1800.0, {"maker": "NSK", "number": "6318"}
+    )
+
+    assert analysis["status"] == "analyzed"
+    assert analysis["defaultFaultType"] == "BPFI"
+    assert analysis["diagnosis"] == "bearing_inner_race"
+    bpfi = next(fault for fault in analysis["faults"] if fault["type"] == "BPFI")
+    assert bpfi["harmonics"][0]["targetFrequency"] == pytest.approx(147.0)
+    assert bpfi["harmonics"][0]["detectedFrequency"] == 147.0
+    assert bpfi["harmonics"][0]["significant"] is True
+
+    normal = analyze_acceleration_bearing_fft(
+        frequencies, [0.49] * len(frequencies), 1800.0, {"maker": "NSK", "number": "6318"}
+    )
+    assert normal["status"] == "no_anomaly"
+    assert normal["defaultFaultType"] == "BPFO"
+    assert normal["amplitudeThreshold"] == 0.5
 
 
 def test_v032_uses_configured_rpm_for_velocity_fft(tmp_path: Path) -> None:
@@ -652,7 +694,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/dashboard")
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=equipment-status-landing"' in response.text
+    assert 'type="module" src="/static/app.js?v=acceleration-bearing-fft-v7"' in response.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -757,18 +799,10 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert record["frequencyRange"] == 500.0
     assert record["frequencies"] == [250.0, 500.0]
     assert record["amplitudes"] == pytest.approx([9.0, 9.0])
-    assert record["analysis"]["diagnosis"] == {
-        "status": "deferred",
-        "diagnosis": "deferred",
-        "label": "가속도 진단 보류",
-        "message": "가속도 FFT의 베어링·기타 결함 진단은 현재 범위에서 보류했습니다.",
-        "rpm": None,
-        "rpmSource": "unavailable",
-        "shaftFrequency": None,
-        "frequencyTolerance": None,
-        "harmonics": [],
-        "ratios": {"twoToOne": None, "threeToOne": None},
-    }
+    diagnosis = record["analysis"]["diagnosis"]
+    assert diagnosis["status"] == "unavailable"
+    assert diagnosis["diagnosis"] == "unavailable"
+    assert diagnosis["rpmSource"] == "unavailable"
     assert "records" not in record
 
     assert get(target_app, "/api/dashboard/1/fft/999").status_code == 404

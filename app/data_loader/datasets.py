@@ -73,6 +73,7 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
         if presentation_metadata is not None:
             equipment.update(presentation_metadata)
         rpm = equipment.get("rpm")
+        bearing = {"maker": equipment.get("maker"), "number": equipment.get("bearing")}
         errors: dict[str, str] = {}
 
         trend = None
@@ -86,7 +87,7 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
         fft = None
         if fft_path := files.get("fft"):
             try:
-                fft = _load_fft(fft_path, rpm)
+                fft = _load_fft(fft_path, rpm, bearing)
             except (OSError, ValueError, SyntaxError, csv.Error) as error:
                 LOGGER.warning("FFT CSV를 읽지 못했습니다: %s (%s)", fft_path, error)
                 errors["fft"] = str(error)

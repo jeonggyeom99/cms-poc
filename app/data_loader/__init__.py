@@ -6,6 +6,8 @@ separating configuration, CSV I/O, metadata transformation, and analysis.
 
 from .constants import (
     BASE_DIR,
+    BEARING_FAULT_MASTER_PATH,
+    BEARING_FAULT_TYPES,
     DATA_KIND_PATTERN,
     DATASET_NUMBER_PATTERN,
     DIAG_MODE_LABELS,
@@ -44,8 +46,10 @@ from .fft import (
     _fft_record_summary,
     analyze_fft_diagnosis,
     analyze_fft_spectrum,
+    analyze_acceleration_bearing_fft,
     analyze_velocity_fft,
 )
+from .bearing import lookup_bearing_coefficients
 from .level import _linear_quantile, _subtract_months, analyze_velave_level
 from .metadata import (
     _build_trend_metrics,
@@ -59,6 +63,8 @@ from .trend import _fill_low_outliers, analyze_velave_trend
 
 __all__ = [
     "BASE_DIR",
+    "BEARING_FAULT_MASTER_PATH",
+    "BEARING_FAULT_TYPES",
     "DATA_KIND_PATTERN",
     "DATASET_NUMBER_PATTERN",
     "DIAG_MODE_LABELS",
@@ -95,6 +101,7 @@ __all__ = [
     "_optional_finite_float",
     "_subtract_months",
     "analyze_fft_diagnosis",
+    "analyze_acceleration_bearing_fft",
     "analyze_fft_spectrum",
     "analyze_velave_level",
     "analyze_velave_trend",
@@ -102,4 +109,5 @@ __all__ = [
     "dataset_summaries",
     "load_datasets",
     "load_fft_record",
+    "lookup_bearing_coefficients",
 ]
