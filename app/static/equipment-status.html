@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Excel 진단 이력과 CSV 기반 설비 상태를 조회합니다.">
     <title>설비 현황 | CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-landing">
-    <script type="module" src="/static/modules/equipment-status/controller.js?v=dataset-duplicates"></script>
+    <link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-demo-merge">
+    <script src="/static/equipment-status-demo/equipment-status-excel-data.js"></script>
+    <script src="/static/equipment-status-demo/equipment-status-tree-data.js"></script>
+    <script type="module" src="/static/modules/equipment-status/controller.js?v=equipment-status-demo-merge"></script>
   </head>
   <body>
     <div class="equipment-status-page">
@@ -15,7 +17,7 @@
           <span class="equipment-status-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span>
             <small>ALARM COPILOT</small>
-            <strong>설비 상태 조회</strong>
+            <strong>설비 모니터링</strong>
           </span>
         </a>
         <div class="equipment-status-topbar__actions">
@@ -28,15 +30,27 @@
         <section class="equipment-status-heading" aria-labelledby="equipment-status-title">
           <div>
             <span class="equipment-status-kicker">EQUIPMENT STATUS</span>
-            <h1 id="equipment-status-title">설비 현황</h1>
+            <h1 id="equipment-status-title">설비 모니터링</h1>
           </div>
           <time id="equipment-status-data-basis">Excel 진단 이력 기준</time>
         </section>
 
         <section class="equipment-status-search" aria-label="설비 상태 필터">
-          <label for="equipment-status-process">
+          <label for="equipment-status-factory">
             공장
+            <select id="equipment-status-factory">
+              <option value="all">전체</option>
+            </select>
+          </label>
+          <label for="equipment-status-process">
+            공정
             <select id="equipment-status-process">
+              <option value="all">전체</option>
+            </select>
+          </label>
+          <label for="equipment-status-type">
+            설비유형
+            <select id="equipment-status-type">
               <option value="all">전체</option>
             </select>
           </label>
@@ -49,6 +63,10 @@
               <option value="critical">심각</option>
               <option value="unknown">판단 불가</option>
             </select>
+          </label>
+          <label class="equipment-status-search__name" for="equipment-status-name">
+            설비명
+            <input id="equipment-status-name" type="search" placeholder="설비명 입력" autocomplete="off">
           </label>
           <button id="equipment-status-reset" type="button">조건 초기화</button>
         </section>
@@ -63,8 +81,11 @@
             </div>
             <span id="equipment-status-count" aria-live="polite">설비 목록을 불러오는 중...</span>
           </div>
-          <div class="equipment-status-list" id="equipment-status-list" role="list" aria-labelledby="equipment-status-list-title" aria-busy="true">
-            <p class="equipment-status-empty">설비 목록을 불러오는 중입니다.</p>
+          <div class="equipment-status-panel__body">
+            <aside class="equipment-status-tree" id="equipment-status-tree" aria-label="설비 분류 트리"></aside>
+            <div class="equipment-status-list" id="equipment-status-list" role="list" aria-labelledby="equipment-status-list-title" aria-busy="true">
+              <p class="equipment-status-empty">설비 목록을 불러오는 중입니다.</p>
+            </div>
           </div>
         </section>
       </main>

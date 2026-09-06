@@ -723,12 +723,18 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
-    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-landing">' in response.text
-    assert 'src="/static/modules/equipment-status/controller.js?v=dataset-duplicates"' in response.text
+    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-demo-merge">' in response.text
+    assert 'src="/static/equipment-status-demo/equipment-status-excel-data.js"' in response.text
+    assert 'src="/static/equipment-status-demo/equipment-status-tree-data.js"' in response.text
+    assert 'src="/static/modules/equipment-status/controller.js?v=equipment-status-demo-merge"' in response.text
     assert "설비 현황" in response.text
+    assert 'id="equipment-status-factory"' in response.text
     assert 'id="equipment-status-process"' in response.text
+    assert 'id="equipment-status-type"' in response.text
     assert 'id="equipment-status-state"' in response.text
+    assert 'id="equipment-status-name"' in response.text
     assert 'id="equipment-status-reset"' in response.text
+    assert 'id="equipment-status-tree"' in response.text
     assert 'id="equipment-status-list"' in response.text
 
 

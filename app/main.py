@@ -19,6 +19,7 @@ from app.data_loader import (
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR.parent / "data"
+EQUIPMENT_STATUS_DEMO_DIR = BASE_DIR.parent / "equipment-status-demo"
 
 
 def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
@@ -32,6 +33,11 @@ def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
         description="CSV 기반 CMS 설비 Trend 및 FFT Dashboard API",
         version="0.2.0",
         lifespan=lifespan,
+    )
+    application.mount(
+        "/static/equipment-status-demo",
+        StaticFiles(directory=EQUIPMENT_STATUS_DEMO_DIR),
+        name="equipment-status-demo",
     )
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

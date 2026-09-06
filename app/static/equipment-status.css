@@ -453,3 +453,105 @@ select {
     font-size: 11px;
   }
 }
+
+.equipment-status-search {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.equipment-status-search__name {
+  grid-column: 1 / span 3;
+}
+
+.equipment-status-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--es-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--es-text);
+}
+
+.equipment-status-panel__body {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(0, 8fr);
+  gap: 18px;
+}
+
+.equipment-status-tree {
+  max-height: min(58vh, 560px);
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--es-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.equipment-status-tree details + details { margin-top: 2px; }
+.equipment-status-tree summary,
+.equipment-status-tree button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: max-content;
+  gap: 7px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--es-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.equipment-status-tree summary { list-style: none; }
+.equipment-status-tree summary::-webkit-details-marker { display: none; }
+.equipment-status-tree summary::before { content: "+"; color: var(--es-accent); font-size: 16px; }
+.equipment-status-tree details[open] > summary::before { content: "−"; }
+.equipment-status-tree summary:hover,
+.equipment-status-tree button:hover { background: rgba(22, 143, 154, 0.08); color: var(--es-text); }
+.equipment-status-tree__children { margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--es-border); }
+.equipment-status-tree__health { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--es-normal); }
+.equipment-status-tree__health--attention { background: var(--es-attention); }
+.equipment-status-tree__health--critical { background: var(--es-critical); }
+
+.equipment-status-list { padding-left: 4px; }
+.equipment-status-equipment__summary { list-style: none; cursor: pointer; }
+.equipment-status-equipment__summary::-webkit-details-marker { display: none; }
+.equipment-status-sensors { margin: 0 10px 8px 42px; padding: 4px 0 4px 12px; border-left: 1px solid var(--es-border); }
+.equipment-status-sensor {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--es-muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+.equipment-status-sensor:hover { color: var(--es-text); }
+.equipment-status-sensor__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--es-normal); }
+.equipment-status-sensor__dot--attention { background: var(--es-attention); }
+.equipment-status-sensor__dot--critical { background: var(--es-critical); }
+.equipment-status-sensor__dot--unknown { background: var(--es-unknown); }
+.equipment-status-sensor__state { font-style: normal; font-size: 12px; }
+.equipment-status-sensor__state--normal { color: var(--es-normal); }
+.equipment-status-sensor__state--attention { color: var(--es-attention); }
+.equipment-status-sensor__state--critical { color: var(--es-critical); }
+.equipment-status-sensor__state--unknown { color: var(--es-unknown); }
+
+@media (max-width: 960px) {
+  .equipment-status-search { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .equipment-status-search__name { grid-column: 1; }
+}
+
+@media (max-width: 680px) {
+  .equipment-status-search { grid-template-columns: 1fr; }
+  .equipment-status-search__name { grid-column: auto; }
+  .equipment-status-panel__body { grid-template-columns: 1fr; }
+  .equipment-status-tree { max-height: 260px; }
+  .equipment-status-sensors { margin-left: 26px; }
+}
