@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date, datetime, time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -8,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.data_loader import (
     dataset_summaries,
+    dataset_until,
     load_datasets,
     load_fft_record,
     load_history,
@@ -38,12 +40,10 @@ def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
 
     def public_dashboard(dataset: dict) -> dict:
         fft = dataset.get("fft")
-        if fft is None:
-            return dataset
-        return {
-            **dataset,
-            "fft": {key: value for key, value in fft.items() if not key.startswith("_")},
-        }
+        public = {key: value for key, value in dataset.items() if not key.startswith("_")}
+        if fft is not None:
+            public["fft"] = {key: value for key, value in fft.items() if not key.startswith("_")}
+        return public
 
     @application.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def equipment_status() -> str:
@@ -80,21 +80,32 @@ def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
         first_dataset_id = dataset_summaries(available_datasets)[0]["id"]
         return public_dashboard(available_datasets[first_dataset_id])
 
+    def snapshot(dataset: dict, until: date | None) -> dict:
+        if until is None:
+            return dataset
+        result = dataset_until(dataset, datetime.combine(until, time.max))
+        if result is None:
+            raise HTTPException(status_code=404, detail="기준일 이전에 Trend와 FFT 데이터가 없습니다.")
+        return result
+
     @application.get("/api/dashboard/{dataset_id}")
-    async def dashboard_data(dataset_id: str, request: Request) -> dict:
+    async def dashboard_data(dataset_id: str, request: Request, until: date | None = None) -> dict:
         available_datasets = datasets_from(request)
         if dataset_id not in available_datasets:
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
-        return public_dashboard(available_datasets[dataset_id])
+        return public_dashboard(snapshot(available_datasets[dataset_id], until))
 
     @application.get("/api/dashboard/{dataset_id}/fft/{record_id}")
-    async def fft_record(dataset_id: str, record_id: int, request: Request) -> dict:
+    async def fft_record(dataset_id: str, record_id: int, request: Request, until: date | None = None) -> dict:
         available_datasets = datasets_from(request)
         dataset = available_datasets.get(dataset_id)
         if dataset is None or dataset.get("fft") is None:
             raise HTTPException(status_code=404, detail="FFT 데이터를 찾을 수 없습니다.")
         try:
-            return load_fft_record(dataset["fft"], record_id)
+            filtered = snapshot(dataset, until)
+            if filtered.get("fft") is None:
+                raise KeyError(record_id)
+            return load_fft_record(filtered["fft"], record_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
         except (OSError, ValueError, SyntaxError) as error:

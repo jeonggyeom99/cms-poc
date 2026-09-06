@@ -8,6 +8,7 @@ from typing import Any
 
 HISTORY_FILE_NAME = "0. CMS history.csv"
 HISTORY_YEAR = 2026
+HISTORY_DATASET_IDS = {3: "1", 6: "3", 12: "4", 14: "5"}
 HISTORY_COLUMNS = (
     "NO",
     "월",
@@ -67,6 +68,7 @@ def _history_item(row: list[str], row_number: int) -> dict[str, Any]:
 
     return {
         "id": str(record_number),
+        "datasetId": HISTORY_DATASET_IDS.get(record_number),
         "number": record_number,
         "date": measured_date.isoformat(),
         "process": values[3],

@@ -64,8 +64,7 @@ def _load_trend(path: Path) -> dict[str, Any]:
 
 
 def _load_warning_status(path: Path) -> dict[str, Any]:
-    latest_row: dict[str, str] | None = None
-    latest_timestamp: datetime | None = None
+    rows: list[dict[str, str]] = []
     with path.open(encoding="utf-8-sig", newline="") as status_file:
         reader = csv.DictReader(status_file)
         required_columns = {"GenerationTime", "VELJudgeWarnValue", "VELJudgeDangValue"}
@@ -74,10 +73,14 @@ def _load_warning_status(path: Path) -> dict[str, Any]:
             raise ValueError(f"WarningStatus CSV 필수 컬럼 누락: {missing}")
 
         for row in reader:
-            measured_at = datetime.fromisoformat(str(row["GenerationTime"]))
-            if latest_timestamp is None or measured_at > latest_timestamp:
-                latest_row = row
-                latest_timestamp = measured_at
+            datetime.fromisoformat(str(row["GenerationTime"]))
+            rows.append(row)
+
+    return _warning_status_from_rows(rows)
+
+
+def _warning_status_from_rows(rows: list[dict[str, str]]) -> dict[str, Any]:
+    latest_row = max(rows, key=lambda row: datetime.fromisoformat(str(row["GenerationTime"])), default=None)
 
     if latest_row is None:
         raise ValueError("WarningStatus CSV에 데이터 행이 없습니다.")
@@ -108,7 +111,17 @@ def _load_warning_status(path: Path) -> dict[str, Any]:
         "warningThreshold": warning_threshold,
         "dangerThreshold": danger_threshold,
         "thresholds": thresholds,
+        "_rows": rows,
     }
+
+
+def filter_warning_status_until(
+    warning_status: dict[str, Any] | None, until: datetime
+) -> dict[str, Any] | None:
+    if warning_status is None:
+        return None
+    rows = [row for row in warning_status.get("_rows", []) if datetime.fromisoformat(str(row["GenerationTime"])) <= until]
+    return _warning_status_from_rows(rows) if rows else None
 
 
 def _load_fft(
@@ -166,3 +179,22 @@ def load_fft_record(fft: dict[str, Any], record_id: int) -> dict[str, Any]:
     if row is None:
         raise KeyError(record_id)
     return _build_fft_record(row, record_id, fft.get("_rpm"), fft.get("_bearing"))
+
+
+def filter_fft_until(fft: dict[str, Any] | None, until: datetime) -> dict[str, Any] | None:
+    if fft is None:
+        return None
+    rows = [
+        (record_id, row) for record_id, row in fft.get("_recordsById", {}).items()
+        if datetime.fromisoformat(str(row["MeasureDate"])) <= until
+    ]
+    if not rows:
+        return None
+    rows.sort(key=lambda item: (item[1]["MeasureDate"], item[0]), reverse=True)
+    rpm, bearing = fft.get("_rpm"), fft.get("_bearing")
+    summaries = [_fft_record_summary(row, record_id, rpm, bearing) for record_id, row in rows]
+    alerts = {record["id"] for record in summaries if record["isAlertFft"]}
+    default = next((item for item in rows if item[0] in alerts and item[1]["MeasureMode"] != "0"), next((item for item in rows if item[1]["MeasureMode"] == "3"), rows[0]))
+    result = _build_fft_record(default[1], default[0], rpm, bearing)
+    result.update({"records": summaries, "alertRecordCount": len(alerts), "_recordsById": dict(rows), "_rpm": rpm, "_bearing": bearing})
+    return result

@@ -62,6 +62,7 @@ def test_history_loader_normalizes_csv_fields(tmp_path: Path) -> None:
     assert payload["items"] == [
         {
             "id": "13",
+            "datasetId": None,
             "number": 13,
             "date": "2026-04-22",
             "process": "STS2연주",
@@ -88,6 +89,9 @@ def test_repository_history_csv_contains_original_and_added_records() -> None:
     assert payload["total"] == 13
     assert [item["number"] for item in payload["items"][:3]] == [3, 6, 12]
     assert [item["number"] for item in payload["items"][3:]] == list(range(13, 23))
+    assert {item["number"]: item["datasetId"] for item in payload["items"] if item["number"] in {3, 6, 12, 14}} == {
+        3: "1", 6: "3", 12: "4", 14: "5",
+    }
 
 
 def test_history_page_and_equipment_status_link_are_served(tmp_path: Path) -> None:

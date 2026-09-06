@@ -11,10 +11,12 @@ export async function fetchDatasetSummaries() {
   return items;
 }
 
-export function fetchDashboard(datasetId) {
-  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}`);
+export function fetchDashboard(datasetId, until) {
+  const query = until ? `?until=${encodeURIComponent(until)}` : "";
+  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}${query}`);
 }
 
-export function fetchFftRecord(datasetId, recordId) {
-  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}`);
+export function fetchFftRecord(datasetId, recordId, until) {
+  const query = until ? `?until=${encodeURIComponent(until)}` : "";
+  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}${query}`);
 }

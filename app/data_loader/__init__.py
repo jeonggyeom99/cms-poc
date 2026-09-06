@@ -38,6 +38,7 @@ from .datasets import (
     _dataset_sort_key,
     _load_equipment_metadata,
     dataset_summaries,
+    dataset_until,
     load_datasets,
 )
 from .fft import (
@@ -111,6 +112,7 @@ __all__ = [
     "analyze_velave_trend",
     "analyze_velocity_fft",
     "dataset_summaries",
+    "dataset_until",
     "load_datasets",
     "load_fft_record",
     "load_history",

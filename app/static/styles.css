@@ -248,6 +248,8 @@ h1 {
   letter-spacing: -0.035em;
 }
 
+#dashboard-until { margin: 0; color: #aebed0; font-size: 14px; font-weight: 700; }
+
 .equipment-metadata {
   display: flex;
   flex-wrap: wrap;

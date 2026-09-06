@@ -85,6 +85,14 @@ function createDetailRow(item) {
   appendDefinition(data, "베어링 형번", item.bearingModel);
 
   panel.append(narrative, data);
+  const graph = element("button", "history-graph-button", "Graph 보기");
+  graph.type = "button";
+  graph.disabled = !item.datasetId;
+  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
+  graph.dataset.dashboardDataset = item.datasetId ?? "";
+  graph.dataset.historyId = item.id;
+  if (!item.datasetId) panel.append(element("p", "history-graph-notice", "연결된 Graph 데이터가 없습니다."));
+  panel.append(graph);
   cell.append(panel);
   row.append(cell);
   return row;
@@ -174,6 +182,12 @@ function bindControls() {
     keyword.focus();
   });
   list.addEventListener("click", (event) => {
+    const graphButton = event.target.closest("[data-dashboard-dataset]");
+    if (graphButton && !graphButton.disabled) {
+      const item = historyItems.find((entry) => entry.id === graphButton.dataset.historyId);
+      if (item) window.location.href = `/dashboard?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
+      return;
+    }
     const button = event.target.closest("[data-history-id]");
     if (!button || !button.classList.contains("history-detail-button")) return;
     expandedHistoryId = expandedHistoryId === button.dataset.historyId

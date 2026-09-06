@@ -110,6 +110,10 @@ function requestedDatasetId(items) {
   return items.some((item) => item.id === datasetId) ? datasetId : items[0].id;
 }
 
+function requestedUntil() {
+  return new URLSearchParams(window.location.search).get("until");
+}
+
 function replaceDatasetIdInUrl(datasetId) {
   const url = new URL(window.location.href);
   url.searchParams.set("dataset", datasetId);
@@ -133,7 +137,7 @@ async function selectFftRecord(recordId) {
     let record = getCachedFftRecord(recordId);
     if (!record) {
       const datasetId = dashboardData.meta.datasetId;
-      record = await fetchFftRecord(datasetId, recordId);
+      record = await fetchFftRecord(datasetId, recordId, requestedUntil());
       cacheFftRecord(recordId, record);
     }
     if (!isCurrentFftSelectionRequest(requestId)) return;
@@ -171,7 +175,7 @@ export async function loadDashboard(datasetId) {
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
   try {
-    const dashboardData = await fetchDashboard(datasetId);
+    const dashboardData = await fetchDashboard(datasetId, requestedUntil());
     setDashboardData(dashboardData);
     if (dashboardData.fft) {
       const { records, ...selectedRecord } = dashboardData.fft;

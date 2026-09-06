@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import csv
+import copy
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .constants import EQUIPMENT_METADATA_CONFIG_PATH
-from .csv_loader import _classify_csv, _load_fft, _load_trend, _load_warning_status
+from .csv_loader import (
+    _classify_csv, _load_fft, _load_trend, _load_warning_status,
+    filter_fft_until, filter_warning_status_until,
+)
 from .level import analyze_velave_level
 from .metadata import _build_trend_metrics, _equipment_metadata
 from .numeric import _optional_finite_float
@@ -181,6 +186,7 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
             },
             "trend": trend,
             "fft": fft,
+            "_warningStatus": warning_status,
             "levelAnalysis": analyze_velave_level(
                 trend["points"] if trend is not None else [], warning_status
             ),
@@ -213,3 +219,47 @@ def dataset_summaries(datasets: dict[str, dict[str, Any]]) -> list[dict[str, Any
             }
         )
     return summaries
+
+
+def dataset_until(dataset: dict[str, Any], until: datetime) -> dict[str, Any] | None:
+    """Rebuild the dashboard values using only measurements through *until*."""
+    result = copy.deepcopy(dataset)
+    trend = result.get("trend")
+    if trend is not None:
+        trend["points"] = [point for point in trend["points"] if datetime.fromisoformat(point["timestamp"]) <= until]
+        if trend["points"]:
+            from .trend import analyze_velave_trend
+            trend["analysis"] = analyze_velave_trend(trend["points"])
+        else:
+            trend = None
+    fft = filter_fft_until(result.get("fft"), until)
+    warning = filter_warning_status_until(result.get("_warningStatus"), until)
+    if trend is None and fft is None:
+        return None
+    if trend is not None:
+        trend["metrics"] = _build_trend_metrics(trend, warning)
+        latest = trend["points"][-1]
+        result["current"]["velocity"] = latest["value"]
+        result["current"]["acceleration"] = latest["acceleration"]
+    else:
+        result["current"]["velocity"] = result["current"]["acceleration"] = None
+    result["current"]["warningThreshold"] = warning["warningThreshold"] if warning else None
+    result["current"]["dangerThreshold"] = warning["dangerThreshold"] if warning else None
+    result["trend"] = trend
+    result["fft"] = fft
+    result["levelAnalysis"] = analyze_velave_level(trend["points"] if trend else [], warning)
+    result["meta"]["availability"] = {"trend": trend is not None, "fft": fft is not None, "warningStatus": warning is not None}
+    measured = []
+    if trend: measured.append(trend["points"][-1]["timestamp"])
+    if fft: measured.append(fft["measuredAt"])
+    if warning: measured.append(warning["measuredAt"])
+    result["equipment"]["lastMeasuredAt"] = max(measured) if measured else None
+    analysis = trend["analysis"] if trend else None
+    if analysis is None or analysis["status"] == "insufficient_data":
+        status, label, description, color = "unknown", "추세 판단 불가", "우상향 판정에는 최소 143개의 시간별 VelAve 이력이 필요합니다.", "#94a3aa"
+    elif analysis["status"] == "rising":
+        status, label, description, color = "caution", "상승 경향", "최근 72시간 이동평균의 기울기가 상승 임계값을 초과했습니다.", "#f1a526"
+    else:
+        status, label, description, color = "normal", "정상", "최근 VelAve에서 상승 경향이 검출되지 않았습니다.", "#14a47b"
+    result["equipment"].update({"status": status, "statusLabel": label, "statusDescription": description, "statusColor": color})
+    return result

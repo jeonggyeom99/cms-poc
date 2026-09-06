@@ -174,6 +174,30 @@ def get(target_app, path: str) -> httpx.Response:
     return asyncio.run(request())
 
 
+def test_dashboard_until_rebuilds_snapshot_and_limits_fft_records(tmp_path: Path) -> None:
+    target_app = create_app(make_data_dir(tmp_path))
+
+    snapshot = get(target_app, "/api/dashboard/1?until=2026-01-01")
+    latest = get(target_app, "/api/dashboard/1")
+    fft_record = get(target_app, "/api/dashboard/1/fft/3?until=2026-01-01")
+    future_fft_record = get(target_app, "/api/dashboard/1/fft/4?until=2026-01-01")
+    invalid = get(target_app, "/api/dashboard/1?until=not-a-date")
+    empty = get(target_app, "/api/dashboard/1?until=2025-12-31")
+
+    assert snapshot.status_code == 200
+    payload = snapshot.json()
+    assert [point["timestamp"] for point in payload["trend"]["points"]] == ["2026-01-01 00:00:00"]
+    assert payload["current"]["velocity"] == 1.0
+    assert payload["current"]["warningThreshold"] == 4.0
+    assert [record["id"] for record in payload["fft"]["records"]] == [3]
+    assert payload["fft"]["recordId"] == 3
+    assert latest.json()["current"]["velocity"] == 2.0
+    assert fft_record.status_code == 200
+    assert future_fft_record.status_code == 404
+    assert invalid.status_code == 422
+    assert empty.status_code == 404
+
+
 def test_csv_loader_groups_files_and_ignores_warning_status_only_dataset(tmp_path: Path) -> None:
     datasets = load_datasets(make_data_dir(tmp_path))
 
