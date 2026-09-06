@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=acceleration-bearing-fft-v7">
+    <link rel="stylesheet" href="/static/styles.css?v=fft-related-history-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=clear-history-until"></script>
+    <script type="module" src="/static/app.js?v=fft-related-history-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -191,6 +191,18 @@
               </section>
             </div>
           </article>
+        </section>
+
+        <section class="related-history-section" id="fft-related-history" aria-labelledby="fft-related-history-title" hidden>
+          <div class="related-history-section-heading">
+            <div>
+              <span class="eyebrow">RELATED HISTORY</span>
+              <h2 id="fft-related-history-title">연관 과거 이력</h2>
+              <p>현재 FFT 진단과 같은 결함 및 유형의 진단 이력입니다.</p>
+            </div>
+            <span id="fft-related-history-count" aria-live="polite">0건</span>
+          </div>
+          <div class="related-history-list" id="fft-related-history-list" aria-live="polite"></div>
         </section>
 
         <p class="mock-notice">Level 권고값은 최근 3개월 Trend의 IQR 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>

@@ -46,7 +46,7 @@ function bearingFaultView(fft, selectedFaultType) {
     ?? null;
 }
 
-export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}) {
+export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}, relatedHistoryTag = null) {
   const result = document.getElementById("fft-analysis-result");
   const details = document.getElementById("fft-analysis-details");
   const existingChart = document.getElementById("fft-analysis-chart");
@@ -110,6 +110,11 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
       <strong>${bearingFault.type} · ${bearingFault.label}</strong>
       <small>결함계수 ${formatNumber(bearingFault.coefficient, 2)} · 기준주파수 ${formatNumber(bearingFault.baseFrequency, 2)} Hz · 점수 ${formatNumber(bearingFault.score, 3)}</small>
     </section>` : "";
+  const historyTags = relatedHistoryTag ? `
+    <div class="fft-related-history-tags" aria-label="연관 과거 이력 태그">
+      <span>과거 이력</span>
+      <strong>${relatedHistoryTag.fault} · ${relatedHistoryTag.faultType}</strong>
+    </div>` : "";
   details.innerHTML = `
     ${bearingControls}
     <div class="fft-analysis-grid">
@@ -135,6 +140,7 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 FFT 진단 결과">
       <span>속도 FFT 진단 결과</span>
       <strong>${diagnosis.label}</strong>
-    </section>` : ""}`;
+    </section>` : ""}
+    ${historyTags}`;
   if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft, bearingFault?.type));
 }

@@ -41,6 +41,14 @@ import {
   syncFftRecordSelection,
   toggleFftRecordFilter,
 } from "../fft/records.js?v=acceleration-bearing-fft-v7";
+import {
+  bindRelatedHistory,
+  matchingHistoryItems,
+  relatedHistoryTag,
+  renderRelatedHistory,
+  resetRelatedHistoryExpansion,
+} from "../fft/related-history.js?v=fft-related-history-v1";
+import { fetchHistory } from "../api/history.js?v=cms-history-v1";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=plot-zoom-bounds";
 import { populateSummary } from "../summary/summary.js?v=compact-fft-summary";
 import {
@@ -49,18 +57,28 @@ import {
 } from "../trend/chart.js?v=plot-zoom-bounds";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
 
+let historyItems = [];
+
+function relatedHistoryFor(fft, selectedBearingFaultType) {
+  const tag = relatedHistoryTag(fft, selectedBearingFaultType);
+  const items = matchingHistoryItems(historyItems, tag);
+  return { tag: items.length ? tag : null, items };
+}
+
 function renderFft() {
   const fft = getDashboardData()?.fft;
   if (fft?.analysis?.diagnosis?.faults?.length && !getSelectedBearingFaultType()) {
     resetSelectedBearingFaultType(fft);
   }
   const selectedBearingFaultType = getSelectedBearingFaultType();
+  const relatedHistory = relatedHistoryFor(fft, selectedBearingFaultType);
   renderOverviewFftResult(fft);
   renderFftRecordList(fft);
   renderFftChart(fft, selectedBearingFaultType);
   if (fft?.isAlertFft) {
     renderFftMetadata(fft);
-    renderFftAnalysis(fft, selectedBearingFaultType);
+    renderFftAnalysis(fft, selectedBearingFaultType, {}, relatedHistory.tag);
+    renderRelatedHistory(relatedHistory.tag, relatedHistory.items);
     return;
   }
 
@@ -71,6 +89,7 @@ function renderFft() {
     heading: "표시할 FFT 분석 대상이 없습니다.",
     detail: "좌측 목록에 대상 기록이 생기면 그래프와 분석 결과를 확인할 수 있습니다.",
   } : {});
+  renderRelatedHistory(null, []);
 }
 
 function renderExpandedGraph() {
@@ -128,6 +147,7 @@ async function selectFftRecord(recordId) {
   if (!fft || !recordExists || recordId === fft.recordId) return;
 
   const requestId = createFftSelectionRequest();
+  resetRelatedHistoryExpansion();
   const list = document.getElementById("fft-record-list");
   list.setAttribute("aria-busy", "true");
   syncFftRecordSelection(fft, recordId);
@@ -171,6 +191,7 @@ async function selectFftRecord(recordId) {
 export async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
   resetFftRecordState();
+  resetRelatedHistoryExpansion();
   resetFftRecordFilters();
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
@@ -205,6 +226,7 @@ export async function loadDashboard(datasetId) {
       heading: "FFT 분석을 표시할 수 없습니다.",
       detail: "설비 데이터를 다시 선택해 주세요.",
     });
+    renderRelatedHistory(null, []);
     renderLevelAnalysis({ levelAnalysis: null });
   } finally {
     select.disabled = false;
@@ -250,6 +272,16 @@ async function initializeDashboard() {
   }
 }
 
+async function loadRelatedHistory() {
+  try {
+    const payload = await fetchHistory();
+    historyItems = payload.items;
+    renderFft();
+  } catch (error) {
+    console.error("Related CMS history loading failed", error);
+  }
+}
+
 export function initializeDashboardApplication() {
   bindPeriodTabs(handlePeriodChange);
   bindGraphModal({
@@ -257,6 +289,7 @@ export function initializeDashboardApplication() {
     onFftRecordSelect: selectFftRecord,
   });
   bindTrendMetricSelector(handleTrendMetricSelectionChange);
+  bindRelatedHistory();
   document.getElementById("fft-analysis-details").addEventListener("click", (event) => {
     const button = event.target.closest("[data-bearing-fault]");
     if (!button) return;
@@ -271,4 +304,5 @@ export function initializeDashboardApplication() {
     renderFftRecordList(getDashboardData()?.fft);
   });
   initializeDashboard();
+  loadRelatedHistory();
 }
