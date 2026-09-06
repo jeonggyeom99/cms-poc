@@ -1093,7 +1093,8 @@ body.graph-modal-open {
 }
 
 .level-card,
-.diagnosis-card {
+.diagnosis-card,
+.ai-analysis-card {
   padding: 22px;
 }
 
@@ -1331,7 +1332,7 @@ body.graph-modal-open {
 }
 
 .related-history-section {
-  margin-top: 16px;
+  margin-top: 0;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1801,6 +1802,382 @@ body.graph-modal-open {
   line-height: 1.55;
 }
 
+.ai-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
+.ai-analysis-run {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--teal);
+  border-radius: 7px;
+  background: var(--teal);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-analysis-run:hover:not(:disabled) {
+  border-color: #096660;
+  background: #096660;
+}
+
+.ai-analysis-run:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.ai-analysis-run:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.report-action,
+.email-draft-copy {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--navy);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-action-ppt {
+  border-color: #85aba9;
+  color: #096660;
+}
+
+.report-action-email,
+.email-draft-copy {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
+
+.report-action:hover:not(:disabled),
+.email-draft-copy:hover:not(:disabled) {
+  border-color: #096660;
+  background: #096660;
+  color: #fff;
+}
+
+.report-action:focus-visible,
+.email-draft-copy:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.report-action:disabled,
+.email-draft-copy:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.report-action-status {
+  min-height: 18px;
+  margin: -4px 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.report-action-status[data-state="error"] {
+  color: var(--danger);
+}
+
+.report-action-status[data-state="success"] {
+  color: var(--normal);
+}
+
+.email-draft-dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: min(900px, calc(100dvh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 30px 90px rgba(13, 47, 60, 0.28);
+}
+
+.email-draft-dialog::backdrop {
+  background: rgba(8, 27, 38, 0.68);
+  backdrop-filter: blur(3px);
+}
+
+.email-draft-dialog-shell {
+  display: flex;
+  max-height: min(900px, calc(100dvh - 32px));
+  flex-direction: column;
+}
+
+.email-draft-dialog-header,
+.email-draft-dialog-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.email-draft-dialog-header h2 {
+  margin: 2px 0 0;
+  color: var(--navy);
+  font-size: 18px;
+}
+
+.email-draft-dialog-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.email-draft-dialog-close svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.email-draft-dialog-close:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.email-draft-dialog-close:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.email-draft-dialog-body {
+  min-height: 0;
+  padding: 20px;
+  overflow: auto;
+}
+
+.email-draft-preview:empty::before {
+  content: "AI 메일 초안을 준비하고 있습니다.";
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.email-draft-document {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.email-draft-subject {
+  margin: 0 0 16px;
+  color: var(--navy);
+  font-size: 18px;
+}
+
+.email-draft-greeting,
+.email-draft-closing,
+.email-draft-section-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.email-draft-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.email-draft-section-title {
+  margin: 0 0 7px;
+  color: var(--navy);
+  font-size: 12px;
+}
+
+.email-draft-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.email-draft-priority {
+  margin-right: 7px;
+  color: var(--teal);
+}
+
+.email-draft-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.email-draft-chart {
+  min-width: 0;
+  margin: 0;
+}
+
+.email-draft-chart img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.email-draft-chart figcaption {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.email-draft-dialog-footer {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.email-draft-dialog-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.email-draft-dialog-footer p[data-state="error"] {
+  color: var(--danger);
+}
+
+.ai-analysis-placeholder {
+  margin-top: 0;
+}
+
+.ai-analysis-details {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-analysis-details > .ai-analysis-details {
+  gap: 16px;
+}
+
+.ai-analysis-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.ai-analysis-section h3 {
+  margin: 0 0 9px;
+  color: var(--navy);
+  font-size: 12px;
+}
+
+.ai-analysis-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-analysis-list li {
+  min-width: 0;
+}
+
+.ai-analysis-finding,
+.ai-analysis-cause,
+.ai-analysis-action,
+.ai-analysis-text-item {
+  padding-left: 11px;
+  border-left: 3px solid var(--teal);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ai-analysis-finding strong,
+.ai-analysis-cause strong,
+.ai-analysis-action strong {
+  display: block;
+  color: var(--navy);
+  font-size: 12px;
+}
+
+.ai-analysis-finding p,
+.ai-analysis-cause p,
+.ai-analysis-action p {
+  margin: 3px 0 0;
+  color: var(--muted);
+}
+
+.ai-analysis-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-confidence,
+.ai-priority {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.ai-confidence-high,
+.ai-priority-immediate {
+  background: var(--danger-soft);
+  color: #b83535;
+}
+
+.ai-confidence-medium,
+.ai-priority-high {
+  background: var(--caution-soft);
+  color: #a66500;
+}
+
+.ai-confidence-low,
+.ai-priority-planned {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.ai-analysis-text-item {
+  border-left-color: #94a3aa;
+  color: var(--muted);
+}
+
+.ai-analysis-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .recommendation-list {
   display: grid;
   gap: 8px;
@@ -2035,7 +2412,8 @@ body.graph-modal-open {
 
   .chart-card,
   .level-card,
-  .diagnosis-card {
+  .diagnosis-card,
+  .ai-analysis-card {
     padding: 17px;
   }
 
@@ -2045,6 +2423,47 @@ body.graph-modal-open {
   }
 
   .peak-list {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-analysis-actions {
+    justify-content: flex-start;
+  }
+
+  .report-action-status {
+    text-align: left;
+  }
+
+  .email-draft-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .email-draft-dialog-shell {
+    max-height: calc(100dvh - 20px);
+  }
+
+  .email-draft-dialog-header,
+  .email-draft-dialog-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .email-draft-dialog-header {
+    position: relative;
+  }
+
+  .email-draft-dialog-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+  }
+
+  .email-draft-copy {
+    width: 100%;
+  }
+
+  .email-draft-chart-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -1,4 +1,4 @@
-import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=fft-related-history-v1";
+import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=ai-report-v1";
 
 window.addEventListener("DOMContentLoaded", () => {
   initializeDashboardApplication();

@@ -3,6 +3,24 @@ import {
   fetchDatasetSummaries,
   fetchFftRecord,
 } from "../api/dashboard.js?v=fft-load-fix";
+import { fetchAiAnalysis } from "../api/ai-analysis.js?v=ai-analysis-v1";
+import {
+  bindAiAnalysis,
+  renderAiAnalysis,
+  renderAiAnalysisError,
+  resetAiAnalysis,
+  setAiAnalysisLoading,
+} from "../analysis/ai.js?v=ai-analysis-v1";
+import {
+  bindEmailDraft,
+  resetEmailDraft,
+  setEmailDraftAvailable,
+} from "../report/email-draft.js?v=email-draft-v1";
+import {
+  bindPptExport,
+  resetPptExport,
+  setPptExportAvailable,
+} from "../report/ppt-export.js?v=diagnostic-ppt-v1";
 import { renderLevelAnalysis } from "../analysis/level.js";
 import {
   bindPeriodTabs,
@@ -58,6 +76,34 @@ import {
 import { bindTrendMetricSelector } from "../trend/metrics.js";
 
 let historyItems = [];
+let aiAnalysisRequest = 0;
+
+function buildReportRequest() {
+  const dashboardData = getDashboardData();
+  const recordId = dashboardData?.fft?.recordId;
+  if (!dashboardData?.meta?.datasetId || !Number.isInteger(recordId)) return null;
+  return {
+    datasetId: dashboardData.meta.datasetId,
+    recordId,
+    selectedFaultType: getSelectedBearingFaultType(),
+    until: requestedUntil(),
+    force: false,
+  };
+}
+
+function resetReportActionsFor(fft) {
+  const available = Boolean(fft?.recordId);
+  resetPptExport();
+  resetEmailDraft();
+  setPptExportAvailable(available);
+  setEmailDraftAvailable(available);
+}
+
+function resetAiAnalysisFor(fft) {
+  aiAnalysisRequest += 1;
+  resetAiAnalysis({ available: Boolean(fft?.recordId) });
+  resetReportActionsFor(fft);
+}
 
 function relatedHistoryFor(fft, selectedBearingFaultType) {
   const tag = relatedHistoryTag(fft, selectedBearingFaultType);
@@ -140,6 +186,32 @@ function replaceDatasetIdInUrl(datasetId) {
   window.history.replaceState(window.history.state, "", url);
 }
 
+async function runAiAnalysis(force) {
+  const dashboardData = getDashboardData();
+  const fft = dashboardData?.fft;
+  if (!dashboardData?.meta?.datasetId || !fft?.recordId) {
+    resetAiAnalysisFor(null);
+    return;
+  }
+
+  const requestId = ++aiAnalysisRequest;
+  setAiAnalysisLoading();
+  try {
+    const payload = await fetchAiAnalysis(dashboardData.meta.datasetId, {
+      recordId: fft.recordId,
+      selectedFaultType: getSelectedBearingFaultType(),
+      until: requestedUntil(),
+      force,
+    });
+    if (requestId !== aiAnalysisRequest) return;
+    renderAiAnalysis(payload);
+  } catch (error) {
+    if (requestId !== aiAnalysisRequest) return;
+    console.error("AI analysis loading failed", error);
+    renderAiAnalysisError(error.message || "AI 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+}
+
 async function selectFftRecord(recordId) {
   const dashboardData = getDashboardData();
   const fft = dashboardData?.fft;
@@ -173,6 +245,7 @@ async function selectFftRecord(recordId) {
     setDashboardData(updatedDashboardData);
     resetSelectedBearingFaultType(updatedDashboardData.fft);
     renderFft();
+    resetAiAnalysisFor(updatedDashboardData.fft);
     setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
       renderExpandedGraph();
@@ -193,6 +266,7 @@ export async function loadDashboard(datasetId) {
   resetFftRecordState();
   resetRelatedHistoryExpansion();
   resetFftRecordFilters();
+  resetAiAnalysisFor(null);
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
@@ -211,6 +285,7 @@ export async function loadDashboard(datasetId) {
     renderTrend(getCurrentPeriod(), dashboardData);
     renderFft();
     renderLevelAnalysis(dashboardData);
+    resetAiAnalysisFor(dashboardData.fft);
   } catch (error) {
     console.error("Dashboard data loading failed", error);
     setExpandButtonEnabled("trend", false);
@@ -228,6 +303,12 @@ export async function loadDashboard(datasetId) {
     });
     renderRelatedHistory(null, []);
     renderLevelAnalysis({ levelAnalysis: null });
+    resetAiAnalysis({
+      available: false,
+      heading: "설비 데이터를 불러오지 못했습니다.",
+      detail: "설비 데이터를 다시 선택한 후 AI 분석을 실행해 주세요.",
+    });
+    resetReportActionsFor(null);
   } finally {
     select.disabled = false;
   }
@@ -290,11 +371,15 @@ export function initializeDashboardApplication() {
   });
   bindTrendMetricSelector(handleTrendMetricSelectionChange);
   bindRelatedHistory();
+  bindAiAnalysis(runAiAnalysis);
+  bindPptExport(buildReportRequest);
+  bindEmailDraft(buildReportRequest);
   document.getElementById("fft-analysis-details").addEventListener("click", (event) => {
     const button = event.target.closest("[data-bearing-fault]");
     if (!button) return;
     setSelectedBearingFaultType(button.dataset.bearingFault);
     renderFft();
+    resetAiAnalysisFor(getDashboardData()?.fft);
     if (getExpandedGraph() === "fft") renderExpandedGraph();
   });
   document.getElementById("fft-record-browser").addEventListener("click", (event) => {

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=fft-related-history-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=ai-report-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=fft-related-history-v1"></script>
+    <script type="module" src="/static/app.js?v=ai-report-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -137,6 +137,27 @@
           </div>
         </dialog>
 
+        <dialog class="email-draft-dialog" id="email-draft-dialog" aria-labelledby="email-draft-title">
+          <div class="email-draft-dialog-shell">
+            <header class="email-draft-dialog-header">
+              <div>
+                <span class="eyebrow">AI EMAIL DRAFT</span>
+                <h2 id="email-draft-title">AI 이메일 본문</h2>
+              </div>
+              <button type="button" class="email-draft-dialog-close" id="email-draft-close" aria-label="이메일 본문 닫기" title="닫기">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+              </button>
+            </header>
+            <div class="email-draft-dialog-body">
+              <div class="email-draft-preview" id="email-draft-preview" aria-live="polite"></div>
+            </div>
+            <footer class="email-draft-dialog-footer">
+              <p id="email-draft-status" role="status" aria-live="polite"></p>
+              <button type="button" class="email-draft-copy" id="email-draft-copy" disabled>본문과 그래프 복사</button>
+            </footer>
+          </div>
+        </dialog>
+
         <section class="analysis-grid" aria-label="분석 결과">
           <article class="card level-card">
             <div class="card-header">
@@ -191,18 +212,39 @@
               </section>
             </div>
           </article>
-        </section>
 
-        <section class="related-history-section" id="fft-related-history" aria-labelledby="fft-related-history-title" hidden>
-          <div class="related-history-section-heading">
-            <div>
-              <span class="eyebrow">RELATED HISTORY</span>
-              <h2 id="fft-related-history-title">연관 과거 이력</h2>
-              <p>현재 FFT 진단과 같은 결함 및 유형의 진단 이력입니다.</p>
+          <article class="card ai-analysis-card">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">AI DIAGNOSIS</span>
+                <h2>AI 종합 분석</h2>
+              </div>
+              <span class="result-chip unknown" id="ai-analysis-result">분석 대기</span>
             </div>
-            <span id="fft-related-history-count" aria-live="polite">0건</span>
-          </div>
-          <div class="related-history-list" id="fft-related-history-list" aria-live="polite"></div>
+            <p class="analysis-lead" id="ai-analysis-description">선택한 FFT, Trend, 설비 정보 및 연관 과거 이력을 종합해 분석합니다.</p>
+            <div class="ai-analysis-actions">
+              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>AI 분석 실행</button>
+              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단결과 PPT</button>
+              <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
+            </div>
+            <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
+            <div class="analysis-placeholder ai-analysis-placeholder" id="ai-analysis-details" aria-live="polite">
+              <strong>AI 분석에 사용할 FFT를 불러오는 중입니다.</strong>
+              <p>선택한 FFT 레코드 기준으로 분석을 실행할 수 있습니다.</p>
+            </div>
+          </article>
+
+          <section class="related-history-section" id="fft-related-history" aria-labelledby="fft-related-history-title" hidden>
+            <div class="related-history-section-heading">
+              <div>
+                <span class="eyebrow">RELATED HISTORY</span>
+                <h2 id="fft-related-history-title">연관 과거 이력</h2>
+                <p>현재 FFT 진단과 같은 결함 및 유형의 진단 이력입니다.</p>
+              </div>
+              <span id="fft-related-history-count" aria-live="polite">0건</span>
+            </div>
+            <div class="related-history-list" id="fft-related-history-list" aria-live="polite"></div>
+          </section>
         </section>
 
         <p class="mock-notice">Level 권고값은 최근 3개월 Trend의 IQR 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>

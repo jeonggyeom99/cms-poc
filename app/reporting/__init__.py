@@ -1,0 +1,1 @@
+"""Shared building blocks for AI-assisted CMS report features."""

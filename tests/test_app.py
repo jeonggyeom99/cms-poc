@@ -6,6 +6,14 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app.ai_analysis import (
+    AiDiagnosis,
+    AiFinding,
+    AiLikelyCause,
+    AiRecommendedAction,
+    OpenAIAnalysisGateway,
+    OpenAISettings,
+)
 from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
@@ -172,6 +180,48 @@ def get(target_app, path: str) -> httpx.Response:
                 return await client.get(path)
 
     return asyncio.run(request())
+
+
+def post(target_app, path: str, payload: dict) -> httpx.Response:
+    async def request() -> httpx.Response:
+        async with target_app.router.lifespan_context(target_app):
+            transport = httpx.ASGITransport(app=target_app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+                return await client.post(path, json=payload)
+
+    return asyncio.run(request())
+
+
+class FakeAiGateway:
+    def __init__(self) -> None:
+        self.contexts: list[dict] = []
+
+    async def analyze(self, context: dict) -> AiDiagnosis:
+        self.contexts.append(context)
+        return AiDiagnosis(
+            headline="선택 FFT에서 점검이 필요한 성분을 확인했습니다.",
+            risk_level="caution",
+            risk_label="주의",
+            trend_findings=[AiFinding(heading="Trend", detail="속도값을 확인했습니다.")],
+            fft_findings=[AiFinding(heading="FFT", detail="주요 Peak를 확인했습니다.")],
+            history_findings=[],
+            likely_causes=[
+                AiLikelyCause(
+                    cause="시험 진단",
+                    confidence="medium",
+                    rationale="Fake gateway 응답입니다.",
+                )
+            ],
+            counter_evidence=["현장 운전 조건은 제공되지 않았습니다."],
+            recommended_actions=[
+                AiRecommendedAction(
+                    priority="high",
+                    action="다음 측정에서 Peak를 재확인합니다.",
+                    rationale="변화 추세 확인이 필요합니다.",
+                )
+            ],
+            data_limitations=["테스트 응답입니다."],
+        )
 
 
 def test_dashboard_until_rebuilds_snapshot_and_limits_fft_records(tmp_path: Path) -> None:
@@ -739,10 +789,14 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 
 
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
-    response = get(create_app(make_data_dir(tmp_path)), "/dashboard")
+    target_app = create_app(make_data_dir(tmp_path))
+    response = get(target_app, "/dashboard")
+    app_module = get(target_app, "/static/app.js?v=ai-report-v1")
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=fft-related-history-v1"' in response.text
+    assert app_module.status_code == 200
+    assert 'type="module" src="/static/app.js?v=ai-report-v1"' in response.text
+    assert 'controller.js?v=ai-report-v1' in app_module.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -777,6 +831,15 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-related-history"' in response.text
     assert 'id="fft-related-history-count"' in response.text
     assert 'id="fft-related-history-list"' in response.text
+    assert "AI 종합 분석" in response.text
+    assert 'id="ai-analysis-result"' in response.text
+    assert 'id="ai-analysis-run"' in response.text
+    assert 'id="ai-analysis-details"' in response.text
+    analysis_grid = response.text[
+        response.text.index('<section class="analysis-grid"'):
+        response.text.index('<p class="mock-notice"')
+    ]
+    assert analysis_grid.index('class="card ai-analysis-card"') < analysis_grid.index('id="fft-related-history"')
     assert 'id="fft-analysis-description"' not in response.text
 
 
@@ -888,3 +951,49 @@ def test_empty_data_directory_returns_empty_list_and_no_default(tmp_path: Path) 
 
     assert get(target_app, "/api/datasets").json() == {"items": []}
     assert get(target_app, "/api/dashboard").status_code == 404
+
+
+def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -> None:
+    gateway = FakeAiGateway()
+    response = post(
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        "/api/dashboard/1/ai-analysis",
+        {"recordId": 2},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+    assert response.json()["cached"] is False
+    assert response.json()["analysis"]["riskLevel"] == "caution"
+    assert len(gateway.contexts) == 1
+    context = gateway.contexts[0]
+    assert context["fft"]["recordId"] == 2
+    assert context["fft"]["measurement"]["measureMode"]["code"] == "2"
+    trend_metrics = {metric["key"]: metric for metric in context["trend"]["metrics"]}
+    assert trend_metrics["velocity"]["latestValue"] == 2.0
+    assert "frequencies" not in context["fft"]
+    assert "amplitudes" not in context["fft"]
+
+    missing_record = post(
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        "/api/dashboard/1/ai-analysis",
+        {"recordId": 999},
+    )
+    assert missing_record.status_code == 404
+
+
+def test_ai_analysis_api_reports_missing_openai_key(tmp_path: Path) -> None:
+    gateway = OpenAIAnalysisGateway(
+        OpenAISettings(api_key=None, model="test-model", timeout_seconds=1.0)
+    )
+    response = post(
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        "/api/dashboard/1/ai-analysis",
+        {"recordId": 2},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "missing_api_key",
+        "message": "OPENAI_API_KEY가 설정되지 않아 AI 분석을 실행할 수 없습니다.",
+    }
