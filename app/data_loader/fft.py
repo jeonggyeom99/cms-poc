@@ -367,20 +367,44 @@ def _maximum_finite_amplitude(amplitudes: list[float]) -> float | None:
     return max((amplitude for amplitude in amplitudes if math.isfinite(amplitude)), default=None)
 
 
-def _is_alert_fft_record(metadata: dict[str, Any], maximum_amplitude: float | None) -> bool:
+def _is_alert_fft_record(
+    metadata: dict[str, Any],
+    maximum_amplitude: float | None,
+    diagnosis: dict[str, Any] | None = None,
+) -> bool:
     return (
         metadata["extractionType"]["code"] in FFT_ALERT_EXTRACTION_TYPES
         or (
             maximum_amplitude is not None
             and maximum_amplitude > FFT_ALERT_AMPLITUDE_THRESHOLD
         )
+        or diagnosis is not None
+        and metadata["measureMode"]["code"] == "3"
+        and diagnosis.get("status") == "analyzed"
     )
 
 
-def _fft_record_summary(row: dict[str, str], record_id: int) -> dict[str, Any]:
+def _has_analysis_anomaly(diagnosis: dict[str, Any] | None) -> bool:
+    return diagnosis is not None and diagnosis.get("status") == "analyzed"
+
+
+def _fft_record_summary(
+    row: dict[str, str],
+    record_id: int,
+    rpm: float | None = None,
+    bearing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     metadata = _fft_metadata(row)
     amplitudes = _decode_float32_bytes(row["ResultData"])
     maximum_amplitude = _maximum_finite_amplitude(amplitudes)
+    diagnosis = None
+    if row["MeasureMode"] == "3" and rpm is not None:
+        frequency_range = FREQUENCY_RANGES_HZ.get(row["MeasureFreq"])
+        line_count = int(row["MeasureLineNum"])
+        if frequency_range is not None and line_count > 0 and len(amplitudes) == line_count:
+            frequency_step = frequency_range / line_count
+            frequencies = [(index + 1) * frequency_step for index in range(line_count)]
+            diagnosis = analyze_fft_diagnosis(frequencies, amplitudes, "3", rpm, bearing)
     return {
         "id": record_id,
         "measuredAt": metadata["measureDate"],
@@ -393,7 +417,8 @@ def _fft_record_summary(row: dict[str, str], record_id: int) -> dict[str, Any]:
             maximum_amplitude is not None
             and maximum_amplitude > FFT_ALERT_AMPLITUDE_THRESHOLD
         ),
-        "isAlertFft": _is_alert_fft_record(metadata, maximum_amplitude),
+        "hasAnalysisAnomaly": _has_analysis_anomaly(diagnosis),
+        "isAlertFft": _is_alert_fft_record(metadata, maximum_amplitude, diagnosis),
     }
 
 
@@ -418,6 +443,7 @@ def _build_fft_record(
     frequency_step = frequency_range / line_count if frequency_range is not None else 1.0
     # CSV ResultData excludes the 0 Hz DC component, so its first value is bin 1.
     frequencies = [(index + 1) * frequency_step for index in range(line_count)]
+    diagnosis = analyze_fft_diagnosis(frequencies, amplitudes, measure_mode, rpm, bearing)
     return {
         "recordId": record_id,
         "measuredAt": row["MeasureDate"],
@@ -427,11 +453,12 @@ def _build_fft_record(
         "frequencyRange": frequency_range,
         "lineCount": line_count,
         "maxAmplitude": maximum_amplitude,
-        "isAlertFft": _is_alert_fft_record(metadata, maximum_amplitude),
+        "hasAnalysisAnomaly": _has_analysis_anomaly(diagnosis),
+        "isAlertFft": _is_alert_fft_record(metadata, maximum_amplitude, diagnosis),
         "frequencies": frequencies,
         "amplitudes": amplitudes,
         "analysis": {
             **analyze_fft_spectrum(frequencies, amplitudes, measure_mode),
-            "diagnosis": analyze_fft_diagnosis(frequencies, amplitudes, measure_mode, rpm, bearing),
+            "diagnosis": diagnosis,
         },
     }

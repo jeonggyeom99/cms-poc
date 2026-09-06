@@ -23,7 +23,8 @@ function hasActiveFftRecordFilters() {
 }
 
 function matchesFftRecordFilters(record) {
-  const isAbnormal = record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5;
+  const isAbnormal = record.hasAnalysisAnomaly
+    || (record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5);
   const extractionMatches = !fftRecordFilters.extractionType.size
     || fftRecordFilters.extractionType.has(record.extractionType?.code)
     || (
@@ -96,7 +97,8 @@ function renderRecordList(fft, records, { listId, countId, setStatus, statusText
     extractionBadge.className = `fft-record-badge${extractionClass ? ` ${extractionClass}` : ""}`;
     extractionBadge.textContent = formatCodedLabel(record.extractionType);
     badges.append(modeBadge, extractionBadge);
-    if (record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5) {
+    if (record.hasAnalysisAnomaly
+      || (record.measureMode?.code === "2" && Number(record.maxAmplitude) >= 0.5)) {
       const abnormalBadge = document.createElement("span");
       abnormalBadge.className = "fft-record-badge abnormal";
       abnormalBadge.textContent = "이상발생";

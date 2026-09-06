@@ -4,4 +4,4 @@ __pycache__/
 .pytest_cache/
 .coverage
 .DS_Store
-data/date-ranges.md
+docs/date-ranges.md

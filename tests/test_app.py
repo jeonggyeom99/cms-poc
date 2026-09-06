@@ -477,6 +477,24 @@ def test_v032_uses_configured_rpm_for_velocity_fft(tmp_path: Path) -> None:
     assert fft["analysis"]["diagnosis"]["diagnosis"] == "unbalance"
 
 
+def test_velocity_fft_diagnosis_marks_record_as_alert_even_at_threshold(tmp_path: Path) -> None:
+    frequencies, amplitudes = velocity_spectrum(0.5, 0.1, 0.05)
+    write_csv(
+        tmp_path / "1.FFT_Area_Test Pump_Point A (V032).csv",
+        FFT_COLUMNS,
+        [fft_row("2026-01-01 00:00:00", amplitudes)],
+    )
+
+    fft = load_datasets(tmp_path)["1"]["fft"]
+
+    assert fft["analysis"]["diagnosis"]["status"] == "analyzed"
+    assert fft["hasAnalysisAnomaly"] is True
+    assert fft["isAlertFft"] is True
+    assert fft["records"][0]["hasAnalysisAnomaly"] is True
+    assert fft["records"][0]["isAlertFft"] is True
+    assert fft["alertRecordCount"] == 1
+
+
 def test_equipment_metadata_config_contains_presentation_values() -> None:
     configured_equipment = _load_equipment_metadata()
 

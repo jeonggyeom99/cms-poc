@@ -138,7 +138,9 @@ def _load_fft(
         raise ValueError("FFT CSV에 데이터 행이 없습니다.")
 
     rows.sort(key=lambda item: (item[1]["MeasureDate"], item[0]), reverse=True)
-    record_summaries = [_fft_record_summary(row, record_id) for record_id, row in rows]
+    record_summaries = [
+        _fft_record_summary(row, record_id, rpm, bearing) for record_id, row in rows
+    ]
     alert_record_ids = {
         record["id"] for record in record_summaries if record["isAlertFft"]
     }
