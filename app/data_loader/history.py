@@ -29,7 +29,13 @@ HISTORY_COLUMNS = (
     "모터 kW",
     "RPM",
     "베어링 형번",
+    "결함",
+    "유형",
 )
+FAULT_TYPES = {
+    "베어링": {"BPFI", "BSF", "BPFO", "FTF", "Complex"},
+    "축": {"Misalignment", "Unbalance", "Complex"},
+}
 
 
 def _required_integer(value: str, column: str, row_number: int) -> int:
@@ -54,8 +60,22 @@ def _optional_number(value: str, column: str, row_number: int) -> int | float | 
     return int(number) if number.is_integer() else number
 
 
+def _fault_fields(values: list[str], row_number: int) -> tuple[str, str]:
+    fault = values[19]
+    fault_type = values[20]
+    if not fault or not fault_type:
+        raise ValueError(f"CMS 이력 CSV {row_number}행의 결함과 유형 값은 필수입니다.")
+    allowed_types = FAULT_TYPES.get(fault)
+    if allowed_types is not None and fault_type not in allowed_types:
+        raise ValueError(
+            f"CMS 이력 CSV {row_number}행의 {fault} 유형은 허용된 값이 아닙니다."
+        )
+    return fault, fault_type
+
+
 def _history_item(row: list[str], row_number: int) -> dict[str, Any]:
     values = [value.strip() for value in row]
+    fault, fault_type = _fault_fields(values, row_number)
     record_number = _required_integer(values[0], "NO", row_number)
     month = _required_integer(values[1], "월", row_number)
     day = _required_integer(values[2], "일", row_number)
@@ -85,6 +105,8 @@ def _history_item(row: list[str], row_number: int) -> dict[str, Any]:
         "motorKw": _optional_number(values[16], "모터 kW", row_number),
         "rpm": _optional_number(values[17], "RPM", row_number),
         "bearingModel": values[18],
+        "fault": fault,
+        "faultType": fault_type,
     }
 
 
@@ -101,7 +123,7 @@ def load_history(data_dir: Path) -> dict[str, Any]:
             raise ValueError("CMS 이력 CSV가 비어 있습니다.") from error
 
         if tuple(columns) != HISTORY_COLUMNS:
-            raise ValueError("CMS 이력 CSV 헤더가 예상한 19개 컬럼과 일치하지 않습니다.")
+            raise ValueError("CMS 이력 CSV 헤더가 예상한 21개 컬럼과 일치하지 않습니다.")
 
         items = []
         for row_number, row in enumerate(reader, start=2):

@@ -304,6 +304,7 @@ select {
 .history-table th:nth-child(2) { width: 110px; }
 .history-table th:nth-child(3) { width: 270px; }
 .history-table th:nth-child(4) { width: 95px; }
+.history-table th:nth-child(5) { width: 260px; }
 .history-table th:last-child {
   width: 180px;
   border-right: 0;
@@ -361,14 +362,52 @@ select {
 }
 
 .history-result {
-  color: #385164;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.history-result span {
-  display: -webkit-box;
+.history-diagnosis-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.history-diagnosis-tag__label {
+  opacity: 0.72;
+  font-weight: 700;
+}
+
+.history-diagnosis-tag strong {
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+
+.history-diagnosis-tag--bearing {
+  border-color: rgba(95, 88, 196, 0.23);
+  background: rgba(109, 99, 214, 0.1);
+  color: #5046a6;
+}
+
+.history-diagnosis-tag--shaft {
+  border-color: rgba(22, 143, 154, 0.26);
+  background: rgba(22, 143, 154, 0.1);
+  color: #08717c;
+}
+
+.history-diagnosis-tag--other,
+.history-diagnosis-tag--unknown {
+  border-color: rgba(128, 99, 52, 0.24);
+  background: rgba(177, 127, 37, 0.1);
+  color: #7b591d;
 }
 
 .history-detail-button {

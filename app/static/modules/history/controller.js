@@ -31,6 +31,8 @@ function searchableText(item) {
     item.issue,
     item.analysis,
     item.result,
+    item.fault,
+    item.faultType,
     item.feedback,
   ].map(normalizedSearchValue).join(" ");
 }
@@ -54,6 +56,24 @@ function detailArticle(title, content, emphasized = false) {
   const article = element("article", emphasized ? "history-detail-card history-detail-card--result" : "history-detail-card");
   article.append(element("h3", null, title), element("p", null, displayValue(content)));
   return article;
+}
+
+function diagnosisTagClass(fault) {
+  const category = {
+    "베어링": "bearing",
+    "축": "shaft",
+    "기타": "other",
+  }[fault] ?? "unknown";
+  return `history-diagnosis-tag--${category}`;
+}
+
+function createDiagnosisTag(label, value, fault) {
+  const tag = element("span", `history-diagnosis-tag ${diagnosisTagClass(fault)}`);
+  tag.append(
+    element("span", "history-diagnosis-tag__label", label),
+    element("strong", null, displayValue(value)),
+  );
+  return tag;
 }
 
 function createGraphButton(item) {
@@ -105,7 +125,10 @@ function createSummaryRow(item) {
   const row = element("tr", "history-summary-row");
   row.dataset.historyId = item.id;
   const resultCell = element("td", "history-result");
-  resultCell.append(element("span", null, displayValue(item.result)));
+  resultCell.append(
+    createDiagnosisTag("결함", item.fault, item.fault),
+    createDiagnosisTag("유형", item.faultType, item.fault),
+  );
   row.append(
     element("td", "history-date", displayDate(item.date)),
     element("td", "history-process", item.process),

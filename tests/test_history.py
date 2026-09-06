@@ -3,6 +3,7 @@ import csv
 from pathlib import Path
 
 import httpx
+import pytest
 
 from app.data_loader import HISTORY_COLUMNS, HISTORY_FILE_NAME, load_history
 from app.main import create_app
@@ -42,6 +43,8 @@ def history_row() -> list[str]:
         "",
         "1780",
         "6316",
+        "축",
+        "Unbalance",
     ]
 
 
@@ -79,8 +82,26 @@ def test_history_loader_normalizes_csv_fields(tmp_path: Path) -> None:
             "motorKw": None,
             "rpm": 1780,
             "bearingModel": "6316",
+            "fault": "축",
+            "faultType": "Unbalance",
         }
     ]
+
+
+def test_history_loader_rejects_missing_or_unknown_standard_fault_type(tmp_path: Path) -> None:
+    missing_type = history_row()
+    missing_type[-1] = ""
+    write_history(tmp_path / HISTORY_FILE_NAME, [missing_type])
+
+    with pytest.raises(ValueError, match="결함과 유형 값은 필수"):
+        load_history(tmp_path)
+
+    invalid_type = history_row()
+    invalid_type[-1] = "BPFI"
+    write_history(tmp_path / HISTORY_FILE_NAME, [invalid_type])
+
+    with pytest.raises(ValueError, match="축 유형은 허용된 값이 아닙니다"):
+        load_history(tmp_path)
 
 
 def test_repository_history_csv_contains_original_and_added_records() -> None:
@@ -92,6 +113,21 @@ def test_repository_history_csv_contains_original_and_added_records() -> None:
     assert {item["number"]: item["datasetId"] for item in payload["items"] if item["number"] in {3, 6, 12, 14}} == {
         3: "1", 6: "3", 12: "4", 14: "5",
     }
+    assert {item["number"]: (item["fault"], item["faultType"]) for item in payload["items"]} == {
+        3: ("축", "Complex"),
+        6: ("기타", "Looseness"),
+        12: ("베어링", "BSF"),
+        13: ("축", "Unbalance"),
+        14: ("베어링", "BPFO"),
+        15: ("축", "Misalignment"),
+        16: ("베어링", "BPFI"),
+        17: ("축", "Unbalance"),
+        18: ("기타", "Looseness"),
+        19: ("기타", "Cavitation"),
+        20: ("축", "Misalignment"),
+        21: ("기타", "Lubrication"),
+        22: ("기타", "Resonance"),
+    }
 
 
 def test_history_page_and_equipment_status_link_are_served(tmp_path: Path) -> None:
@@ -101,8 +137,8 @@ def test_history_page_and_equipment_status_link_are_served(tmp_path: Path) -> No
     status_response = get(target_app, "/")
 
     assert history_response.status_code == 200
-    assert 'href="/static/history.css?v=cms-history-v1"' in history_response.text
-    assert 'src="/static/modules/history/controller.js?v=cms-history-v1"' in history_response.text
+    assert 'href="/static/history.css?v=cms-history-v2"' in history_response.text
+    assert 'src="/static/modules/history/controller.js?v=cms-history-v2"' in history_response.text
     assert 'id="history-keyword"' in history_response.text
     assert 'id="history-process"' in history_response.text
     assert 'id="history-reset"' in history_response.text
@@ -118,6 +154,8 @@ def test_history_api_returns_csv_payload(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json()["total"] == 1
     assert response.json()["items"][0]["date"] == "2026-04-22"
+    assert response.json()["items"][0]["fault"] == "축"
+    assert response.json()["items"][0]["faultType"] == "Unbalance"
 
 
 def test_history_api_reports_missing_and_invalid_csv(tmp_path: Path) -> None:
@@ -130,4 +168,4 @@ def test_history_api_reports_missing_and_invalid_csv(tmp_path: Path) -> None:
     assert missing_response.status_code == 404
     assert missing_response.json()["detail"] == "CMS 이력 CSV를 찾을 수 없습니다."
     assert invalid_response.status_code == 422
-    assert "19개 컬럼" in invalid_response.json()["detail"]
+    assert "21개 컬럼" in invalid_response.json()["detail"]
