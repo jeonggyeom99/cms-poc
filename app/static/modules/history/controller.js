@@ -56,6 +56,17 @@ function detailArticle(title, content, emphasized = false) {
   return article;
 }
 
+function createGraphButton(item) {
+  const graph = element("button", "history-graph-button", "Graph 보기");
+  graph.type = "button";
+  graph.disabled = !item.datasetId;
+  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
+  graph.dataset.dashboardDataset = item.datasetId ?? "";
+  graph.dataset.historyId = item.id;
+  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 Graph 보기" : "연결된 Graph 데이터가 없습니다.");
+  return graph;
+}
+
 function createDetailRow(item) {
   const row = element("tr", "history-detail-row");
   const cell = element("td");
@@ -85,14 +96,6 @@ function createDetailRow(item) {
   appendDefinition(data, "베어링 형번", item.bearingModel);
 
   panel.append(narrative, data);
-  const graph = element("button", "history-graph-button", "Graph 보기");
-  graph.type = "button";
-  graph.disabled = !item.datasetId;
-  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
-  graph.dataset.dashboardDataset = item.datasetId ?? "";
-  graph.dataset.historyId = item.id;
-  if (!item.datasetId) panel.append(element("p", "history-graph-notice", "연결된 Graph 데이터가 없습니다."));
-  panel.append(graph);
   cell.append(panel);
   row.append(cell);
   return row;
@@ -121,7 +124,8 @@ function createSummaryRow(item) {
   button.dataset.historyId = item.id;
   button.setAttribute("aria-controls", `history-detail-${item.id}`);
   button.setAttribute("aria-expanded", String(expandedHistoryId === item.id));
-  actionCell.append(button);
+  actionCell.append(button, createGraphButton(item));
+  if (!item.datasetId) actionCell.append(element("span", "history-graph-unavailable", "Graph 데이터 없음"));
   row.append(actionCell);
   return row;
 }
