@@ -650,7 +650,6 @@ class OpenAIAnalysisGateway:
             async with asyncio.timeout(self._settings.timeout_seconds):
                 response = await client.chat.completions.create(
                     model=self._settings.model,
-                    temperature=0.2,
                     max_completion_tokens=1600,
                     response_format={
                         "type": "json_schema",

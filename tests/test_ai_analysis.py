@@ -1,6 +1,10 @@
 import asyncio
 import json
+import sys
+import types
 from datetime import date
+
+from pydantic import BaseModel
 
 from app.ai_analysis import (
     AiAnalysisService,
@@ -8,8 +12,11 @@ from app.ai_analysis import (
     AiFinding,
     AiLikelyCause,
     AiRecommendedAction,
+    OpenAIAnalysisGateway,
+    OpenAISettings,
     build_ai_context,
 )
+from app.reporting.ai import OpenAIReportGateway
 
 
 def diagnosis() -> AiDiagnosis:
@@ -33,6 +40,43 @@ def diagnosis() -> AiDiagnosis:
         ],
         data_limitations=[],
     )
+
+
+def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
+    calls: list[dict] = []
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        content = diagnosis().model_dump_json()
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content, refusal=None))]
+        )
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs) -> None:
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=create)
+            )
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
+    settings = OpenAISettings(api_key="test-key", model="gpt-5.6-luna", timeout_seconds=1)
+
+    class SampleReport(BaseModel):
+        headline: str
+
+    async def run() -> None:
+        await OpenAIAnalysisGateway(settings).analyze({"datasetId": "1"})
+        await OpenAIReportGateway(settings).generate(
+            "email-draft", "instructions", {}, SampleReport
+        )
+
+    asyncio.run(run())
+
+    assert len(calls) == 2
+    assert all("temperature" not in call for call in calls)
 
 
 def sample_dataset() -> dict:
