@@ -108,20 +108,25 @@ function catalogSortKey(item) {
 }
 
 function mergeCatalogWithLiveData(summaries) {
-  const summariesByCode = new Map(
-    summaries.map((summary) => [normalizedEquipmentCode(summary.equipmentCode), summary]),
-  );
-  const catalogCodes = new Set(
-    equipmentStatusCatalog
-      .map((item) => normalizedEquipmentCode(item.equipmentCode))
-      .filter(Boolean),
-  );
+  const summariesByCode = new Map();
+  summaries.forEach((summary) => {
+    const code = normalizedEquipmentCode(summary.equipmentCode);
+    const matchingSummaries = summariesByCode.get(code) ?? [];
+    matchingSummaries.push(summary);
+    summariesByCode.set(code, matchingSummaries);
+  });
+
+  const displayedDatasetIds = new Set();
   const catalogItems = equipmentStatusCatalog.map((catalogItem) => {
-    const summary = summariesByCode.get(normalizedEquipmentCode(catalogItem.equipmentCode));
+    const matchingSummaries = summariesByCode.get(
+      normalizedEquipmentCode(catalogItem.equipmentCode),
+    );
+    const summary = matchingSummaries?.at(-1);
+    if (summary) displayedDatasetIds.add(summary.id);
     return summary ? createLiveCatalogItem(catalogItem, summary) : createDemoCatalogItem(catalogItem);
   });
   const additionalLiveItems = summaries
-    .filter((summary) => !catalogCodes.has(normalizedEquipmentCode(summary.equipmentCode)))
+    .filter((summary) => !displayedDatasetIds.has(summary.id))
     .map(createAdditionalLiveItem);
 
   return [...catalogItems, ...additionalLiveItems].sort(
@@ -178,7 +183,9 @@ function createEquipmentItem(item) {
   const details = element("div", "equipment-status-item__details");
   details.append(element("strong", null, item.name));
   const metadata = element("small");
-  metadata.append(document.createTextNode(`${displayMeasuredAt(item.date)} · ${item.process}`));
+  metadata.append(document.createTextNode(
+    `${displayMeasuredAt(item.date)} · ${item.process}${item.isLive ? ` · 데이터 #${item.datasetId}` : ""}`,
+  ));
   if (!item.isLive) {
     metadata.append(document.createTextNode(" · "));
     metadata.append(element("span", "equipment-status-data-note", "상세 데이터 없음"));
