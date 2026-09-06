@@ -6,7 +6,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.data_loader import dataset_summaries, load_datasets, load_fft_record
+from app.data_loader import (
+    dataset_summaries,
+    load_datasets,
+    load_fft_record,
+    load_history,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -48,9 +53,24 @@ def create_app(data_dir: Path = DATA_DIR) -> FastAPI:
     async def dashboard() -> str:
         return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
+    @application.get("/history", response_class=HTMLResponse, include_in_schema=False)
+    async def history() -> str:
+        return (STATIC_DIR / "history.html").read_text(encoding="utf-8")
+
     @application.get("/api/datasets")
     async def datasets(request: Request) -> dict:
         return {"items": dataset_summaries(datasets_from(request))}
+
+    @application.get("/api/history")
+    async def history_data() -> dict:
+        try:
+            return load_history(data_dir)
+        except FileNotFoundError as error:
+            raise HTTPException(
+                status_code=404, detail="CMS 이력 CSV를 찾을 수 없습니다."
+            ) from error
+        except (OSError, ValueError) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
 
     @application.get("/api/dashboard")
     async def default_dashboard_data(request: Request) -> dict:

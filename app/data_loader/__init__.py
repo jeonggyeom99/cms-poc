@@ -59,6 +59,7 @@ from .metadata import (
 )
 from .numeric import _optional_finite_float
 from .trend import _fill_low_outliers, analyze_velave_trend
+from .history import HISTORY_COLUMNS, HISTORY_FILE_NAME, HISTORY_YEAR, load_history
 
 
 __all__ = [
@@ -73,6 +74,9 @@ __all__ = [
     "EXTRACTION_TYPE_LABELS",
     "FFT_PEAK_SETTINGS",
     "FREQUENCY_RANGES_HZ",
+    "HISTORY_COLUMNS",
+    "HISTORY_FILE_NAME",
+    "HISTORY_YEAR",
     "INLINE_CODE_PATTERN",
     "LEVEL_ANALYSIS_MONTHS",
     "MEASURE_FREQ_LABELS",
@@ -109,5 +113,6 @@ __all__ = [
     "dataset_summaries",
     "load_datasets",
     "load_fft_record",
+    "load_history",
     "lookup_bearing_coefficients",
 ]

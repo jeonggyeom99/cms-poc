@@ -57,6 +57,7 @@ select {
 }
 
 .equipment-status-brand:focus-visible,
+.equipment-status-history-link:focus-visible,
 .equipment-status-item__link:focus-visible,
 .equipment-status-search button:focus-visible,
 .equipment-status-search select:focus-visible {
@@ -89,6 +90,29 @@ select {
   display: block;
   margin-top: 3px;
   font-size: 16px;
+}
+
+.equipment-status-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.equipment-status-history-link {
+  padding: 8px 12px;
+  border: 1px solid var(--es-border);
+  border-radius: 9px;
+  color: #355064;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.equipment-status-history-link:hover {
+  border-color: rgba(22, 143, 154, 0.5);
+  background: rgba(22, 143, 154, 0.08);
+  color: #0a6670;
 }
 
 .equipment-status-live {
@@ -387,6 +411,11 @@ select {
   .equipment-status-topbar {
     gap: 14px;
     padding: 17px 18px;
+  }
+
+  .equipment-status-topbar__actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .equipment-status-content {

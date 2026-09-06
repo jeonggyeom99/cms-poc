@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CMS 설비 진단 과거 이력을 조회합니다.">
+    <title>과거 이력 | CMS AI Dashboard</title>
+    <link rel="stylesheet" href="/static/history.css?v=cms-history-v1">
+    <script type="module" src="/static/modules/history/controller.js?v=cms-history-v1"></script>
+  </head>
+  <body>
+    <div class="history-page">
+      <header class="history-topbar">
+        <a class="history-brand" href="/" aria-label="설비 현황 홈">
+          <span class="history-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>
+            <small>ALARM COPILOT</small>
+            <strong>CMS AI</strong>
+          </span>
+        </a>
+        <nav class="history-navigation" aria-label="주요 메뉴">
+          <a href="/">설비 현황</a>
+          <a href="/history" aria-current="page">과거 이력</a>
+        </nav>
+      </header>
+
+      <main class="history-content">
+        <section class="history-heading" aria-labelledby="history-title">
+          <div>
+            <span class="history-kicker">CMS DIAGNOSTIC HISTORY</span>
+            <h1 id="history-title">과거 이력</h1>
+            <p>설비별 진단 근거와 조치 결과를 조회합니다.</p>
+          </div>
+          <span class="history-source" id="history-source">CSV 이력 기준</span>
+        </section>
+
+        <section class="history-search" aria-label="과거 이력 조회 조건">
+          <label class="history-search__keyword" for="history-keyword">
+            통합검색
+            <span class="history-input-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>
+              <input id="history-keyword" type="search" placeholder="설비명, 센서번호, 문제 또는 분석 결과 검색" autocomplete="off">
+            </span>
+          </label>
+          <label for="history-process">
+            공정
+            <select id="history-process">
+              <option value="all">전체</option>
+            </select>
+          </label>
+          <button id="history-reset" type="button">조건 초기화</button>
+        </section>
+
+        <p class="history-notice" id="history-notice" role="status" hidden></p>
+
+        <section class="history-panel" aria-labelledby="history-list-title">
+          <div class="history-panel__head">
+            <div>
+              <span class="history-kicker">DIAGNOSTIC RECORDS</span>
+              <h2 id="history-list-title">진단 이력</h2>
+            </div>
+            <span id="history-count" aria-live="polite">이력을 불러오는 중...</span>
+          </div>
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th scope="col">일자</th>
+                  <th scope="col">공정</th>
+                  <th scope="col">설비명</th>
+                  <th scope="col">센서번호</th>
+                  <th scope="col">분석 결과</th>
+                  <th scope="col"><span class="visually-hidden">상세</span></th>
+                </tr>
+              </thead>
+              <tbody id="history-list" aria-live="polite" aria-busy="true">
+                <tr><td class="history-empty" colspan="6">이력을 불러오는 중입니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
