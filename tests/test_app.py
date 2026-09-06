@@ -712,7 +712,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/dashboard")
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=acceleration-bearing-fft-v7"' in response.text
+    assert 'type="module" src="/static/app.js?v=acceleration-bearing-fft-v8"' in response.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text

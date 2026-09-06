@@ -85,7 +85,10 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
   const harmonicDetails = (bearingFault?.harmonics ?? diagnosis?.harmonics ?? []).filter(
     (harmonic) => harmonic.order >= 1 && harmonic.order <= 3,
   );
-  const showDiagnosisChart = fft.frequencyUnit === "Hz" && harmonicDetails.length > 0;
+  const isAccelerationEnv = fft.metadata?.measureMode?.code === "2";
+  // 베어링 정보가 없어 고조파를 계산하지 못해도 ENV 스펙트럼 자체는 확인할 수 있다.
+  const showDiagnosisChart = fft.frequencyUnit === "Hz"
+    && (harmonicDetails.length > 0 || isAccelerationEnv);
   details.className = "fft-analysis-details";
   const bearingControls = hasBearingDiagnosis ? `
     <section class="bearing-analysis-summary" aria-label="가속도 베어링 분석">
