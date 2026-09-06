@@ -45,9 +45,12 @@ function createEquipmentItems(summaries) {
   const items = source.map((item) => {
     const equipmentCode = normalizedCode(item.tag);
     const summary = matchingSummary(item, byCode);
-    const state = summary
-      ? (LIVE_STATE_BY_DATASET_STATUS[summary.status] ?? "unknown")
-      : (CRITICAL_EQUIPMENT.has(`${item.factory}|${item.process}|${item.tag}`) ? "critical" : "normal");
+    const isForcedCritical = CRITICAL_EQUIPMENT.has(`${item.factory}|${item.process}|${equipmentCode}`);
+    const state = isForcedCritical
+      ? "critical"
+      : summary
+        ? (LIVE_STATE_BY_DATASET_STATUS[summary.status] ?? "unknown")
+        : "normal";
     return { ...item, equipmentCode, datasetId: summary?.id ?? null, isLive: Boolean(summary), state, stateLabel: STATE_DETAILS[state].label, stateDescription: summary?.statusDescription || STATE_DETAILS[state].description };
   });
   const includedCodes = new Set(items.filter((item) => item.isLive).map((item) => item.equipmentCode));

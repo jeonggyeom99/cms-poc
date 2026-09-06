@@ -43,28 +43,52 @@ function displayDate(value) {
   return year && month && day ? `${year}.${month}.${day}` : "--";
 }
 
+function createGraphButton(item) {
+  const graph = element("button", "related-history-graph-button", "Graph 보기");
+  graph.type = "button";
+  graph.disabled = !item.datasetId;
+  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
+  graph.dataset.relatedDashboardDataset = item.datasetId ?? "";
+  graph.dataset.relatedHistoryId = item.id;
+  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 Graph 보기" : "연결된 Graph 데이터가 없습니다.");
+  return graph;
+}
+
 function relatedHistoryCard(item) {
+  const isExpanded = expandedHistoryId === item.id;
   const card = element("article", "related-history-card");
-  const heading = element("div", "related-history-card-heading");
+  card.classList.toggle("related-history-card--expanded", isExpanded);
+
+  const summary = element("div", "related-history-card-summary");
+  const button = element("button", "related-history-card-trigger");
+  button.type = "button";
+  button.dataset.relatedHistoryId = item.id;
+  button.setAttribute("aria-expanded", String(isExpanded));
+  button.setAttribute("aria-controls", `related-history-detail-${item.id}`);
+
   const date = element("time", "related-history-date", displayDate(item.date));
   date.dateTime = item.date;
-  const tags = element("div", "related-history-card-tags");
+  const content = element("span", "related-history-card-content");
+  content.append(
+    element("strong", "related-history-equipment", item.equipmentName),
+    element("span", "related-history-metadata", `${item.process} · 센서 ${item.sensorNumber}`),
+  );
+  const tags = element("span", "related-history-card-tags");
   tags.append(
     element("span", "related-history-tag related-history-tag-category", item.fault),
     element("span", "related-history-tag", item.faultType),
   );
-  heading.append(date, tags);
+  const action = element("span", "related-history-card-action", isExpanded ? "상세 접기" : "상세 보기");
+  const chevron = element("span", "related-history-card-chevron");
+  chevron.setAttribute("aria-hidden", "true");
+  button.append(date, content, tags, action, chevron);
+  const actions = element("div", "related-history-card-actions");
+  actions.append(createGraphButton(item));
+  if (!item.datasetId) actions.append(element("span", "related-history-graph-unavailable", "Graph 데이터 없음"));
+  summary.append(button, actions);
+  card.append(summary);
 
-  const equipment = element("strong", "related-history-equipment", item.equipmentName);
-  const metadata = element("p", "related-history-metadata", `${item.process} · 센서 ${item.sensorNumber}`);
-  const button = element("button", "related-history-detail-button", expandedHistoryId === item.id ? "상세 접기" : "상세 보기");
-  button.type = "button";
-  button.dataset.relatedHistoryId = item.id;
-  button.setAttribute("aria-expanded", String(expandedHistoryId === item.id));
-  button.setAttribute("aria-controls", `related-history-detail-${item.id}`);
-  card.append(heading, equipment, metadata, button);
-
-  if (expandedHistoryId === item.id) {
+  if (isExpanded) {
     const detail = element("div", "related-history-detail");
     detail.id = `related-history-detail-${item.id}`;
     detail.append(
@@ -101,6 +125,15 @@ export function renderRelatedHistory(tag, items) {
 
 export function bindRelatedHistory() {
   document.getElementById("fft-related-history").addEventListener("click", (event) => {
+    const graphButton = event.target.closest("[data-related-dashboard-dataset]");
+    if (graphButton && !graphButton.disabled) {
+      const item = relatedHistory.find((entry) => entry.id === graphButton.dataset.relatedHistoryId);
+      if (item?.datasetId) {
+        window.location.href = `/dashboard?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
+      }
+      return;
+    }
+
     const button = event.target.closest("[data-related-history-id]");
     if (!button) return;
     expandedHistoryId = expandedHistoryId === button.dataset.relatedHistoryId

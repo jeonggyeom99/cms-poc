@@ -114,7 +114,7 @@ def test_repository_history_csv_contains_original_and_added_records() -> None:
         3: "1", 6: "3", 12: "4", 14: "5",
     }
     assert {item["number"]: (item["fault"], item["faultType"]) for item in payload["items"]} == {
-        3: ("축", "Complex"),
+        3: ("축", "Unbalance"),
         6: ("기타", "Looseness"),
         12: ("베어링", "BSF"),
         13: ("축", "Unbalance"),
