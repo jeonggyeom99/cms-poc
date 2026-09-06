@@ -1,4 +1,4 @@
-import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=acceleration-bearing-fft-v8";
+import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=clear-history-until";
 
 window.addEventListener("DOMContentLoaded", () => {
   initializeDashboardApplication();

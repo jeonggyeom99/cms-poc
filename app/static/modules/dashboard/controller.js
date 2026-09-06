@@ -117,6 +117,7 @@ function requestedUntil() {
 function replaceDatasetIdInUrl(datasetId) {
   const url = new URL(window.location.href);
   url.searchParams.set("dataset", datasetId);
+  url.searchParams.delete("until");
   window.history.replaceState(window.history.state, "", url);
 }
 
