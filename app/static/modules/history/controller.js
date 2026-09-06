@@ -125,10 +125,12 @@ function createSummaryRow(item) {
   const row = element("tr", "history-summary-row");
   row.dataset.historyId = item.id;
   const resultCell = element("td", "history-result");
-  resultCell.append(
+  const resultTags = element("div", "history-result__tags");
+  resultTags.append(
     createDiagnosisTag("결함", item.fault, item.fault),
     createDiagnosisTag("유형", item.faultType, item.fault),
   );
+  resultCell.append(resultTags);
   row.append(
     element("td", "history-date", displayDate(item.date)),
     element("td", "history-process", item.process),
@@ -147,8 +149,10 @@ function createSummaryRow(item) {
   button.dataset.historyId = item.id;
   button.setAttribute("aria-controls", `history-detail-${item.id}`);
   button.setAttribute("aria-expanded", String(expandedHistoryId === item.id));
-  actionCell.append(button, createGraphButton(item));
-  if (!item.datasetId) actionCell.append(element("span", "history-graph-unavailable", "Graph 데이터 없음"));
+  const actions = element("div", "history-action__controls");
+  actions.append(button, createGraphButton(item));
+  if (!item.datasetId) actions.append(element("span", "history-graph-unavailable", "Graph 데이터 없음"));
+  actionCell.append(actions);
   row.append(actionCell);
   return row;
 }

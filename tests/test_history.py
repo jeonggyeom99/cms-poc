@@ -137,8 +137,8 @@ def test_history_page_and_equipment_status_link_are_served(tmp_path: Path) -> No
     status_response = get(target_app, "/")
 
     assert history_response.status_code == 200
-    assert 'href="/static/history.css?v=cms-history-v2"' in history_response.text
-    assert 'src="/static/modules/history/controller.js?v=cms-history-v2"' in history_response.text
+    assert 'href="/static/history.css?v=cms-history-v3"' in history_response.text
+    assert 'src="/static/modules/history/controller.js?v=cms-history-v3"' in history_response.text
     assert 'id="history-keyword"' in history_response.text
     assert 'id="history-process"' in history_response.text
     assert 'id="history-reset"' in history_response.text

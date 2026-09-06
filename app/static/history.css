@@ -331,7 +331,7 @@ select {
   white-space: nowrap;
 }
 
-.history-action {
+.history-action__controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -361,7 +361,7 @@ select {
   font-weight: 800;
 }
 
-.history-result {
+.history-result__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
