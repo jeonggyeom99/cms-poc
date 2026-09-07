@@ -38,7 +38,6 @@ def diagnosis() -> AiDiagnosis:
                 rationale="반복 측정이 필요합니다.",
             )
         ],
-        data_limitations=[],
     )
 
 

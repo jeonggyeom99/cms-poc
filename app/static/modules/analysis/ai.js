@@ -127,7 +127,6 @@ export function renderAiAnalysis(payload) {
     listSection("가능 원인", analysis.likelyCauses, causeItem),
     listSection("반대 근거", analysis.counterEvidence, textItem),
     listSection("권장 점검", analysis.recommendedActions, actionItem),
-    listSection("데이터 한계", analysis.dataLimitations, textItem),
   ];
   groups.filter(Boolean).forEach((group) => content.append(group));
   if (!content.childElementCount) {

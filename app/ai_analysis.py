@@ -70,7 +70,6 @@ class AiDiagnosis(_ApiModel):
     likely_causes: list[AiLikelyCause] = Field(max_length=3)
     counter_evidence: list[str] = Field(max_length=4)
     recommended_actions: list[AiRecommendedAction] = Field(max_length=4)
-    data_limitations: list[str] = Field(max_length=4)
 
 
 class AiAnalysisResponse(_ApiModel):

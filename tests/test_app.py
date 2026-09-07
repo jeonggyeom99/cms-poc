@@ -220,7 +220,6 @@ class FakeAiGateway:
                     rationale="변화 추세 확인이 필요합니다.",
                 )
             ],
-            data_limitations=["테스트 응답입니다."],
         )
 
 
