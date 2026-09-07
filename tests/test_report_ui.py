@@ -39,3 +39,17 @@ def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() 
 
     assert "layout.yaxis.range = [0, maximumAmplitude * 1.5];" in chart
     assert "buildFftDiagnosisFigure" in chart
+
+
+def test_main_fft_chart_marks_velocity_harmonics() -> None:
+    chart = (ROOT / "app/static/modules/fft/chart.js").read_text(encoding="utf-8")
+
+    assert 'else if (fft.frequencyUnit === "Hz")' in chart
+    assert "const harmonics = diagnosis?.harmonics?.filter(" in chart
+    assert 'text: `${harmonic.order}X`' in chart
+
+
+def test_trend_and_fft_cards_have_equal_widths() -> None:
+    styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
+
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles

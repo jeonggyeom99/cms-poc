@@ -72,6 +72,37 @@ export function buildFftFigure(fft, selectedFaultType = null) {
       marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
       hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} ${amplitudeSuffix.trim()}</b><extra>${bearingFault.type} 결함 Peak</extra>`,
     });
+  } else if (fft.frequencyUnit === "Hz") {
+    const diagnosis = fft.analysis?.diagnosis;
+    const maximumFrequency = Math.max(...fft.frequencies);
+    const harmonics = diagnosis?.harmonics?.filter(
+      (harmonic) => harmonic.targetFrequency > 0 && harmonic.targetFrequency <= maximumFrequency,
+    ) ?? [];
+    const detected = harmonics.filter((harmonic) => harmonic.detected && harmonic.amplitude > 0);
+
+    if (harmonics.length) {
+      layout.margin = { l: 52, r: 15, t: 46, b: 43 };
+      layout.shapes = harmonics.map((harmonic) => ({
+        type: "line", x0: harmonic.targetFrequency, x1: harmonic.targetFrequency, xref: "x",
+        y0: 0, y1: 1, yref: "paper",
+        line: { color: "rgba(226, 83, 83, 0.45)", width: 1, dash: "dash" },
+      }));
+      layout.annotations = harmonics.map((harmonic) => ({
+        x: harmonic.targetFrequency, xref: "x", y: 1, yref: "paper",
+        text: `${harmonic.order}X`, showarrow: false, yshift: 8,
+        font: { color: palette.danger, size: 10 },
+      }));
+      traces.push({
+        x: detected.map((harmonic) => harmonic.detectedFrequency),
+        y: detected.map((harmonic) => harmonic.amplitude),
+        type: "scatter", mode: "markers+text", name: "회전 주파수 피크",
+        showlegend: false,
+        text: detected.map((harmonic) => `${harmonic.order}X`), textposition: "top center",
+        textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
+        marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
+        hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f}${amplitudeSuffix}</b><extra>회전 주파수 피크</extra>`,
+      });
+    }
   }
 
   return { traces, layout };
@@ -80,56 +111,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
 export function buildFftDiagnosisFigure(fft, selectedFaultType = null) {
   const bearingFault = selectedBearingFault(fft, selectedFaultType);
   if (bearingFault) return buildFftFigure(fft, bearingFault.type);
-  const { traces, layout } = buildFftFigure(fft);
-  const diagnosis = fft.analysis?.diagnosis;
-  const harmonicPeaks = diagnosis?.harmonics?.filter(
-    (harmonic) => harmonic.detected && harmonic.amplitude > 0,
-  ) ?? [];
-  const maximumFrequency = Math.max(...fft.frequencies);
-  const harmonicGuides = diagnosis?.harmonics?.filter(
-    (harmonic) => harmonic.targetFrequency > 0 && harmonic.targetFrequency <= maximumFrequency,
-  ) ?? [];
-
-  traces.push({
-    x: harmonicPeaks.map((harmonic) => harmonic.detectedFrequency),
-    y: harmonicPeaks.map((harmonic) => harmonic.amplitude),
-    type: "scatter",
-    mode: "markers+text",
-    name: "회전 주파수 피크",
-    showlegend: false,
-    text: harmonicPeaks.map((harmonic) => `${harmonic.order}X`),
-    textposition: "top center",
-    textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
-    marker: {
-      color: palette.danger,
-      size: 9,
-      line: { color: "#ffffff", width: 1.5 },
-    },
-    hovertemplate: "%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} mm/s</b><extra>회전 주파수 피크</extra>",
-  });
-  layout.margin = { l: 52, r: 15, t: 46, b: 43 };
-  layout.shapes = harmonicGuides.map((harmonic) => ({
-    type: "line",
-    x0: harmonic.targetFrequency,
-    x1: harmonic.targetFrequency,
-    xref: "x",
-    y0: 0,
-    y1: 1,
-    yref: "paper",
-    line: { color: "rgba(226, 83, 83, 0.45)", width: 1, dash: "dash" },
-  }));
-  layout.annotations = harmonicGuides.map((harmonic) => ({
-    x: harmonic.targetFrequency,
-    xref: "x",
-    y: 1,
-    yref: "paper",
-    text: `${harmonic.order}X`,
-    showarrow: false,
-    yshift: 8,
-    font: { color: palette.danger, size: 10 },
-  }));
-
-  return { traces, layout };
+  return buildFftFigure(fft);
 }
 
 export function renderFftChart(

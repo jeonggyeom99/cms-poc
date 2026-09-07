@@ -1,6 +1,6 @@
 import { formatNumber } from "../core/format.js";
 import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
-import { buildFftDiagnosisFigure } from "./chart.js?v=fft-y-axis-range";
+import { buildFftDiagnosisFigure } from "./chart.js?v=fft-harmonic-markers";
 
 const COMPACT_FFT_DIAGNOSES = Object.freeze({
   unbalance: { label: "Unbalance", state: "caution" },
