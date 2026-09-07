@@ -47,11 +47,9 @@ function bearingFaultView(fft, selectedFaultType) {
 }
 
 export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}, relatedHistoryTag = null) {
-  const result = document.getElementById("fft-analysis-result");
   const details = document.getElementById("fft-analysis-details");
   const existingChart = document.getElementById("fft-analysis-chart");
   if (existingChart?.data) getPlotly().purge(existingChart);
-  result.hidden = true;
   if (!fft) {
     const {
       heading = "FFT 분석에 필요한 스펙트럼 데이터가 없습니다.",
@@ -74,11 +72,6 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
   const bearingFault = bearingFaultView(fft, selectedFaultType);
   const hasBearingDiagnosis = Array.isArray(diagnosis?.faults);
   const hasVelocityDiagnosis = diagnosis.status === "analyzed" && !hasBearingDiagnosis;
-  if (hasVelocityDiagnosis) {
-    result.className = `result-chip ${fftDiagnosisClass(diagnosis)}`;
-    result.textContent = diagnosis.label;
-    result.hidden = false;
-  }
 
   const frequencyUnit = fft.frequencyUnit === "Hz" ? "Hz" : "bin";
   const amplitudeUnit = fft.amplitudeUnit ?? "";
