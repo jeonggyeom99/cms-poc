@@ -44,9 +44,8 @@ export function buildFftFigure(fft, selectedFaultType = null) {
     0,
     ...fft.amplitudes.filter((amplitude) => Number.isFinite(Number(amplitude))).map(Number),
   );
-  layout.yaxis.range = [0, maximumAmplitude > 5 ? 10 : 5];
+  layout.yaxis.range = [0, maximumAmplitude * 1.5];
   layout.yaxis.tick0 = 0;
-  layout.yaxis.dtick = maximumAmplitude > 5 ? 1 : 0.5;
 
   const bearingFault = selectedBearingFault(fft, selectedFaultType);
   if (fft.frequencyUnit === "Hz" && bearingFault) {

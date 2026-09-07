@@ -48,7 +48,7 @@ import {
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js";
 import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=acceleration-bearing-fft-v4";
-import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=acceleration-bearing-fft";
+import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=fft-y-axis-range";
 import {
   renderFftMetadata,
   renderFftHistoryList,

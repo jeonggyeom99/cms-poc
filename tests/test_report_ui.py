@@ -32,3 +32,10 @@ def test_dashboard_report_actions_and_email_dialog_are_wired() -> None:
     assert '"text/plain"' in email_draft
     assert "navigator.clipboard.write" in email_draft
     assert "captureDashboardCharts" in email_draft
+
+
+def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:
+    chart = (ROOT / "app/static/modules/fft/chart.js").read_text(encoding="utf-8")
+
+    assert "layout.yaxis.range = [0, maximumAmplitude * 1.5];" in chart
+    assert "buildFftDiagnosisFigure" in chart
