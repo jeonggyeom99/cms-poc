@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
     <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=ai-report-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=envelope-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=ai-report-v1"></script>
+    <script type="module" src="/static/app.js?v=envelope-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -263,6 +263,30 @@
           <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
         </article>
 
+        <article class="card envelope-card" aria-labelledby="envelope-title">
+          <div class="card-header"><h2 id="envelope-title">포락선 분석 — 묻힌 신호를 끄집어내기</h2></div>
+          <p class="analysis-lead">작은 결함 충격이 고주파 공진을 일으킬 때, 포락선을 추출하면 반복되는 충격의 주기를 살펴볼 수 있습니다.</p>
+          <form id="envelope-form" class="envelope-controls">
+            <label>가속도 ALL 측정 기록<select id="envelope-record" disabled></select></label>
+            <label>대역 하한 (Hz)<input id="envelope-low" type="number" value="1000" min="0" step="any" required></label>
+            <label>대역 상한 (Hz)<input id="envelope-high" type="number" value="2200" min="0" step="any" required></label>
+            <button id="envelope-run" type="submit" disabled>분석 실행</button>
+          </form>
+          <p class="chart-interaction-hint">기본 1~2.2 kHz는 예시 대역입니다. 장비의 실제 공진 대역에 맞게 조절하세요. 필터와 힐베르트 변환의 양 끝에는 경계 효과가 있을 수 있습니다.</p>
+          <p id="envelope-status" role="status" aria-live="polite">설비 데이터를 선택하세요.</p>
+          <div id="envelope-results" hidden>
+            <section><h3>① 원래 진동 신호</h3><div id="envelope-raw" class="plot" role="img" aria-label="포락선 분석 원시 진동 파형"></div></section>
+            <section><h3>② 대역통과 필터 — 선택한 공진 대역만 추출</h3><div id="envelope-filtered" class="plot" role="img" aria-label="대역통과 필터 파형"></div></section>
+            <section><h3>③ 포락선 추출 — 충격이 반복되는 리듬</h3><div id="envelope-wave" class="plot" role="img" aria-label="필터 파형과 포락선"></div></section>
+            <section>
+              <div class="envelope-spectrum-heading"><h3>④ 포락선 FFT — 결함 주파수와 배음 비교</h3>
+                <label>결함 기준선<select id="envelope-fault"><option>BPFO</option><option>BPFI</option><option>BSF</option><option>FTF</option></select></label>
+              </div>
+              <div id="envelope-spectrum" class="plot" role="img" aria-label="포락선 FFT 스펙트럼"></div>
+              <p id="envelope-fault-note" class="chart-interaction-hint"></p>
+            </section>
+          </div>
+        </article>
         <p class="mock-notice">Level 권고값은 최근 3개월 Trend의 IQR 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>
       </main>
     </div>

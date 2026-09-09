@@ -58,7 +58,7 @@ def test_time_wave_graph_is_wired_with_sample_index_axis_and_expansion() -> None
 
     assert 'id="timewave-chart"' in html
     assert 'data-expand-graph="timewave"' in html
-    assert 'text: "Sample Index"' in chart
+    assert 'text: fs ? "시간 (s)" : "Sample Index"' in chart
     assert "renderTimeWaveChart(fft);" in controller
     assert 'getExpandedGraph() === "timewave"' in controller
 

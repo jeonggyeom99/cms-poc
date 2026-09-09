@@ -17,6 +17,7 @@ from .constants import (
 )
 from .bearing import lookup_bearing_coefficients
 from .metadata import _fft_metadata
+from .sampling import sampling_metadata
 
 
 def _decode_float32_bytes(raw_value: str) -> list[float]:
@@ -473,6 +474,7 @@ def _build_fft_record(
         "frequencies": frequencies,
         "amplitudes": amplitudes,
         "timeWaveSamples": time_wave_samples,
+        "sampling": sampling_metadata(frequency_code, len(time_wave_samples or []), line_count),
         "analysis": {
             **analyze_fft_spectrum(frequencies, amplitudes, measure_mode),
             "diagnosis": diagnosis,

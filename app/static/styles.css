@@ -2471,3 +2471,16 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 }
+.envelope-card { margin-top: 20px; padding: 22px; }
+.envelope-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin: 18px 0 10px; }
+.envelope-controls label, .envelope-spectrum-heading label { display: grid; gap: 6px; font-size: 12px; }
+.envelope-controls select, .envelope-controls input, .envelope-spectrum-heading select {
+  padding: 9px 10px; border: 1px solid #ccd8de; border-radius: 6px; background: white; color: #173d4b;
+}
+.envelope-controls input { width: 130px; }
+.envelope-controls button { padding: 10px 18px; border: 0; border-radius: 6px; background: #176b79; color: white; cursor: pointer; }
+.envelope-controls button:disabled { opacity: .5; cursor: default; }
+.envelope-card h3 { font-size: 14px; font-weight: 600; margin: 24px 0 6px; }
+.envelope-card .plot { height: 235px; }
+.envelope-spectrum-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#envelope-status { font-size: 12px; color: #486474; margin-top: 16px; }

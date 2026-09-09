@@ -53,6 +53,27 @@ FFT CSV의 각 행은 하나의 FFT 측정 기록이며, `ResultData`와 함께 
 
 등록되지 않은 코드는 원본 값을 유지하고 화면에는 `알 수 없음 (코드)`으로 표시합니다. `MeasureFreq`가 등록되지 않은 기록은 주파수 대신 FFT bin을 X축으로 사용합니다.
 
+## TimeWaveSampling 및 포락선 분석
+
+`MeasureFreq`는 샘플링 주파수가 아닌 최대 분석 주파수 Fmax의 코드입니다.
+`sampling_metadata` 공통 함수는 `Fs = Fmax × 2.56`을 적용하며,
+실제 파형 길이/MeasureLineNum 비율이 2.56인지 검증합니다.
+현재 전체 FFT CSV에서 1024/400, 2048/800, 4096/1600 조합이 확인되었습니다.
+장비 사양을 명시한 별도 코드는 없으며, 이 데이터 구조와 제공된 장비 규칙에 근거합니다.
+미등록 코드나 다른 비율이면 Fs를 추정하지 않고 분석을 보류합니다.
+
+시간축은 i/Fs, 포락선 FFT 간격은 Fs/N입니다. 기존 ResultData의 Fmax/라인 수
+주파수 간격과 DC 제외 규칙은 유지합니다. FFT 상세 응답의 `sampling`에 유효 여부,
+`frequencyHz`, 적용 규칙, 파형 길이와 불가 사유를 제공합니다.
+
+`GET /api/dashboard/{dataset_id}/fft/{record_id}/envelope`는 `low_hz`(기본 1000),
+`high_hz`(기본 2200), 선택적 `until`을 받습니다. 가속도 ALL만 사용하며,
+평균 제거 → Butterworth N=4 SOS 양방향 필터 → Hilbert 절댓값 → 포락선 평균 제거,
+Hann 창과 창 이득 보정 단측 FFT 순서로 계산합니다. 기본 대역은 예시이며
+실제 공진 대역에 맞춰 조절해야 합니다. 양 끝에는 필터·Hilbert 경계 효과가 있습니다.
+베어링 기준선은 RPM과 마스터 결함계수를 이용하며 자동 결함 판정은 하지 않습니다.
+가속도 ENV·속도 파형을 재포락선 분석하지 않습니다.
+
 ## 가속도 FFT 베어링 분석
 
 가속도 ALL(`0`)과 가속도 ENV(`2`) 기록은 설비 메타데이터의 `maker`, `bearing`, `rpm`과

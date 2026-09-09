@@ -23,9 +23,10 @@ export function buildTimeWaveFigure(fft) {
   const measureModeLabel = fft.metadata?.measureMode?.label ?? "진폭";
   const amplitudeSuffix = fft.amplitudeUnit ? ` ${fft.amplitudeUnit}` : "";
   const layout = baseLayout();
+  const fs = fft.sampling?.valid ? fft.sampling.frequencyHz : null;
   layout.margin = { l: 58, r: 15, t: 30, b: 43 };
   layout.showlegend = false;
-  layout.xaxis.title = { text: "Sample Index", standoff: 8, font: { size: 10 } };
+  layout.xaxis.title = { text: fs ? "시간 (s)" : "Sample Index", standoff: 8, font: { size: 10 } };
   layout.yaxis.title = {
     text: fft.amplitudeUnit ? `${measureModeLabel} (${fft.amplitudeUnit})` : measureModeLabel,
     standoff: 8,
@@ -37,12 +38,12 @@ export function buildTimeWaveFigure(fft) {
 
   return {
     traces: [{
-      x: samples.map((_, index) => index),
+      x: samples.map((_, index) => fs ? index / fs : index),
       y: samples,
       type: "scatter",
       mode: "lines",
       line: { color: palette.teal, width: 1.25 },
-      hovertemplate: "Sample %{x}<br><b>%{y:.4f}" + amplitudeSuffix + "</b><extra></extra>",
+      hovertemplate: (fs ? "%{x:.6f} s" : "Sample %{x}") + "<br><b>%{y:.4f}" + amplitudeSuffix + "</b><extra></extra>",
     }],
     layout,
   };

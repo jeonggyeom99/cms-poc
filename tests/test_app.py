@@ -802,12 +802,12 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")
-    app_module = get(target_app, "/static/app.js?v=ai-report-v1")
+    app_module = get(target_app, "/static/app.js?v=envelope-v1")
 
     assert response.status_code == 200
     assert app_module.status_code == 200
-    assert 'type="module" src="/static/app.js?v=ai-report-v1"' in response.text
-    assert 'controller.js?v=ai-report-v1' in app_module.text
+    assert 'type="module" src="/static/app.js?v=envelope-v1"' in response.text
+    assert 'controller.js?v=envelope-v1' in app_module.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
