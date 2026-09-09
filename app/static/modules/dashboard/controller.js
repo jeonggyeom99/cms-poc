@@ -49,6 +49,7 @@ import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js";
 import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=acceleration-bearing-fft-v4";
 import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=fft-harmonic-markers";
+import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js";
 import {
   renderFftMetadata,
   renderFftHistoryList,
@@ -121,6 +122,7 @@ function renderFft() {
   renderOverviewFftResult(fft);
   renderFftRecordList(fft);
   renderFftChart(fft, selectedBearingFaultType);
+  renderTimeWaveChart(fft);
   if (fft?.isAlertFft) {
     renderFftMetadata(fft);
     renderFftAnalysis(fft, selectedBearingFaultType, {}, relatedHistory.tag);
@@ -151,6 +153,8 @@ function renderExpandedGraph() {
     );
   } else if (getExpandedGraph() === "fft" && dashboardData?.fft) {
     renderPlot("graph-modal-chart", buildFftFigure(dashboardData.fft, getSelectedBearingFaultType()));
+  } else if (getExpandedGraph() === "timewave" && dashboardData?.fft) {
+    renderPlot("graph-modal-chart", buildTimeWaveFigure(dashboardData.fft));
   }
 }
 
@@ -166,7 +170,7 @@ function handleTrendMetricSelectionChange() {
 }
 
 function handleOpenExpandedGraph(graphType, trigger) {
-  if (graphType === "fft") renderFftHistoryList(getDashboardData()?.fft);
+  if (["fft", "timewave"].includes(graphType)) renderFftHistoryList(getDashboardData()?.fft);
   openExpandedGraph(graphType, trigger, renderExpandedGraph);
 }
 
@@ -270,6 +274,7 @@ export async function loadDashboard(datasetId) {
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
+  setExpandButtonEnabled("timewave", false);
   try {
     const dashboardData = await fetchDashboard(datasetId, requestedUntil());
     setDashboardData(dashboardData);
@@ -290,8 +295,10 @@ export async function loadDashboard(datasetId) {
     console.error("Dashboard data loading failed", error);
     setExpandButtonEnabled("trend", false);
     setExpandButtonEnabled("fft", false);
+    setExpandButtonEnabled("timewave", false);
     setPlotEmpty("trend-chart", "설비 데이터를 불러오지 못했습니다.", true);
     setPlotEmpty("fft-chart", "설비 데이터를 불러오지 못했습니다.", true);
+    setPlotEmpty("timewave-chart", "설비 데이터를 불러오지 못했습니다.", true);
     renderOverviewFftResult(null);
     renderFftRecordList(null);
     renderFftMetadata(null);
@@ -322,8 +329,10 @@ async function initializeDashboard() {
       select.innerHTML = '<option value="">사용 가능한 CSV 데이터가 없습니다.</option>';
       setPlotEmpty("trend-chart", "data/ 폴더에서 Trend CSV를 찾지 못했습니다.");
       setPlotEmpty("fft-chart", "data/ 폴더에서 FFT CSV를 찾지 못했습니다.");
+      setPlotEmpty("timewave-chart", "data/ 폴더에서 FFT CSV를 찾지 못했습니다.");
       setExpandButtonEnabled("trend", false);
       setExpandButtonEnabled("fft", false);
+      setExpandButtonEnabled("timewave", false);
       return;
     }
 
@@ -348,8 +357,10 @@ async function initializeDashboard() {
     select.innerHTML = '<option value="">CSV 목록을 불러오지 못했습니다.</option>';
     setPlotEmpty("trend-chart", "CSV 목록을 불러오지 못했습니다.", true);
     setPlotEmpty("fft-chart", "CSV 목록을 불러오지 못했습니다.", true);
+    setPlotEmpty("timewave-chart", "CSV 목록을 불러오지 못했습니다.", true);
     setExpandButtonEnabled("trend", false);
     setExpandButtonEnabled("fft", false);
+    setExpandButtonEnabled("timewave", false);
   }
 }
 

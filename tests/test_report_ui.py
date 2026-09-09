@@ -49,6 +49,20 @@ def test_main_fft_chart_marks_velocity_harmonics() -> None:
     assert 'text: `${harmonic.order}X`' in chart
 
 
+def test_time_wave_graph_is_wired_with_sample_index_axis_and_expansion() -> None:
+    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+    controller = (ROOT / "app/static/modules/dashboard/controller.js").read_text(
+        encoding="utf-8"
+    )
+    chart = (ROOT / "app/static/modules/timewave/chart.js").read_text(encoding="utf-8")
+
+    assert 'id="timewave-chart"' in html
+    assert 'data-expand-graph="timewave"' in html
+    assert 'text: "Sample Index"' in chart
+    assert "renderTimeWaveChart(fft);" in controller
+    assert 'getExpandedGraph() === "timewave"' in controller
+
+
 def test_trend_and_fft_cards_have_equal_widths() -> None:
     styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 

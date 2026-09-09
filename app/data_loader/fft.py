@@ -30,6 +30,20 @@ def _decode_float32_bytes(raw_value: str) -> list[float]:
     return list(struct.unpack(f"<{value_count}f", decoded))
 
 
+def _decode_time_wave_samples(row: dict[str, str]) -> list[float] | None:
+    """Return a usable time waveform without making the FFT record unavailable."""
+    raw_value = row.get("TimeWaveSampling")
+    if not raw_value:
+        return None
+    try:
+        samples = _decode_float32_bytes(raw_value)
+    except (SyntaxError, TypeError, ValueError):
+        return None
+    if not samples or not all(math.isfinite(sample) for sample in samples):
+        return None
+    return samples
+
+
 def analyze_velocity_fft(
     frequencies: list[float], amplitudes: list[float], rpm: float | None
 ) -> dict[str, Any]:
@@ -429,6 +443,7 @@ def _build_fft_record(
     frequency_code = row["MeasureFreq"]
     measure_mode = row["MeasureMode"]
     amplitudes = _decode_float32_bytes(row["ResultData"])
+    time_wave_samples = _decode_time_wave_samples(row)
     metadata = _fft_metadata(row)
     maximum_amplitude = _maximum_finite_amplitude(amplitudes)
     line_count = int(row["MeasureLineNum"])
@@ -457,6 +472,7 @@ def _build_fft_record(
         "isAlertFft": _is_alert_fft_record(metadata, maximum_amplitude, diagnosis),
         "frequencies": frequencies,
         "amplitudes": amplitudes,
+        "timeWaveSamples": time_wave_samples,
         "analysis": {
             **analyze_fft_spectrum(frequencies, amplitudes, measure_mode),
             "diagnosis": diagnosis,

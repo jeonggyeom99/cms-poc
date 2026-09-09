@@ -246,6 +246,23 @@
           </section>
         </section>
 
+        <article class="card chart-card time-wave-card">
+          <div class="card-header">
+            <div>
+              <h2>TimeWaveSampling Graph</h2>
+            </div>
+            <div class="chart-header-actions">
+              <button type="button" class="graph-expand-button" id="timewave-expand" data-expand-graph="timewave" aria-label="TimeWaveSampling Graph 크게 보기" title="TimeWaveSampling Graph 크게 보기" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="timewave-chart" class="plot plot-empty" role="img" aria-label="TimeWaveSampling 파형 그래프">설비 데이터를 선택하세요.</div>
+          <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
+        </article>
+
         <p class="mock-notice">Level 권고값은 최근 3개월 Trend의 IQR 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>
       </main>
     </div>

@@ -22,19 +22,27 @@ function cleanupExpandedGraph() {
 
 export function openExpandedGraph(graphType, trigger, renderExpandedGraph) {
   const dashboardData = getDashboardData();
-  if (!dashboardData?.[graphType]) return;
+  if (graphType === "timewave" && !dashboardData?.fft?.timeWaveSamples?.length) return;
+  if (graphType !== "timewave" && !dashboardData?.[graphType]) return;
 
   const modal = document.getElementById("graph-modal");
   const modalBody = modal.querySelector(".graph-modal-body");
   const isTrend = graphType === "trend";
+  const isFftRecordGraph = !isTrend;
   setExpandedGraph(graphType, trigger);
 
-  document.getElementById("graph-modal-title").textContent = isTrend
-    ? "Trend Graph"
-    : "FFT Graph";
+  document.getElementById("graph-modal-title").textContent = {
+    trend: "Trend Graph",
+    fft: "FFT Graph",
+    timewave: "TimeWaveSampling Graph",
+  }[graphType];
   document.getElementById("graph-modal-chart").setAttribute(
     "aria-label",
-    isTrend ? "확대된 진동 속도 추세 그래프" : "확대된 FFT 주파수 스펙트럼 그래프",
+    isTrend
+      ? "확대된 진동 속도 추세 그래프"
+      : graphType === "fft"
+        ? "확대된 FFT 주파수 스펙트럼 그래프"
+        : "확대된 TimeWaveSampling 파형 그래프",
   );
 
   const periodTabs = document.getElementById("graph-modal-period-tabs");
@@ -42,8 +50,8 @@ export function openExpandedGraph(graphType, trigger, renderExpandedGraph) {
   const fftHistoryBrowser = document.getElementById("fft-history-browser");
   periodTabs.hidden = !isTrend;
   trendMetricSelector.hidden = !isTrend;
-  fftHistoryBrowser.hidden = isTrend;
-  modalBody.classList.toggle("fft-expanded", !isTrend);
+  fftHistoryBrowser.hidden = !isFftRecordGraph;
+  modalBody.classList.toggle("fft-expanded", isFftRecordGraph);
   if (isTrend) {
     renderTrendMetricSelector(dashboardData);
   }

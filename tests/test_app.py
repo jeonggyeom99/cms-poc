@@ -17,6 +17,7 @@ from app.ai_analysis import (
 from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
+    _build_fft_record,
     _load_equipment_metadata,
     analyze_acceleration_bearing_fft,
     analyze_fft_spectrum,
@@ -97,8 +98,14 @@ def fft_row(
     frequency_code: str = "5",
     extraction_type: str = "2",
     diag_mode: str = "1",
+    time_wave_samples: list[float] | None = None,
 ) -> dict[str, str]:
     result_data = struct.pack(f"<{len(amplitudes)}f", *amplitudes)
+    time_wave_data = (
+        struct.pack(f"<{len(time_wave_samples)}f", *time_wave_samples)
+        if time_wave_samples is not None
+        else b""
+    )
     return {
         "SignalID": "1",
         "MeasureDate": measured_at,
@@ -107,7 +114,7 @@ def fft_row(
         "MeasureMode": measure_mode,
         "MeasureFreq": frequency_code,
         "MeasureLineNum": str(len(amplitudes)),
-        "TimeWaveSampling": repr(b""),
+        "TimeWaveSampling": repr(time_wave_data),
         "ResultData": repr(result_data),
     }
 
@@ -141,7 +148,12 @@ def make_data_dir(tmp_path: Path) -> Path:
         tmp_path / "1.FFT_Area_Test Pump_Point A (V001).csv",
         FFT_COLUMNS,
         [
-            fft_row("2026-01-03 00:00:00", [9.0, 9.0], measure_mode="2"),
+            fft_row(
+                "2026-01-03 00:00:00",
+                [9.0, 9.0],
+                measure_mode="2",
+                time_wave_samples=[-0.25, 0.5, 0.125],
+            ),
             fft_row("2026-01-01 00:00:00", [0.1, 0.2]),
             fft_row("2026-01-04 00:00:00", [0.3, 0.4]),
         ],
@@ -911,6 +923,7 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert record["frequencyRange"] == 500.0
     assert record["frequencies"] == [250.0, 500.0]
     assert record["amplitudes"] == pytest.approx([9.0, 9.0])
+    assert record["timeWaveSamples"] == pytest.approx([-0.25, 0.5, 0.125])
     diagnosis = record["analysis"]["diagnosis"]
     assert diagnosis["status"] == "unavailable"
     assert diagnosis["diagnosis"] == "unavailable"
@@ -920,6 +933,16 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     assert get(target_app, "/api/dashboard/1/fft/999").status_code == 404
     assert get(target_app, "/api/dashboard/3/fft/2").status_code == 404
     assert get(target_app, "/api/dashboard/99/fft/2").status_code == 404
+
+
+def test_malformed_time_wave_does_not_make_fft_record_unavailable() -> None:
+    row = fft_row("2026-01-03 00:00:00", [0.1, 0.2])
+    row["TimeWaveSampling"] = "not a bytes literal"
+
+    record = _build_fft_record(row, 2)
+
+    assert record["amplitudes"] == pytest.approx([0.1, 0.2])
+    assert record["timeWaveSamples"] is None
 
 
 def test_fft_record_can_be_loaded_after_its_source_file_is_removed(tmp_path: Path) -> None:

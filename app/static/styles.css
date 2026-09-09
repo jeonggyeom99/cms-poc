@@ -439,6 +439,10 @@ h1 {
   margin-bottom: 16px;
 }
 
+.time-wave-card {
+  margin-top: 16px;
+}
+
 .analysis-grid {
   grid-template-columns: minmax(0, 1fr);
 }
