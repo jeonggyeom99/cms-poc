@@ -11,11 +11,12 @@ body {
   margin: 0;
   background: #eaf1f5;
   color: #172b40;
-  font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", Inter, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 button,
+input,
 select {
   font: inherit;
 }
@@ -60,6 +61,11 @@ select {
 .equipment-status-history-link:focus-visible,
 .equipment-status-item__link:focus-visible,
 .equipment-status-search button:focus-visible,
+.equipment-status-search input:focus-visible,
+.equipment-status-tree summary:focus-visible,
+.equipment-status-tree button:focus-visible,
+.equipment-status-equipment__summary:focus-visible,
+.equipment-status-sensor:focus-visible,
 .equipment-status-search select:focus-visible {
   outline: 3px solid rgba(22, 143, 154, 0.35);
   outline-offset: 3px;
@@ -135,10 +141,10 @@ select {
 
 .equipment-status-content {
   display: grid;
-  gap: 16px;
+  gap: 24px;
   width: min(1160px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 30px 0;
+  padding: 32px 0;
 }
 
 .equipment-status-heading {
@@ -157,9 +163,9 @@ select {
 
 .equipment-status-heading h1 {
   margin-bottom: 0;
-  font-size: clamp(30px, 4vw, 48px);
+  font-size: clamp(28px, 2.3vw, 36px);
   letter-spacing: -0.05em;
-  line-height: 1;
+  line-height: 1.25;
 }
 
 .equipment-status-heading time {
@@ -171,23 +177,23 @@ select {
 .equipment-status-search,
 .equipment-status-panel {
   border: 1px solid var(--es-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--es-surface);
-  box-shadow: 0 20px 70px rgba(35, 68, 88, 0.12);
+  box-shadow: 0 8px 24px rgba(35, 68, 88, 0.06);
   backdrop-filter: blur(14px);
 }
 
 .equipment-status-search {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
-  gap: 14px;
+  gap: 16px;
   align-items: end;
-  padding: 18px;
+  padding: 24px;
 }
 
 .equipment-status-search label {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   color: #111827;
   font-size: 14px;
   font-weight: 700;
@@ -196,9 +202,11 @@ select {
 .equipment-status-search select,
 .equipment-status-search button {
   box-sizing: border-box;
-  height: 44px;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
   border: 1px solid var(--es-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   color: var(--es-text);
   padding: 0 13px;
@@ -236,7 +244,7 @@ select {
 
 .equipment-status-panel {
   min-height: 0;
-  padding: 20px;
+  padding: 24px;
 }
 
 .equipment-status-panel__head {
@@ -244,7 +252,7 @@ select {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .equipment-status-panel h2 {
@@ -329,7 +337,7 @@ select {
   margin-top: 5px;
   color: var(--es-muted);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.5;
 }
 
 .equipment-status-item__details {
@@ -395,7 +403,11 @@ select {
 }
 
 .equipment-status-empty {
-  padding: 50px 0;
+  margin: 0;
+  padding: 48px 16px;
+  border: 1px dashed var(--es-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
   color: var(--es-muted);
   font-size: 14px;
   text-align: center;
@@ -463,6 +475,7 @@ select {
 }
 
 .equipment-status-search input {
+  min-width: 0;
   width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -475,7 +488,7 @@ select {
 .equipment-status-panel__body {
   display: grid;
   grid-template-columns: minmax(220px, 2fr) minmax(0, 8fr);
-  gap: 18px;
+  gap: 24px;
 }
 
 .equipment-status-tree {
@@ -519,7 +532,26 @@ select {
 .equipment-status-tree__health--critical { background: var(--es-critical); }
 
 .equipment-status-list { padding-left: 4px; }
-.equipment-status-equipment__summary { list-style: none; cursor: pointer; }
+.equipment-status-equipment { border-bottom: 1px solid var(--es-border); }
+.equipment-status-equipment__summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 16px 12px;
+  border-radius: 8px;
+  list-style: none;
+  cursor: pointer;
+}
+.equipment-status-equipment__summary::after {
+  content: "+";
+  flex: none;
+  color: var(--es-accent);
+  font-size: 20px;
+}
+.equipment-status-equipment[open] > summary::after { content: "−"; }
+.equipment-status-equipment[open] > summary,
+.equipment-status-equipment__summary:hover { background: rgba(22, 143, 154, 0.06); }
 .equipment-status-equipment__summary::-webkit-details-marker { display: none; }
 .equipment-status-sensors { margin: 0 10px 8px 42px; padding: 4px 0 4px 12px; border-left: 1px solid var(--es-border); }
 .equipment-status-sensor {
@@ -532,7 +564,10 @@ select {
   font-size: 13px;
   text-decoration: none;
 }
-.equipment-status-sensor:hover { color: var(--es-text); }
+.equipment-status-sensor span { overflow-wrap: anywhere; }
+a.equipment-status-sensor { color: #0a6670; border-radius: 8px; padding: 8px; }
+a.equipment-status-sensor span { text-decoration: underline; text-underline-offset: 3px; }
+a.equipment-status-sensor:hover { background: rgba(22, 143, 154, 0.08); }
 .equipment-status-sensor__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--es-normal); }
 .equipment-status-sensor__dot--attention { background: var(--es-attention); }
 .equipment-status-sensor__dot--critical { background: var(--es-critical); }

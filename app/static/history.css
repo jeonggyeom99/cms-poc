@@ -11,7 +11,7 @@ body {
   margin: 0;
   background: #eaf1f5;
   color: #172b40;
-  font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", Inter, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -109,6 +109,7 @@ select {
 .history-search input:focus-visible,
 .history-search select:focus-visible,
 .history-search button:focus-visible,
+.history-graph-button:focus-visible,
 .history-detail-button:focus-visible {
   outline: 3px solid rgba(22, 143, 154, 0.35);
   outline-offset: 3px;
@@ -116,10 +117,10 @@ select {
 
 .history-content {
   display: grid;
-  gap: 16px;
+  gap: 24px;
   width: min(1380px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 30px 0 48px;
+  padding: 32px 0 48px;
 }
 
 .history-heading {
@@ -131,9 +132,9 @@ select {
 
 .history-heading h1 {
   margin: 4px 0 0;
-  font-size: clamp(30px, 4vw, 48px);
+  font-size: clamp(28px, 2.3vw, 36px);
   letter-spacing: -0.05em;
-  line-height: 1;
+  line-height: 1.25;
 }
 
 .history-heading p {
@@ -152,23 +153,23 @@ select {
 .history-search,
 .history-panel {
   border: 1px solid var(--history-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--history-surface);
-  box-shadow: 0 20px 70px rgba(35, 68, 88, 0.12);
+  box-shadow: 0 8px 24px rgba(35, 68, 88, 0.06);
   backdrop-filter: blur(14px);
 }
 
 .history-search {
   display: grid;
   grid-template-columns: minmax(320px, 1.8fr) minmax(180px, 0.7fr) auto;
-  gap: 14px;
+  gap: 16px;
   align-items: end;
-  padding: 18px;
+  padding: 24px;
 }
 
 .history-search label {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   color: #111827;
   font-size: 14px;
   font-weight: 700;
@@ -196,9 +197,10 @@ select {
 .history-search select,
 .history-search button {
   width: 100%;
-  height: 44px;
+  min-width: 0;
+  height: 40px;
   border: 1px solid var(--history-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.76);
   color: var(--history-text);
 }
@@ -247,7 +249,7 @@ select {
 
 .history-panel {
   min-width: 0;
-  padding: 20px;
+  padding: 24px;
 }
 
 .history-panel__head {
@@ -255,7 +257,7 @@ select {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .history-panel h2 {
@@ -302,9 +304,9 @@ select {
 
 .history-table th:first-child { width: 120px; }
 .history-table th:nth-child(2) { width: 110px; }
-.history-table th:nth-child(3) { width: 270px; }
+.history-table th:nth-child(3) { width: auto; }
 .history-table th:nth-child(4) { width: 95px; }
-.history-table th:nth-child(5) { width: 260px; }
+.history-table th:nth-child(5) { width: 26%; }
 .history-table th:last-child {
   width: 180px;
   border-right: 0;
@@ -335,13 +337,13 @@ select {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .history-graph-unavailable {
   flex-basis: 100%;
   color: var(--history-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -375,9 +377,9 @@ select {
   padding: 5px 8px;
   border: 1px solid transparent;
   border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.25;
-  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
 }
 
 .history-diagnosis-tag__label {
@@ -386,9 +388,9 @@ select {
 }
 
 .history-diagnosis-tag strong {
-  overflow: hidden;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 800;
-  text-overflow: ellipsis;
 }
 
 .history-diagnosis-tag--bearing {
@@ -429,7 +431,7 @@ select {
 }
 
 .history-detail {
-  padding: 22px;
+  padding: 24px;
   box-shadow: inset 4px 0 #3aa5ad;
 }
 
@@ -507,7 +509,18 @@ select {
   color: var(--history-muted);
   font-size: 14px;
   text-align: center;
+  padding: 48px 16px;
+  background: #f7f9fa;
 }
+
+.history-detail-button,
+.history-graph-button {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+.history-graph-button:hover:not(:disabled) { background: #0a6670; }
+.history-detail-button[aria-expanded="true"] { background: #dff3ef; border-color: #168f9a; }
 
 .visually-hidden {
   position: absolute;

@@ -784,7 +784,7 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
-    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=equipment-status-demo-merge">' in response.text
+    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=ui-consistency-v1">' in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-excel-data.js"' in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-tree-data.js"' in response.text
     assert 'src="/static/modules/equipment-status/controller.js?v=equipment-status-demo-merge"' in response.text

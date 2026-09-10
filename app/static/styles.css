@@ -15,8 +15,9 @@
   --caution-soft: #fff2d9;
   --danger: #e25353;
   --danger-soft: #fde7e7;
-  --shadow: 0 16px 42px rgba(30, 55, 65, 0.08);
-  --radius: 18px;
+  --shadow: 0 8px 24px rgba(30, 55, 65, 0.06);
+  --radius: 16px;
+  --teal-dark: #096660;
 }
 
 * {
@@ -139,7 +140,7 @@ select {
 main {
   width: min(1440px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 34px 0 28px;
+  padding: 32px 0;
 }
 
 .dataset-select-wrap {
@@ -159,7 +160,7 @@ main {
 
 .dataset-select-wrap select {
   width: 100%;
-  height: 38px;
+  height: 40px;
   padding: 0 42px 0 13px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
@@ -204,7 +205,7 @@ h1 {
   position: relative;
   overflow: hidden;
   margin-bottom: 16px;
-  padding: 30px 32px 20px;
+  padding: 24px 32px;
   color: #fff;
   background: linear-gradient(118deg, #0b1c31 0%, #112d48 62%, #12475a 100%);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -241,6 +242,7 @@ h1 {
 }
 
 .equipment-overview h1 {
+  overflow-wrap: anywhere;
   margin: 0 0 9px;
   color: #fff;
   font-size: clamp(25px, 2.3vw, 36px);
@@ -253,7 +255,7 @@ h1 {
 .equipment-metadata {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 28px;
+  gap: 8px 24px;
   margin: 0;
   color: #aebed0;
   font-size: 14px;
@@ -459,9 +461,9 @@ h1 {
 
 .card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
 }
 
 .card-header h2 {
@@ -486,13 +488,14 @@ h1 {
 }
 
 .period-tabs button {
+  min-height: 32px;
   padding: 6px 11px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -684,8 +687,9 @@ body.graph-modal-open {
 }
 
 .graph-modal-close {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
 }
 
 .graph-modal-body {
@@ -694,7 +698,7 @@ body.graph-modal-open {
   min-height: 0;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 20px 18px;
+  padding: 16px 24px;
 }
 
 .graph-modal-workspace {
@@ -753,10 +757,11 @@ body.graph-modal-open {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .fft-record-browser-heading {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -780,10 +785,12 @@ body.graph-modal-open {
 }
 
 .fft-record-list-status {
+  flex-shrink: 0;
   min-height: 17px;
   margin: 0 4px 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .fft-record-list-status.error {
@@ -791,20 +798,22 @@ body.graph-modal-open {
 }
 
 .fft-record-filters {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
   margin: 0 4px 9px;
 }
 
 .fft-record-filters button {
-  padding: 3px 6px;
+  min-height: 32px;
+  padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -829,6 +838,7 @@ body.graph-modal-open {
 }
 
 .fft-record-item {
+  flex-shrink: 0;
   width: 100%;
   padding: 10px;
   border: 1px solid transparent;
@@ -866,7 +876,7 @@ body.graph-modal-open {
 
 .fft-record-item.alert-caution.active {
   border-color: var(--teal);
-  background: color-mix(in srgb, var(--teal-soft) 72%, var(--caution-soft));
+  background: var(--teal-soft);
 }
 
 .fft-record-item.alert-danger {
@@ -880,7 +890,7 @@ body.graph-modal-open {
 
 .fft-record-item.alert-danger.active {
   border-color: var(--teal);
-  background: color-mix(in srgb, var(--teal-soft) 72%, var(--danger-soft));
+  background: var(--teal-soft);
 }
 
 .fft-record-item.pending {
@@ -891,7 +901,7 @@ body.graph-modal-open {
   display: block;
   margin-bottom: 7px;
   color: var(--navy);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -907,7 +917,7 @@ body.graph-modal-open {
   border-radius: 5px;
   background: #eef2f3;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
 }
 
@@ -929,7 +939,7 @@ body.graph-modal-open {
 .fft-metadata-grid {
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
 }
@@ -953,18 +963,17 @@ body.graph-modal-open {
 
 .fft-metadata-grid dt {
   margin-bottom: 4px;
-  color: #8a989f;
-  font-size: 9px;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 750;
 }
 
 .fft-metadata-grid dd {
-  overflow: hidden;
   color: var(--navy);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .trend-metric-selector {
@@ -1809,13 +1818,13 @@ body.graph-modal-open {
 .ai-analysis-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
-  margin: -4px 0 14px;
+  margin: 16px 0;
 }
 
 .ai-analysis-run {
-  min-height: 36px;
+  min-height: 40px;
   padding: 8px 12px;
   border: 1px solid var(--teal);
   border-radius: 7px;
@@ -1843,7 +1852,7 @@ body.graph-modal-open {
 
 .report-action,
 .email-draft-copy {
-  min-height: 36px;
+  min-height: 40px;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1859,7 +1868,12 @@ body.graph-modal-open {
   color: #096660;
 }
 
-.report-action-email,
+.report-action-email {
+  border-color: #85aba9;
+  background: var(--surface);
+  color: #096660;
+}
+
 .email-draft-copy {
   border-color: var(--navy);
   background: var(--navy);
@@ -1891,7 +1905,7 @@ body.graph-modal-open {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
-  text-align: right;
+  text-align: left;
 }
 
 .report-action-status[data-state="error"] {
@@ -2229,6 +2243,26 @@ body.graph-modal-open {
   font-size: 13px;
 }
 
+/* Shared spacing and interaction treatment for the existing analysis panels. */
+.analysis-grid { gap: 24px; }
+.level-card, .diagnosis-card, .ai-analysis-card { padding: 24px; }
+.diagnosis-card > .card-header { margin-bottom: 16px; }
+.time-wave-card { margin-top: 24px; }
+.analysis-lead, .chart-interaction-hint { line-height: 1.6; }
+.analysis-placeholder { padding: 24px; }
+.analysis-placeholder p, .analysis-placeholder strong { overflow-wrap: anywhere; }
+.fft-record-filters button:focus-visible,
+.bearing-fault-selector button:focus-visible,
+.envelope-controls :is(input, select, button):focus-visible,
+.envelope-spectrum-heading select:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.bearing-fault-selector button { min-height: 32px; }
+.email-draft-dialog-close { flex-shrink: 0; width: 40px; height: 40px; }
+.email-draft-dialog-header, .email-draft-dialog-footer { gap: 16px; }
+.email-draft-dialog-body { padding: 24px; }
+
 @media (max-width: 1050px) {
   .overview-metrics {
     grid-template-columns: repeat(2, 1fr);
@@ -2471,14 +2505,16 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 }
-.envelope-card { margin-top: 20px; padding: 22px; }
-.envelope-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin: 18px 0 10px; }
-.envelope-controls label, .envelope-spectrum-heading label { display: grid; gap: 6px; font-size: 12px; }
+.envelope-card { margin-top: 24px; padding: 24px; }
+.envelope-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin: 16px 0; }
+.envelope-controls label, .envelope-spectrum-heading label { display: grid; min-width: 0; gap: 8px; font-size: 12px; }
 .envelope-controls select, .envelope-controls input, .envelope-spectrum-heading select {
   padding: 9px 10px; border: 1px solid #ccd8de; border-radius: 6px; background: white; color: #173d4b;
 }
+.envelope-controls select, .envelope-controls input, .envelope-spectrum-heading select { height: 40px; max-width: 100%; border-radius: 8px; }
 .envelope-controls input { width: 130px; }
-.envelope-controls button { padding: 10px 18px; border: 0; border-radius: 6px; background: #176b79; color: white; cursor: pointer; }
+.envelope-controls button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--teal); border-radius: 8px; background: var(--teal); color: white; cursor: pointer; }
+.envelope-controls button:hover:not(:disabled) { background: var(--teal-dark); }
 .envelope-controls button:disabled { opacity: .5; cursor: default; }
 .envelope-card h3 { font-size: 14px; font-weight: 600; margin: 24px 0 6px; }
 .envelope-card .plot { height: 235px; }
