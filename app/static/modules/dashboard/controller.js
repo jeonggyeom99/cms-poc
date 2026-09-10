@@ -10,23 +10,23 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=ai-analysis-v1";
+} from "../analysis/ai.js?v=korean-ui-v1";
 import {
   bindEmailDraft,
   resetEmailDraft,
   setEmailDraftAvailable,
-} from "../report/email-draft.js?v=email-draft-v1";
+} from "../report/email-draft.js?v=korean-ui-v1";
 import {
   bindPptExport,
   resetPptExport,
   setPptExportAvailable,
-} from "../report/ppt-export.js?v=diagnostic-ppt-v1";
-import { renderLevelAnalysis } from "../analysis/level.js";
+} from "../report/ppt-export.js?v=korean-ui-v1";
+import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
 import {
   bindPeriodTabs,
   setExpandButtonEnabled,
   syncPeriodTabs,
-} from "../controls/controls.js";
+} from "../controls/controls.js?v=korean-ui-v1";
 import {
   cacheFftRecord,
   createFftSelectionRequest,
@@ -46,10 +46,10 @@ import {
   setSelectedBearingFaultType,
 } from "../core/state.js?v=acceleration-bearing-fft";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
-import { availabilityLabel } from "../core/format.js";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=acceleration-bearing-fft-v4";
-import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=fft-harmonic-markers";
-import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=envelope-v1";
+import { availabilityLabel } from "../core/format.js?v=korean-ui-v2";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=korean-ui-v1";
+import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=korean-ui-v2";
+import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
   renderFftMetadata,
   renderFftHistoryList,
@@ -59,23 +59,23 @@ import {
   setFftHistoryStatus,
   syncFftRecordSelection,
   toggleFftRecordFilter,
-} from "../fft/records.js?v=acceleration-bearing-fft-v7";
+} from "../fft/records.js?v=korean-ui-v2";
 import {
   bindRelatedHistory,
   matchingHistoryItems,
   relatedHistoryTag,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=fft-related-history-v1";
+} from "../fft/related-history.js?v=korean-ui-v1";
 import { fetchHistory } from "../api/history.js?v=cms-history-v1";
-import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=plot-zoom-bounds";
-import { populateSummary } from "../summary/summary.js?v=compact-fft-summary";
+import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=korean-ui-v1";
+import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {
   buildExpandedTrendFigure,
   renderTrend,
-} from "../trend/chart.js?v=plot-zoom-bounds";
+} from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
-import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js";
+import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js?v=korean-ui-v1";
 
 let historyItems = [];
 let aiAnalysisRequest = 0;
@@ -134,8 +134,8 @@ function renderFft() {
   renderFftMetadata(null);
   renderFftAnalysis(null, null, fft ? {
     resultLabel: "대상 없음",
-    description: "최대 진폭이 0.5를 초과하거나 주의·위험경보인 FFT 기록만 표시합니다.",
-    heading: "표시할 FFT 분석 대상이 없습니다.",
+    description: "최대 진폭이 0.5를 초과하거나 주의·위험경보인 주파수 기록만 표시합니다.",
+    heading: "표시할 주파수 분석 대상이 없습니다.",
     detail: "좌측 목록에 대상 기록이 생기면 그래프와 분석 결과를 확인할 수 있습니다.",
   } : {});
   renderRelatedHistory(null, []);
@@ -213,7 +213,7 @@ async function runAiAnalysis(force) {
   } catch (error) {
     if (requestId !== aiAnalysisRequest) return;
     console.error("AI analysis loading failed", error);
-    renderAiAnalysisError(error.message || "AI 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    renderAiAnalysisError(error.message || "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.");
   }
 }
 
@@ -228,8 +228,8 @@ async function selectFftRecord(recordId) {
   const list = document.getElementById("fft-record-list");
   list.setAttribute("aria-busy", "true");
   syncFftRecordSelection(fft, recordId);
-  setFftRecordStatus("선택한 FFT를 불러오는 중...");
-  setFftHistoryStatus("선택한 FFT를 불러오는 중...");
+  setFftRecordStatus("선택한 주파수 기록을 불러오는 중...");
+  setFftHistoryStatus("선택한 주파수 기록을 불러오는 중...");
 
   try {
     let record = getCachedFftRecord(recordId);
@@ -259,8 +259,8 @@ async function selectFftRecord(recordId) {
     if (!isCurrentFftSelectionRequest(requestId)) return;
     console.error("FFT record loading failed", error);
     syncFftRecordSelection(fft);
-    setFftRecordStatus("선택한 FFT를 불러오지 못했습니다.", true);
-    setFftHistoryStatus("선택한 FFT를 불러오지 못했습니다.", true);
+    setFftRecordStatus("선택한 주파수 기록을 불러오지 못했습니다.", true);
+    setFftHistoryStatus("선택한 주파수 기록을 불러오지 못했습니다.", true);
   } finally {
     if (isCurrentFftSelectionRequest(requestId)) list.removeAttribute("aria-busy");
   }
@@ -308,8 +308,8 @@ export async function loadDashboard(datasetId) {
     renderFftMetadata(null);
     renderFftAnalysis(null, null, {
       resultLabel: "불러오기 실패",
-      description: "FFT 분석 데이터를 불러오지 못했습니다.",
-      heading: "FFT 분석을 표시할 수 없습니다.",
+      description: "주파수 분석 데이터를 불러오지 못했습니다.",
+      heading: "주파수 분석을 표시할 수 없습니다.",
       detail: "설비 데이터를 다시 선택해 주세요.",
     });
     renderRelatedHistory(null, []);
@@ -317,7 +317,7 @@ export async function loadDashboard(datasetId) {
     resetAiAnalysis({
       available: false,
       heading: "설비 데이터를 불러오지 못했습니다.",
-      detail: "설비 데이터를 다시 선택한 후 AI 분석을 실행해 주세요.",
+      detail: "설비 데이터를 다시 선택한 후 인공지능 분석을 실행해 주세요.",
     });
     resetReportActionsFor(null);
   } finally {
@@ -331,9 +331,9 @@ async function initializeDashboard() {
     const items = await fetchDatasetSummaries();
     if (!items.length) {
       select.innerHTML = '<option value="">사용 가능한 CSV 데이터가 없습니다.</option>';
-      setPlotEmpty("trend-chart", "data/ 폴더에서 Trend CSV를 찾지 못했습니다.");
-      setPlotEmpty("fft-chart", "data/ 폴더에서 FFT CSV를 찾지 못했습니다.");
-      setPlotEmpty("timewave-chart", "data/ 폴더에서 FFT CSV를 찾지 못했습니다.");
+      setPlotEmpty("trend-chart", "데이터 폴더에서 추세 파일을 찾지 못했습니다.");
+      setPlotEmpty("fft-chart", "데이터 폴더에서 주파수 파일을 찾지 못했습니다.");
+      setPlotEmpty("timewave-chart", "데이터 폴더에서 주파수 파일을 찾지 못했습니다.");
       setExpandButtonEnabled("trend", false);
       setExpandButtonEnabled("fft", false);
       setExpandButtonEnabled("timewave", false);

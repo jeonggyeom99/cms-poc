@@ -136,8 +136,8 @@ function chartFigure(label, imageDataUrl) {
 }
 
 function chartSection(images) {
-  const trend = chartFigure("Trend", images?.trendImageDataUrl);
-  const fft = chartFigure("FFT", images?.fftImageDataUrl);
+  const trend = chartFigure("추세", images?.trendImageDataUrl);
+  const fft = chartFigure("주파수", images?.fftImageDataUrl);
   if (!trend && !fft) return null;
   const section = element("section", "email-draft-section email-draft-charts");
   section.append(element("h3", "email-draft-section-title", "그래프"));
@@ -154,11 +154,11 @@ function renderDraft(draft, images) {
 
   const documentRoot = element("article", "email-draft-document");
   documentRoot.append(
-    element("h2", "email-draft-subject", text(draft?.subject, "AI 메일 초안")),
+    element("h2", "email-draft-subject", text(draft?.subject, "인공지능 이메일 초안")),
     element("p", "email-draft-greeting", text(draft?.greeting, "안녕하세요.")),
     textSection("현재 상태", draft?.status),
-    textSection("Trend", draft?.trend),
-    textSection("FFT", draft?.fft),
+    textSection("추세", draft?.trend),
+    textSection("주파수", draft?.fft),
     actionSection(draft?.priorityActions),
     limitationsSection(draft?.limitations),
   );
@@ -182,24 +182,24 @@ function validRequest(request) {
 async function openEmailDraft() {
   const request = state.buildRequest?.();
   if (!validRequest(request)) {
-    status("선택한 FFT 기록이 없어 AI 메일 초안을 만들 수 없습니다.", true);
+    status("선택한 주파수 기록이 없어 인공지능 이메일 초안을 만들 수 없습니다.", true);
     return;
   }
 
   const requestId = ++state.requestId;
   setBusy(true);
-  status("Trend와 FFT 그래프를 준비하고 AI 메일 초안을 만들고 있습니다.");
+  status("추세와 주파수 그래프를 준비하고 인공지능 이메일 초안을 만들고 있습니다.");
   try {
     const images = await captureDashboardCharts();
     const payload = await fetchEmailDraft(request.datasetId, request);
     if (requestId !== state.requestId) return;
     renderDraft(payload?.draft, images);
     showDialog(elements().dialog);
-    status("복사 가능한 AI 메일 초안을 준비했습니다.");
+    status("복사 가능한 인공지능 이메일 초안을 준비했습니다.");
   } catch (error) {
     if (requestId !== state.requestId) return;
     console.error("Email draft loading failed", error);
-    status(error?.message || "AI 메일 초안을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", true);
+    status(error?.message || "인공지능 이메일 초안을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", true);
   } finally {
     if (requestId === state.requestId) setBusy(false);
   }
@@ -208,7 +208,7 @@ async function openEmailDraft() {
 async function copyEmailDraft() {
   const { copy, preview } = elements();
   if (!preview?.childElementCount) {
-    status("복사할 AI 메일 초안이 없습니다.", true);
+    status("복사할 인공지능 이메일 초안이 없습니다.", true);
     return;
   }
   if (!navigator.clipboard?.write || typeof ClipboardItem !== "function") {
@@ -224,7 +224,7 @@ async function copyEmailDraft() {
       "text/plain": new Blob([plainText], { type: "text/plain;charset=utf-8" }),
     });
     await navigator.clipboard.write([item]);
-    status("AI 메일 초안을 클립보드에 복사했습니다.");
+    status("인공지능 이메일 초안을 클립보드에 복사했습니다.");
   } catch (error) {
     console.error("Email draft copy failed", error);
     status("서식 있는 클립보드 복사가 거부되었거나 완료되지 않았습니다.", true);

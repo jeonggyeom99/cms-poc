@@ -10,7 +10,7 @@ async function responseError(response) {
     ? detail
     : typeof detail?.message === "string"
       ? detail.message
-      : "AI 메일 초안을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      : "인공지능 이메일 초안을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
   const error = new Error(message);
   error.code = typeof detail?.code === "string" ? detail.code : "request_failed";
   error.status = response.status;

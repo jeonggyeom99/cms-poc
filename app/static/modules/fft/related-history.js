@@ -44,13 +44,13 @@ function displayDate(value) {
 }
 
 function createGraphButton(item) {
-  const graph = element("button", "related-history-graph-button", "Graph 보기");
+  const graph = element("button", "related-history-graph-button", "그래프 보기");
   graph.type = "button";
   graph.disabled = !item.datasetId;
-  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
+  graph.title = item.datasetId ? "진단일 기준 그래프 보기" : "연결된 대시보드 데이터가 없습니다.";
   graph.dataset.relatedDashboardDataset = item.datasetId ?? "";
   graph.dataset.relatedHistoryId = item.id;
-  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 Graph 보기" : "연결된 Graph 데이터가 없습니다.");
+  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 그래프 보기" : "연결된 그래프 데이터가 없습니다.");
   return graph;
 }
 
@@ -84,7 +84,7 @@ function relatedHistoryCard(item) {
   button.append(date, content, tags, action, chevron);
   const actions = element("div", "related-history-card-actions");
   actions.append(createGraphButton(item));
-  if (!item.datasetId) actions.append(element("span", "related-history-graph-unavailable", "Graph 데이터 없음"));
+  if (!item.datasetId) actions.append(element("span", "related-history-graph-unavailable", "그래프 데이터 없음"));
   summary.append(button, actions);
   card.append(summary);
 

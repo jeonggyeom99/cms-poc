@@ -32,17 +32,17 @@ export function openExpandedGraph(graphType, trigger, renderExpandedGraph) {
   setExpandedGraph(graphType, trigger);
 
   document.getElementById("graph-modal-title").textContent = {
-    trend: "Trend Graph",
-    fft: "FFT Graph",
-    timewave: "TimeWaveSampling Graph",
+    trend: "추세 그래프",
+    fft: "주파수 그래프",
+    timewave: "시간 파형 그래프",
   }[graphType];
   document.getElementById("graph-modal-chart").setAttribute(
     "aria-label",
     isTrend
       ? "확대된 진동 속도 추세 그래프"
       : graphType === "fft"
-        ? "확대된 FFT 주파수 스펙트럼 그래프"
-        : "확대된 TimeWaveSampling 파형 그래프",
+        ? "확대된 주파수 스펙트럼 그래프"
+        : "확대된 시간 파형 그래프",
   );
 
   const periodTabs = document.getElementById("graph-modal-period-tabs");

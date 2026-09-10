@@ -1994,7 +1994,7 @@ body.graph-modal-open {
 }
 
 .email-draft-preview:empty::before {
-  content: "AI 메일 초안을 준비하고 있습니다.";
+  content: "인공지능 이메일 초안을 준비하고 있습니다.";
   color: var(--muted);
   font-size: 13px;
 }

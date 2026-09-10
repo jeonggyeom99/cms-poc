@@ -10,7 +10,7 @@ async function responseError(response) {
     ? detail
     : typeof detail?.message === "string"
       ? detail.message
-      : "AI 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      : "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.";
   const error = new Error(message);
   error.code = typeof detail?.code === "string" ? detail.code : "request_failed";
   error.status = response.status;

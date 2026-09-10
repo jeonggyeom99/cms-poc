@@ -3,19 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="CSV 설비 Trend와 FFT 데이터를 확인하는 CMS Dashboard">
-    <title>CMS AI Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css?v=ui-consistency-v1">
+    <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
+    <title>설비 진단 화면</title>
+    <link rel="stylesheet" href="/static/styles.css?v=korean-ui-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=envelope-v1"></script>
+    <script type="module" src="/static/app.js?v=korean-ui-v3"></script>
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="/dashboard" aria-label="CMS AI Dashboard">
+        <a class="brand" href="/dashboard" aria-label="설비 진단 화면">
           <span>
-            <strong>CMS AI</strong>
-            <small>Condition Monitoring System</small>
+            <strong>설비 진단</strong>
+            <small>설비 상태 모니터링 시스템</small>
           </span>
         </a>
         <a class="dashboard-home-link" href="/" aria-label="설비 현황으로 돌아가기">
@@ -41,8 +41,8 @@
                 <div><dt>센서번호</dt><dd id="sensor-number">--</dd></div>
               </dl>
             </div>
-            <aside class="overview-fft-result is-neutral" aria-label="FFT 분석 결과">
-              <span class="overview-fft-result-label">FFT ANALYSIS</span>
+            <aside class="overview-fft-result is-neutral" aria-label="주파수 분석 결과">
+              <span class="overview-fft-result-label">주파수 분석</span>
               <strong id="overview-fft-result" aria-live="polite">기타/복합</strong>
             </aside>
           </div>
@@ -52,7 +52,7 @@
           <article class="card chart-card trend-card">
             <div class="card-header">
               <div>
-                <h2>Trend Graph</h2>
+                <h2>추세 그래프</h2>
               </div>
               <div class="chart-header-actions">
                 <div class="period-tabs" role="group" aria-label="추세 기간 선택">
@@ -60,7 +60,7 @@
                   <button type="button" data-period="90" class="active">3개월</button>
                   <button type="button" data-period="all">전체</button>
                 </div>
-                <button type="button" class="graph-expand-button" id="trend-expand" data-expand-graph="trend" aria-label="Trend Graph 크게 보기" title="Trend Graph 크게 보기" disabled>
+                <button type="button" class="graph-expand-button" id="trend-expand" data-expand-graph="trend" aria-label="추세 그래프 크게 보기" title="추세 그래프 크게 보기" disabled>
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
                   </svg>
@@ -74,17 +74,17 @@
           <article class="card chart-card fft-card">
             <div class="card-header">
               <div>
-                <h2>FFT Graph</h2>
+                <h2>주파수 그래프</h2>
               </div>
               <div class="chart-header-actions">
-                <button type="button" class="graph-expand-button" id="fft-expand" data-expand-graph="fft" aria-label="FFT Graph 크게 보기" title="FFT Graph 크게 보기" disabled>
+                <button type="button" class="graph-expand-button" id="fft-expand" data-expand-graph="fft" aria-label="주파수 그래프 크게 보기" title="주파수 그래프 크게 보기" disabled>
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
                   </svg>
                 </button>
               </div>
             </div>
-            <div id="fft-chart" class="plot plot-empty" role="img" aria-label="FFT 주파수 스펙트럼 그래프">설비 데이터를 선택하세요.</div>
+            <div id="fft-chart" class="plot plot-empty" role="img" aria-label="주파수 스펙트럼 그래프">설비 데이터를 선택하세요.</div>
             <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
           </article>
         </section>
@@ -93,7 +93,7 @@
           <div class="graph-modal-shell">
             <header class="graph-modal-header">
               <div>
-                <h2 id="graph-modal-title">Trend Graph</h2>
+                <h2 id="graph-modal-title">추세 그래프</h2>
               </div>
               <div class="graph-modal-actions">
                 <div class="period-tabs" id="graph-modal-period-tabs" role="group" aria-label="확대 그래프 추세 기간 선택" hidden>
@@ -112,19 +112,19 @@
                   <strong id="trend-metric-selector-title">표시할 측정값</strong>
                   <span>속도와 변위는 한 번에 하나만 선택할 수 있습니다.</span>
                 </div>
-                <div class="trend-metric-grid" id="trend-metric-grid" role="group" aria-label="Trend 측정값 선택"></div>
+                <div class="trend-metric-grid" id="trend-metric-grid" role="group" aria-label="추세 측정값 선택"></div>
               </section>
               <div class="graph-modal-workspace">
                 <aside class="fft-record-browser" id="fft-history-browser" aria-labelledby="fft-history-list-title" hidden>
                   <div class="fft-record-browser-heading">
                     <div>
-                      <span class="eyebrow">FFT HISTORY</span>
+                      <span class="eyebrow">주파수 측정 이력</span>
                       <strong id="fft-history-list-title">측정 이력</strong>
                     </div>
                     <span id="fft-history-count">0건</span>
                   </div>
                   <p class="fft-record-list-status" id="fft-history-list-status" role="status">측정 이력을 불러오는 중입니다.</p>
-                  <div class="fft-record-list" id="fft-history-list" role="list" aria-label="FFT 측정일시 목록"></div>
+                  <div class="fft-record-list" id="fft-history-list" role="list" aria-label="주파수 측정일시 목록"></div>
                 </aside>
                 <section class="graph-modal-main">
                   <div id="graph-modal-chart" class="plot graph-modal-plot" role="img" aria-label="확대 그래프"></div>
@@ -141,8 +141,8 @@
           <div class="email-draft-dialog-shell">
             <header class="email-draft-dialog-header">
               <div>
-                <span class="eyebrow">AI EMAIL DRAFT</span>
-                <h2 id="email-draft-title">AI 이메일 본문</h2>
+                <span class="eyebrow">인공지능 이메일 초안</span>
+                <h2 id="email-draft-title">이메일 본문</h2>
               </div>
               <button type="button" class="email-draft-dialog-close" id="email-draft-close" aria-label="이메일 본문 닫기" title="닫기">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -162,42 +162,42 @@
           <article class="card level-card">
             <div class="card-header">
               <div>
-                <h2>Level 분석 결과</h2>
+                <h2>기준값 분석 결과</h2>
               </div>
               <span class="result-chip unknown" id="level-result">분석 대기</span>
             </div>
-            <p class="analysis-lead" id="level-description">설비 데이터를 선택하면 최근 3개월 Level을 분석합니다.</p>
+            <p class="analysis-lead" id="level-description">설비 데이터를 선택하면 최근 3개월 기준값을 분석합니다.</p>
             <div class="analysis-placeholder" id="level-details">
-              <strong>Level 분석을 준비하고 있습니다.</strong>
-              <p>Trend와 최신 WarningStatus 설정값을 확인합니다.</p>
+              <strong>기준값 분석을 준비하고 있습니다.</strong>
+              <p>추세와 최신 경보 설정값을 확인합니다.</p>
             </div>
           </article>
 
           <article class="card diagnosis-card">
             <div class="card-header">
               <div>
-                <h2>FFT 분석 결과</h2>
+                <h2>주파수 분석 결과</h2>
               </div>
             </div>
             <div class="fft-analysis-workspace" id="fft-analysis-workspace">
               <aside class="fft-record-browser" id="fft-record-browser" aria-labelledby="fft-record-list-title">
                 <div class="fft-record-browser-heading">
                   <div>
-                    <strong id="fft-record-list-title">FFT 분석 목록</strong>
+                    <strong id="fft-record-list-title">주파수 분석 목록</strong>
                   </div>
                 </div>
-                <p class="fft-record-list-status" id="fft-record-list-status" role="status">조건을 충족하는 FFT를 불러오는 중입니다.</p>
-                <div class="fft-record-filters" role="group" aria-label="FFT 분석 목록 필터">
+                <p class="fft-record-list-status" id="fft-record-list-status" role="status">조건을 충족하는 주파수 측정 기록을 불러오는 중입니다.</p>
+                <div class="fft-record-filters" role="group" aria-label="주파수 분석 목록 필터">
                   <button type="button" data-fft-filter-group="abnormal" data-fft-filter-value="true" aria-pressed="false">이상발생</button>
-                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="2" aria-pressed="false">가속도ENV</button>
+                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="2" aria-pressed="false">가속도 포락선</button>
                   <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="3" aria-pressed="false">속도</button>
                   <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="2" aria-pressed="false">정기</button>
                   <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="alert" aria-pressed="false">주의·위험경보</button>
                 </div>
-                <div class="fft-record-list" id="fft-record-list" role="list" aria-label="0.5 초과 또는 주의·위험경보 FFT 목록"></div>
+                <div class="fft-record-list" id="fft-record-list" role="list" aria-label="0.5 초과 또는 주의·위험경보 주파수 측정 목록"></div>
               </aside>
-              <section class="fft-analysis-main" aria-label="선택한 FFT 분석 결과">
-                <dl class="fft-metadata-grid" id="fft-metadata-grid" aria-label="선택한 FFT 메타데이터" hidden>
+              <section class="fft-analysis-main" aria-label="선택한 주파수 분석 결과">
+                <dl class="fft-metadata-grid" id="fft-metadata-grid" aria-label="선택한 주파수 기록 정보" hidden>
                   <div><dt>채취일시</dt><dd id="fft-meta-measure-date">--</dd></div>
                   <div><dt>채취종류</dt><dd id="fft-meta-extraction-type">--</dd></div>
                   <div><dt>진단모드</dt><dd id="fft-meta-diag-mode">--</dd></div>
@@ -205,8 +205,8 @@
                   <div><dt>분해능</dt><dd id="fft-meta-measure-freq">--</dd></div>
                 </dl>
                 <div class="analysis-placeholder" id="fft-analysis-details">
-                  <strong>FFT 분석을 준비하고 있습니다.</strong>
-                  <p>좌측 목록에서 경보 FFT를 선택하면 분석 결과를 표시합니다.</p>
+                  <strong>주파수 분석을 준비하고 있습니다.</strong>
+                  <p>좌측 목록에서 경보 주파수 기록을 선택하면 분석 결과를 표시합니다.</p>
                 </div>
               </section>
             </div>
@@ -215,30 +215,30 @@
           <article class="card ai-analysis-card">
             <div class="card-header">
               <div>
-                <span class="eyebrow">AI DIAGNOSIS</span>
-                <h2>AI 종합 분석</h2>
+                <span class="eyebrow">인공지능 진단</span>
+                <h2>종합 분석</h2>
               </div>
               <span class="result-chip unknown" id="ai-analysis-result">분석 대기</span>
             </div>
-            <p class="analysis-lead" id="ai-analysis-description">선택한 FFT, Trend, 설비 정보 및 연관 과거 이력을 종합해 분석합니다.</p>
+            <p class="analysis-lead" id="ai-analysis-description">선택한 주파수 기록, 추세, 설비 정보 및 연관 과거 이력을 종합해 분석합니다.</p>
             <div class="ai-analysis-actions">
-              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>AI 분석 실행</button>
-              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단결과 PPT</button>
+              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>인공지능 분석 실행</button>
+              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
               <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
             </div>
             <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
             <div class="analysis-placeholder ai-analysis-placeholder" id="ai-analysis-details" aria-live="polite">
-              <strong>AI 분석에 사용할 FFT를 불러오는 중입니다.</strong>
-              <p>선택한 FFT 레코드 기준으로 분석을 실행할 수 있습니다.</p>
+              <strong>인공지능 분석에 사용할 주파수 기록을 불러오는 중입니다.</strong>
+              <p>선택한 측정 기록을 기준으로 분석을 실행할 수 있습니다.</p>
             </div>
           </article>
 
           <section class="related-history-section" id="fft-related-history" aria-labelledby="fft-related-history-title" hidden>
             <div class="related-history-section-heading">
               <div>
-                <span class="eyebrow">RELATED HISTORY</span>
+                <span class="eyebrow">연관 이력</span>
                 <h2 id="fft-related-history-title">연관 과거 이력</h2>
-                <p>현재 FFT 진단과 같은 결함 및 유형의 진단 이력입니다.</p>
+                <p>현재 주파수 진단과 같은 결함 및 유형의 진단 이력입니다.</p>
               </div>
               <span id="fft-related-history-count" aria-live="polite">0건</span>
             </div>
@@ -249,17 +249,17 @@
         <article class="card chart-card time-wave-card">
           <div class="card-header">
             <div>
-              <h2>TimeWaveSampling Graph</h2>
+              <h2>시간 파형 그래프</h2>
             </div>
             <div class="chart-header-actions">
-              <button type="button" class="graph-expand-button" id="timewave-expand" data-expand-graph="timewave" aria-label="TimeWaveSampling Graph 크게 보기" title="TimeWaveSampling Graph 크게 보기" disabled>
+              <button type="button" class="graph-expand-button" id="timewave-expand" data-expand-graph="timewave" aria-label="시간 파형 그래프 크게 보기" title="시간 파형 그래프 크게 보기" disabled>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
                 </svg>
               </button>
             </div>
           </div>
-          <div id="timewave-chart" class="plot plot-empty" role="img" aria-label="TimeWaveSampling 파형 그래프">설비 데이터를 선택하세요.</div>
+          <div id="timewave-chart" class="plot plot-empty" role="img" aria-label="시간 파형 그래프">설비 데이터를 선택하세요.</div>
           <p class="chart-interaction-hint">드래그하여 확대 · 더블 클릭하여 초기화</p>
         </article>
 
@@ -267,7 +267,7 @@
           <div class="card-header"><h2 id="envelope-title">포락선 분석 — 묻힌 신호를 끄집어내기</h2></div>
           <p class="analysis-lead">작은 결함 충격이 고주파 공진을 일으킬 때, 포락선을 추출하면 반복되는 충격의 주기를 살펴볼 수 있습니다.</p>
           <form id="envelope-form" class="envelope-controls">
-            <label>가속도 ALL 측정 기록<select id="envelope-record" disabled></select></label>
+            <label>전체 가속도 측정 기록<select id="envelope-record" disabled></select></label>
             <label>대역 하한 (Hz)<input id="envelope-low" type="number" value="1000" min="0" step="any" required></label>
             <label>대역 상한 (Hz)<input id="envelope-high" type="number" value="2200" min="0" step="any" required></label>
             <button id="envelope-run" type="submit" disabled>분석 실행</button>
@@ -279,15 +279,15 @@
             <section><h3>② 대역통과 필터 — 선택한 공진 대역만 추출</h3><div id="envelope-filtered" class="plot" role="img" aria-label="대역통과 필터 파형"></div></section>
             <section><h3>③ 포락선 추출 — 충격이 반복되는 리듬</h3><div id="envelope-wave" class="plot" role="img" aria-label="필터 파형과 포락선"></div></section>
             <section>
-              <div class="envelope-spectrum-heading"><h3>④ 포락선 FFT — 결함 주파수와 배음 비교</h3>
+              <div class="envelope-spectrum-heading"><h3>④ 포락선 주파수 분석 — 결함 주파수와 배음 비교</h3>
                 <label>결함 기준선<select id="envelope-fault"><option>BPFO</option><option>BPFI</option><option>BSF</option><option>FTF</option></select></label>
               </div>
-              <div id="envelope-spectrum" class="plot" role="img" aria-label="포락선 FFT 스펙트럼"></div>
+              <div id="envelope-spectrum" class="plot" role="img" aria-label="포락선 주파수 스펙트럼"></div>
               <p id="envelope-fault-note" class="chart-interaction-hint"></p>
             </section>
           </div>
         </article>
-        <p class="mock-notice">Level 권고값은 최근 3개월 Trend의 IQR 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>
+        <p class="mock-notice">기준값 권고값은 최근 3개월 추세의 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>
       </main>
     </div>
   </body>

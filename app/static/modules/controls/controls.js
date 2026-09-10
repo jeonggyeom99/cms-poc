@@ -7,12 +7,12 @@ export function setPeriodTabsEnabled(enabled) {
 export function setExpandButtonEnabled(graphType, enabled) {
   const button = document.querySelector(`[data-expand-graph="${graphType}"]`);
   const graphLabel = {
-    trend: "Trend",
-    fft: "FFT",
-    timewave: "TimeWaveSampling",
+    trend: "추세",
+    fft: "주파수",
+    timewave: "시간 파형",
   }[graphType] ?? graphType;
   button.disabled = !enabled;
-  button.title = enabled ? `${graphLabel} Graph 크게 보기` : `${graphLabel} 데이터 없음`;
+  button.title = enabled ? `${graphLabel} 그래프 크게 보기` : `${graphLabel} 데이터 없음`;
   button.setAttribute("aria-label", button.title);
 }
 

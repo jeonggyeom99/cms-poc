@@ -91,13 +91,13 @@ export function resetAiAnalysis({ available, heading, detail }) {
   result.className = "result-chip unknown";
   result.textContent = "분석 대기";
   description.textContent = available
-    ? "선택한 FFT, Trend, 설비 정보 및 연관 과거 이력을 종합해 분석합니다."
-    : "FFT 데이터가 준비되면 AI 종합 분석을 실행할 수 있습니다.";
-  setAction(run, "AI 분석 실행", !available);
+    ? "선택한 주파수 기록, 추세, 설비 정보 및 연관 과거 이력을 종합해 분석합니다."
+    : "주파수 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
+  setAction(run, "인공지능 분석 실행", !available);
   placeholder(
     details,
-    heading || (available ? "선택한 FFT 기준으로 AI 분석을 실행할 수 있습니다." : "AI 분석에 사용할 FFT가 없습니다."),
-    detail || (available ? "Trend, FFT, 설비 정보 및 과거 이력 요약을 서버에서 안전하게 분석합니다." : "설비 또는 FFT 레코드를 선택해 주세요."),
+    heading || (available ? "선택한 주파수 기록을 기준으로 인공지능 분석을 실행할 수 있습니다." : "인공지능 분석에 사용할 주파수 기록이 없습니다."),
+    detail || (available ? "추세, 주파수, 설비 정보 및 과거 이력 요약을 서버에서 안전하게 분석합니다." : "설비 또는 주파수 기록을 선택해 주세요."),
   );
 }
 
@@ -105,9 +105,9 @@ export function setAiAnalysisLoading() {
   const { result, description, run, details } = elements();
   result.className = "result-chip unknown";
   result.textContent = "분석 중";
-  description.textContent = "선택한 FFT 레코드의 Trend, FFT, 과거 이력 근거를 종합하고 있습니다.";
-  setAction(run, "AI 분석 중...", true);
-  placeholder(details, "AI 분석 중입니다.", "결과가 준비되면 이 영역에 표시합니다.");
+  description.textContent = "선택한 주파수 기록의 추세, 주파수, 과거 이력 근거를 종합하고 있습니다.";
+  setAction(run, "인공지능 분석 중...", true);
+  placeholder(details, "인공지능 분석 중입니다.", "결과가 준비되면 이 영역에 표시합니다.");
   details.setAttribute("aria-busy", "true");
 }
 
@@ -116,13 +116,13 @@ export function renderAiAnalysis(payload) {
   const analysis = payload.analysis;
   result.className = `result-chip ${riskClass(analysis.riskLevel)}`;
   result.textContent = analysis.riskLabel || "분석 완료";
-  description.textContent = analysis.headline || "AI 종합 분석 결과";
+  description.textContent = analysis.headline || "인공지능 종합 분석 결과";
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");
   const groups = [
-    listSection("Trend 근거", analysis.trendFindings, findingItem),
-    listSection("FFT 근거", analysis.fftFindings, findingItem),
+    listSection("추세 근거", analysis.trendFindings, findingItem),
+    listSection("주파수 근거", analysis.fftFindings, findingItem),
     listSection("과거 이력 근거", analysis.historyFindings, findingItem),
     listSection("가능 원인", analysis.likelyCauses, causeItem),
     listSection("반대 근거", analysis.counterEvidence, textItem),
@@ -141,9 +141,9 @@ export function renderAiAnalysisError(message) {
   const { result, description, run, details } = elements();
   result.className = "result-chip unknown";
   result.textContent = "분석 불가";
-  description.textContent = "AI 종합 분석을 완료하지 못했습니다.";
+  description.textContent = "인공지능 종합 분석을 완료하지 못했습니다.";
   setAction(run, "다시 시도", false);
-  placeholder(details, "AI 분석을 실행하지 못했습니다.", message);
+  placeholder(details, "인공지능 분석을 실행하지 못했습니다.", message);
 }
 
 export function bindAiAnalysis(onRun) {

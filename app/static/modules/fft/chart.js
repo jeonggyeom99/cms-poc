@@ -1,6 +1,6 @@
 import { palette } from "../core/constants.js";
 import { baseLayout, renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
-import { setExpandButtonEnabled } from "../controls/controls.js";
+import { setExpandButtonEnabled } from "../controls/controls.js?v=korean-ui-v1";
 
 function selectedBearingFault(fft, selectedFaultType) {
   const diagnosis = fft.analysis?.diagnosis;
@@ -31,7 +31,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
   layout.margin = { l: 52, r: 15, t: 36, b: 43 };
   layout.showlegend = false;
   layout.xaxis.title = {
-    text: fft.frequencyUnit === "Hz" ? "Frequency (Hz)" : "FFT bin",
+    text: fft.frequencyUnit === "Hz" ? "주파수 (Hz)" : "주파수 구간",
     standoff: 8,
     font: { size: 10 },
   };
@@ -70,7 +70,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
       text: detected.map((harmonic) => `${harmonic.order}X`), textposition: "top center",
       textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
       marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
-      hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} ${amplitudeSuffix.trim()}</b><extra>${bearingFault.type} 결함 Peak</extra>`,
+      hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} ${amplitudeSuffix.trim()}</b><extra>${bearingFault.type} 결함 피크</extra>`,
     });
   } else if (fft.frequencyUnit === "Hz") {
     const diagnosis = fft.analysis?.diagnosis;
@@ -115,7 +115,7 @@ export function buildFftDiagnosisFigure(fft, selectedFaultType = null) {
 }
 
 export function renderFftChart(
-  fft, selectedFaultType = null, emptyMessage = "이 설비에는 FFT CSV가 없습니다."
+  fft, selectedFaultType = null, emptyMessage = "이 설비에는 주파수 데이터가 없습니다."
 ) {
   if (!fft) {
     setExpandButtonEnabled("fft", false);

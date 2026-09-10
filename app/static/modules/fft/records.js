@@ -1,5 +1,5 @@
-import { formatCodedLabel } from "../core/format.js";
-import { fftExtractionClass } from "./analysis.js";
+import { formatCodedLabel } from "../core/format.js?v=korean-ui-v2";
+import { fftExtractionClass } from "./analysis.js?v=korean-ui-v1";
 
 const fftRecordFilters = {
   measureMode: new Set(),
@@ -125,10 +125,10 @@ export function renderFftRecordList(fft) {
     statusText: (items) => items.length
       ? (hasActiveFftRecordFilters()
         ? `필터 결과 ${items.length.toLocaleString("ko-KR")}개`
-        : `가속도ENV·속도 중 0.5 초과 또는 주의·위험경보 FFT ${allRecords.length.toLocaleString("ko-KR")}개`)
+        : `가속도 포락선·속도 중 0.5 초과 또는 주의·위험경보 주파수 기록 ${allRecords.length.toLocaleString("ko-KR")}개`)
       : (hasActiveFftRecordFilters()
-        ? "선택한 필터 조건에 맞는 FFT가 없습니다."
-        : "가속도ENV·속도 중 분석 대상 FFT가 없습니다."),
+        ? "선택한 필터 조건에 맞는 주파수 기록이 없습니다."
+        : "가속도 포락선·속도 중 분석 대상 주파수 기록이 없습니다."),
   });
 }
 

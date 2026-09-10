@@ -1,4 +1,4 @@
-import { formatNumber, levelDifferenceLabel } from "../core/format.js";
+import { formatNumber, levelDifferenceLabel } from "../core/format.js?v=korean-ui-v1";
 
 export function renderLevelAnalysis(data) {
   const analysis = data.levelAnalysis;
@@ -9,9 +9,9 @@ export function renderLevelAnalysis(data) {
   if (!analysis || analysis.status === "unavailable") {
     result.className = "result-chip unknown";
     result.textContent = "분석 불가";
-    description.textContent = "Trend CSV가 없어 최근 3개월 권고 Level을 산출할 수 없습니다.";
+    description.textContent = "추세 데이터가 없어 최근 3개월 권고 기준값을 산출할 수 없습니다.";
     details.className = "analysis-placeholder";
-    details.innerHTML = "<strong>Level 분석에 필요한 Trend 데이터가 없습니다.</strong><p>WarningStatus 설정값은 종합 상태 판정에 사용하지 않습니다.</p>";
+    details.innerHTML = "<strong>기준값 분석에 필요한 추세 데이터가 없습니다.</strong><p>경보 설정값은 종합 상태 판정에 사용하지 않습니다.</p>";
     return;
   }
 
@@ -20,12 +20,12 @@ export function renderLevelAnalysis(data) {
   result.textContent = compared ? "비교 완료" : "권고값 산출";
   const configuredNote = compared
     ? ` · 설정 기준 ${analysis.configured.measuredAt}`
-    : " · 현재 WarningStatus 설정값 없음";
+    : " · 현재 경보 설정값 없음";
   description.textContent = `${analysis.windowStart} ~ ${analysis.windowEnd} · ${analysis.usedPoints}개 중 ${analysis.normalPoints}개 사용, ${analysis.outlierPoints}개 이상치 제외${configuredNote}`;
 
   const rows = [
-    ["주의 Level", "warningThreshold", "caution"],
-    ["위험 Level", "dangerThreshold", "danger"],
+    ["주의 기준값", "warningThreshold", "caution"],
+    ["위험 기준값", "dangerThreshold", "danger"],
   ];
   details.className = "level-analysis-details";
   details.innerHTML = `

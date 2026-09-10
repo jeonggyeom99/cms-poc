@@ -17,7 +17,10 @@ export function formatCodedValue(value) {
 
 export function formatCodedLabel(value) {
   if (!value) return "--";
-  return value.label || "알 수 없음";
+  return ({
+    "가속도ALL": "전체 가속도",
+    "가속도ENV": "가속도 포락선",
+  })[value.label] || value.label || "알 수 없음";
 }
 
 export function formatRatio(value) {
@@ -33,7 +36,7 @@ export function levelDifferenceLabel(value) {
 
 export function availabilityLabel(availability) {
   const available = [];
-  if (availability.trend) available.push("Trend");
-  if (availability.fft) available.push("FFT");
+  if (availability.trend) available.push("추세");
+  if (availability.fft) available.push("주파수");
   return available.length ? available.join(" + ") : "사용 가능 데이터 없음";
 }

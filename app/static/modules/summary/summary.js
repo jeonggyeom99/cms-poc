@@ -8,5 +8,5 @@ export function populateSummary(data) {
   const reference = document.getElementById("dashboard-until");
   reference.hidden = !until;
   reference.textContent = until ? `${until.replaceAll("-", ".")} 기준` : "";
-  document.title = `${equipment.id} | CMS AI Dashboard`;
+  document.title = `${equipment.id} | 설비 진단`;
 }

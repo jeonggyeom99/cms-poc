@@ -12,7 +12,7 @@ function drawPlot(id, figure) {
   renderPlot(id, figure);
 }
 
-export function resetEnvelope(message = "분석할 가속도 ALL 기록을 불러오는 중입니다.") {
+export function resetEnvelope(message = "분석할 전체 가속도 기록을 불러오는 중입니다.") {
   requestVersion += 1;
   context = null;
   result = null;
@@ -39,7 +39,7 @@ export function loadEnvelope(data, until) {
   el("record").disabled = !records.length;
   el("run").disabled = !records.length;
   if (!records.length) {
-    el("status").textContent = "현재 설비·조회 기준일에 가속도 ALL 원시 파형 기록이 없습니다.";
+    el("status").textContent = "현재 설비·조회 기준일에 전체 가속도 원시 파형 기록이 없습니다.";
     return;
   }
   const selected = records.find((record) => record.measuredAt === data.fft.measuredAt) ?? records[0];
@@ -81,7 +81,7 @@ function renderSpectrum() {
     ? `${faultType} 1× = ${fault.baseFrequency.toFixed(2)} Hz · 표시 범위 내 1~4배 기준선입니다. 피크와의 비교를 위한 참고값이며 자동 결함 판정이 아닙니다.`
     : "RPM 또는 베어링 결함계수가 없어 이 유형의 기준선을 표시할 수 없습니다. 포락선 스펙트럼은 확인할 수 있습니다.";
   drawPlot("envelope-spectrum", {
-    traces: [trace(result.frequencies, result.amplitudes, "#c65321", "포락선 FFT")], layout: figureLayout,
+    traces: [trace(result.frequencies, result.amplitudes, "#c65321", "포락선 주파수 분석")], layout: figureLayout,
   });
 }
 
@@ -100,7 +100,7 @@ async function runEnvelope() {
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "분석 입력값을 확인하세요.");
     result = payload;
     el("results").hidden = false;
-    el("status").textContent = `${result.measuredAt} · Fs ${result.sampling.frequencyHz.toLocaleString()} Hz (${result.sampling.rule}) · ${result.raw.length} samples · 기록 ${result.durationSeconds.toFixed(4)} s · FFT 간격 ${result.frequencyResolutionHz.toFixed(3)} Hz · 대역 ${result.bandHz.join("~")} Hz`;
+    el("status").textContent = `${result.measuredAt} · 표본화 주파수 ${result.sampling.frequencyHz.toLocaleString()} Hz (${result.sampling.rule}) · ${result.raw.length}개 표본 · 기록 ${result.durationSeconds.toFixed(4)} s · 주파수 간격 ${result.frequencyResolutionHz.toFixed(3)} Hz · 대역 ${result.bandHz.join("~")} Hz`;
     drawPlot("envelope-raw", { traces: [trace(result.timeSeconds, result.raw, "#287cad", "원시 파형")], layout: layout() });
     drawPlot("envelope-filtered", { traces: [trace(result.timeSeconds, result.filtered, "#33916b", "필터 파형")], layout: layout() });
     drawPlot("envelope-wave", { traces: [

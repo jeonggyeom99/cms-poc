@@ -1,8 +1,8 @@
 import { fetchDiagnosticPpt } from "../api/ppt-report.js?v=diagnostic-ppt-v1";
 import { captureDashboardCharts } from "./chart-capture.js?v=report-capture-v1";
 
-const READY_LABEL = "진단 PPT 내보내기";
-const BUSY_LABEL = "PPT 생성 중...";
+const READY_LABEL = "진단 보고서 저장";
+const BUSY_LABEL = "진단 보고서 생성 중...";
 
 let buildRequestForExport = null;
 let boundButton = null;
@@ -55,13 +55,13 @@ async function exportDiagnosticPpt() {
 
   const request = await Promise.resolve(buildRequestForExport());
   if (!request?.datasetId || !request?.recordId) {
-    setStatus("선택한 FFT가 없어 진단 PPT를 만들 수 없습니다.", "error");
+    setStatus("선택한 주파수 기록이 없어 진단 보고서를 만들 수 없습니다.", "error");
     return;
   }
 
   exporting = true;
   renderButton();
-  setStatus("Trend와 FFT 그래프를 캡처하여 진단 PPT를 생성하고 있습니다.", "busy");
+  setStatus("추세와 주파수 그래프를 캡처하여 진단 보고서를 생성하고 있습니다.", "busy");
   try {
     const { trendImageDataUrl, fftImageDataUrl } = await captureDashboardCharts();
     const payload = await fetchDiagnosticPpt(request.datasetId, {
@@ -72,11 +72,11 @@ async function exportDiagnosticPpt() {
       fftImageDataUrl,
     });
     downloadPpt(payload, request.datasetId);
-    setStatus("진단 PPT를 다운로드했습니다.", "success");
+    setStatus("진단 보고서를 다운로드했습니다.", "success");
   } catch (error) {
     console.error("Diagnostic PPT export failed", error);
     setStatus(
-      error.message || "진단 PPT를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      error.message || "진단 보고서를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
       "error",
     );
   } finally {
@@ -112,5 +112,5 @@ export function resetPptExport() {
   available = false;
   exporting = false;
   renderButton();
-  setStatus("진단 PPT 내보내기를 준비 중입니다.", "ready");
+  setStatus("진단 보고서 저장을 준비 중입니다.", "ready");
 }

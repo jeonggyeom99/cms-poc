@@ -77,13 +77,13 @@ function createDiagnosisTag(label, value, fault) {
 }
 
 function createGraphButton(item) {
-  const graph = element("button", "history-graph-button", "Graph 보기");
+  const graph = element("button", "history-graph-button", "그래프 보기");
   graph.type = "button";
   graph.disabled = !item.datasetId;
-  graph.title = item.datasetId ? "진단일 기준 Graph 보기" : "연결된 대시보드 데이터가 없습니다.";
+  graph.title = item.datasetId ? "진단일 기준 그래프 보기" : "연결된 대시보드 데이터가 없습니다.";
   graph.dataset.dashboardDataset = item.datasetId ?? "";
   graph.dataset.historyId = item.id;
-  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 Graph 보기" : "연결된 Graph 데이터가 없습니다.");
+  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 그래프 보기" : "연결된 그래프 데이터가 없습니다.");
   return graph;
 }
 
@@ -105,10 +105,10 @@ function createDetailRow(item) {
   );
 
   const data = element("dl", "history-data-grid");
-  appendDefinition(data, "Trend 주요 인자", item.trend.factor);
-  appendDefinition(data, "Trend 파일명", item.trend.fileName);
-  appendDefinition(data, "FFT 주요 인자", item.fft.factor);
-  appendDefinition(data, "FFT 파일명", item.fft.fileName);
+  appendDefinition(data, "추세 주요 인자", item.trend.factor);
+  appendDefinition(data, "추세 파일명", item.trend.fileName);
+  appendDefinition(data, "주파수 주요 인자", item.fft.factor);
+  appendDefinition(data, "주파수 파일명", item.fft.fileName);
   appendDefinition(data, "주요 인자", item.primaryFactor);
   appendDefinition(data, "알람 발생 이력", item.alarmHistory);
   appendDefinition(data, "모터 용량", item.motorKw, item.motorKw === null ? "" : " kW");
@@ -151,7 +151,7 @@ function createSummaryRow(item) {
   button.setAttribute("aria-expanded", String(expandedHistoryId === item.id));
   const actions = element("div", "history-action__controls");
   actions.append(button, createGraphButton(item));
-  if (!item.datasetId) actions.append(element("span", "history-graph-unavailable", "Graph 데이터 없음"));
+  if (!item.datasetId) actions.append(element("span", "history-graph-unavailable", "그래프 데이터 없음"));
   actionCell.append(actions);
   row.append(actionCell);
   return row;

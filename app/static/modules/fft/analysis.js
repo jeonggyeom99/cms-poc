@@ -1,10 +1,10 @@
-import { formatNumber } from "../core/format.js";
+import { formatNumber } from "../core/format.js?v=korean-ui-v1";
 import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
-import { buildFftDiagnosisFigure } from "./chart.js?v=fft-harmonic-markers";
+import { buildFftDiagnosisFigure } from "./chart.js?v=korean-ui-v1";
 
 const COMPACT_FFT_DIAGNOSES = Object.freeze({
-  unbalance: { label: "Unbalance", state: "caution" },
-  misalignment: { label: "Misalignment", state: "danger" },
+  unbalance: { label: "불균형", state: "caution" },
+  misalignment: { label: "축정렬 불량", state: "danger" },
   bearing_inner_race: { label: "베어링 내륜", state: "danger" },
   bearing_outer_race: { label: "베어링 외륜", state: "danger" },
   other: { label: "기타/복합", state: "neutral" },
@@ -52,8 +52,8 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
   if (existingChart?.data) getPlotly().purge(existingChart);
   if (!fft) {
     const {
-      heading = "FFT 분석에 필요한 스펙트럼 데이터가 없습니다.",
-      detail = "FFT 측정 기록이 제공되면 최대 피크를 표시합니다.",
+      heading = "주파수 분석에 필요한 스펙트럼 데이터가 없습니다.",
+      detail = "주파수 측정 기록이 제공되면 최대 피크를 표시합니다.",
     } = emptyState;
     details.className = "analysis-placeholder";
     details.innerHTML = `<strong>${heading}</strong><p>${detail}</p>`;
@@ -65,7 +65,7 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
 
   if (!diagnosis) {
     details.className = "analysis-placeholder";
-    details.innerHTML = `<strong>${analysis?.message ?? "회전수 기반 FFT 분석 결과를 계산할 수 없습니다."}</strong>`;
+    details.innerHTML = `<strong>${analysis?.message ?? "회전수 기반 주파수 분석 결과를 계산할 수 없습니다."}</strong>`;
     return;
   }
 
@@ -99,7 +99,7 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     </section>` : "";
   const bearingCard = hasBearingDiagnosis && bearingFault ? `
     <section class="fft-diagnosis-card ${bearingFault.hasAnomaly ? "danger" : "normal"}" aria-label="가속도 베어링 분석 결과">
-      <span>가속도 FFT 베어링 분석</span>
+      <span>가속도 주파수 베어링 분석</span>
       <strong>${bearingFault.type} · ${bearingFault.label}</strong>
       <small>결함계수 ${formatNumber(bearingFault.coefficient, 2)} · 기준주파수 ${formatNumber(bearingFault.baseFrequency, 2)} Hz · 점수 ${formatNumber(bearingFault.score, 3)}</small>
     </section>` : "";
@@ -126,12 +126,12 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     </div>
     ${showDiagnosisChart ? `
     <section class="fft-analysis-chart-section">
-      <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 FFT 분석 그래프"></div>
+      <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 분석 그래프"></div>
     </section>` : ""}
     ${bearingCard}
     ${hasVelocityDiagnosis ? `
-    <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 FFT 진단 결과">
-      <span>속도 FFT 진단 결과</span>
+    <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 주파수 진단 결과">
+      <span>속도 주파수 진단 결과</span>
       <strong>${diagnosis.label}</strong>
     </section>` : ""}
     ${historyTags}`;

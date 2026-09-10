@@ -1,7 +1,7 @@
 import { palette, trendMetricStyles } from "../core/constants.js";
 import { getDashboardData, getSelectedTrendMetrics } from "../core/state.js?v=acceleration-bearing-fft";
 import { baseLayout, renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
-import { setExpandButtonEnabled, setPeriodTabsEnabled } from "../controls/controls.js";
+import { setExpandButtonEnabled, setPeriodTabsEnabled } from "../controls/controls.js?v=korean-ui-v1";
 
 export function filteredTrendPoints(period, data = getDashboardData()) {
   const points = data.trend.points;
@@ -142,13 +142,13 @@ export function buildTrendFigure(period = "90", data = getDashboardData()) {
   const thresholdDefinitions = [
     {
       value: data.current.warningThreshold,
-      name: "현재 주의 Level",
+      name: "현재 주의 기준값",
       color: palette.caution,
       dash: "dash",
     },
     {
       value: data.current.dangerThreshold,
-      name: "현재 위험 Level",
+      name: "현재 위험 기준값",
       color: palette.danger,
       dash: "dot",
     },
@@ -195,7 +195,7 @@ export function renderTrend(period = "90", data = getDashboardData()) {
   if (!data?.trend) {
     setPeriodTabsEnabled(false);
     setExpandButtonEnabled("trend", false);
-    setPlotEmpty("trend-chart", "이 설비에는 Trend CSV가 없습니다.");
+    setPlotEmpty("trend-chart", "이 설비에는 추세 데이터가 없습니다.");
     return;
   }
 
