@@ -74,7 +74,7 @@ import {
 } from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
 import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js?v=korean-ui-v1";
-import { syncDashboardChatContext } from "../chat/controller.js?v=dashboard-chat-v1";
+import { syncDashboardChatContext } from "../chat/controller.js?v=dashboard-chat-v2";
 
 let aiAnalysisRequest = 0;
 let relatedHistoryRequest = 0;

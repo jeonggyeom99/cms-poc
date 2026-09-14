@@ -40,8 +40,7 @@ function context() {
 }
 
 function storageKey(value) {
-  return STORAGE_PREFIX + [value.datasetId, value.recordId, value.selectedFaultType || "none", value.until || "latest"]
-    .map(encodeURIComponent).join(":");
+  return STORAGE_PREFIX + encodeURIComponent(value.datasetId);
 }
 
 function readMessages() {
@@ -159,6 +158,11 @@ function bindEvents() {
     event.preventDefault();
     const message = input.value.trim();
     if (message) submit(message);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    form.requestSubmit();
   });
   reset.addEventListener("click", () => {
     if (!activeContextKey) return;
