@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from .constants import LEVEL_ANALYSIS_MONTHS
+from app.analysis.level import analyze_velave_level as _analyze_velave_level
 
 
 def _subtract_months(value: datetime, months: int) -> datetime:
@@ -102,3 +103,7 @@ def analyze_velave_level(
         }
     )
     return analysis
+
+
+# Historical import path retained for integrations.
+analyze_velave_level = _analyze_velave_level

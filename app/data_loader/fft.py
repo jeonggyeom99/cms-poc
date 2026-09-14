@@ -18,6 +18,12 @@ from .constants import (
 from .bearing import lookup_bearing_coefficients
 from .metadata import _fft_metadata
 from .sampling import sampling_metadata
+from app.analysis.fft import (
+    analyze_acceleration_bearing_fft as _analyze_acceleration_bearing_fft,
+    analyze_fft_diagnosis as _analyze_fft_diagnosis,
+    analyze_fft_spectrum as _analyze_fft_spectrum,
+    analyze_velocity_fft as _analyze_velocity_fft,
+)
 
 
 def _decode_float32_bytes(raw_value: str) -> list[float]:
@@ -376,6 +382,35 @@ def analyze_fft_spectrum(
         }
     )
     return analysis
+
+
+def _bearing_master(bearing: dict[str, Any] | None) -> dict[str, Any]:
+    return lookup_bearing_coefficients((bearing or {}).get("maker"), (bearing or {}).get("number"))
+
+
+# Compatibility aliases: callers using the historical loader path now execute
+# the common analysis implementation above, not a second calculation body.
+analyze_velocity_fft = _analyze_velocity_fft
+
+
+def analyze_acceleration_bearing_fft(
+    frequencies: list[float], amplitudes: list[float], rpm: float | None,
+    bearing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Legacy convenience wrapper; master lookup remains in the loader layer."""
+    return _analyze_acceleration_bearing_fft(
+        frequencies, amplitudes, rpm, bearing, _bearing_master(bearing)
+    )
+analyze_fft_spectrum = _analyze_fft_spectrum
+
+
+def analyze_fft_diagnosis(
+    frequencies: list[float], amplitudes: list[float], measure_mode: str, rpm: float | None,
+    bearing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return _analyze_fft_diagnosis(
+        frequencies, amplitudes, measure_mode, rpm, bearing, _bearing_master(bearing)
+    )
 
 
 def _maximum_finite_amplitude(amplitudes: list[float]) -> float | None:

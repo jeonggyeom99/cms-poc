@@ -18,7 +18,6 @@ from app.ai_analysis import (
     build_ai_context,
     load_project_environment,
 )
-from app.envelope import analyze_envelope
 from app.data_loader import (
     dataset_summaries,
     dataset_until,
@@ -33,6 +32,8 @@ from app.reporting.email_ai import EMAIL_DRAFT_REPORT_KIND, generate_email_draft
 from app.reporting.email_draft import EmailDraftResponse, present_email_draft
 from app.reporting.ppt_ai import PPT_REPORT_KIND, generate_ppt_diagnosis
 from app.reporting.ppt_report import build_diagnostic_ppt, diagnostic_ppt_filename_stem
+from app.services.analysis import envelope_for_dashboard, select_fft_analysis_record
+from app.services.history import select_dashboard_related_history
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -136,6 +137,23 @@ def create_app(
         except (OSError, ValueError) as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
+    @application.get("/api/dashboard/{dataset_id}/related-history")
+    async def related_history(
+        dataset_id: str, record_id: int, request: Request,
+        selected_fault_type: str | None = None, until: date | None = None,
+    ) -> dict:
+        dataset = datasets_from(request).get(dataset_id)
+        if dataset is None or dataset.get("fft") is None:
+            raise HTTPException(status_code=404, detail="FFT 데이터를 찾을 수 없습니다.")
+        try:
+            filtered = snapshot(dataset, until)
+            if filtered.get("fft") is None:
+                raise KeyError(record_id)
+            record = select_fft_analysis_record(filtered["fft"], record_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
+        return select_dashboard_related_history(record, history_from(request), selected_fault_type, until)
+
     @application.get("/api/dashboard")
     async def default_dashboard_data(request: Request) -> dict:
         available_datasets = datasets_from(request)
@@ -199,7 +217,7 @@ def create_app(
             filtered = snapshot(dataset, until)
             if filtered.get("fft") is None:
                 raise KeyError(record_id)
-            return load_fft_record(filtered["fft"], record_id)
+            return select_fft_analysis_record(filtered["fft"], record_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
         except (OSError, ValueError, SyntaxError) as error:
@@ -212,7 +230,7 @@ def create_app(
     ) -> dict:
         record = await fft_record(dataset_id, record_id, request, until)
         try:
-            return analyze_envelope(record, low_hz, high_hz)
+            return envelope_for_dashboard(record, low_hz, high_hz)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 

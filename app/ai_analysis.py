@@ -15,6 +15,8 @@ from typing import Any, Literal, Protocol
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from app.analysis.trend import summarize_trend_metrics
+from app.services.history import normalize_fault_tag, select_ai_related_history
 
 
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
@@ -236,6 +238,7 @@ def _metric_summary(metric: dict[str, Any], points: list[Any]) -> dict[str, Any]
     point_key = _text(metric.get("pointKey"), 60) or "value"
     samples = _samples_for(points, point_key)
     values = [value for _, value in samples]
+    feature = summarize_trend_metrics(points, [metric]).get(_text(metric.get("key"), 60) or point_key, {})
     latest_value = _rounded(metric.get("latestValue"))
     if latest_value is None and values:
         latest_value = _rounded(values[-1])
@@ -247,11 +250,11 @@ def _metric_summary(metric: dict[str, Any], points: list[Any]) -> dict[str, Any]
         "unit": _text(metric.get("unit"), 30),
         "sampleCount": len(values),
         "latestValue": latest_value,
-        "minimum": _rounded(min(values)) if values else None,
-        "maximum": _rounded(max(values)) if values else None,
-        "mean": _rounded(sum(values) / len(values)) if values else None,
-        "change30Days": _change_over(samples, 30),
-        "change90Days": _change_over(samples, 90),
+        "minimum": _rounded(feature.get("min")) if feature else (_rounded(min(values)) if values else None),
+        "maximum": _rounded(feature.get("max")) if feature else (_rounded(max(values)) if values else None),
+        "mean": _rounded(feature.get("mean")) if feature else (_rounded(sum(values) / len(values)) if values else None),
+        "change30Days": _rounded(feature.get("change30Days")) if feature else _change_over(samples, 30),
+        "change90Days": _rounded(feature.get("change90Days")) if feature else _change_over(samples, 90),
         "warningThreshold": warning_threshold,
         "dangerThreshold": danger_threshold,
         "thresholdState": _threshold_state(latest_value, warning_threshold, danger_threshold),
@@ -451,27 +454,7 @@ def _level_summary(dataset: dict[str, Any]) -> dict[str, Any]:
 
 
 def fault_tag_for(fft: dict[str, Any], selected_fault_type: str | None = None) -> dict[str, str] | None:
-    diagnosis = (fft.get("analysis") or {}).get("diagnosis") if isinstance(fft.get("analysis"), dict) else None
-    if not isinstance(diagnosis, dict) or diagnosis.get("status") != "analyzed":
-        return None
-    faults = diagnosis.get("faults")
-    if isinstance(faults, list):
-        candidates = [fault for fault in faults if isinstance(fault, dict)]
-        selected = next((fault for fault in candidates if fault.get("type") == selected_fault_type), None)
-        selected = selected or next(
-            (fault for fault in candidates if fault.get("type") == diagnosis.get("defaultFaultType")),
-            None,
-        )
-        if selected and selected.get("hasAnomaly") and isinstance(selected.get("type"), str):
-            return {"fault": "베어링", "faultType": selected["type"]}
-        return None
-    velocity_fault_types = {
-        "unbalance": "Unbalance",
-        "misalignment": "Misalignment",
-        "complex": "Complex",
-    }
-    fault_type = velocity_fault_types.get(diagnosis.get("diagnosis"))
-    return {"fault": "축", "faultType": fault_type} if fault_type else None
+    return normalize_fault_tag(fft, selected_fault_type)
 
 
 def _history_cutoff(fft: dict[str, Any], until: date | None) -> date | None:
@@ -508,46 +491,15 @@ def _related_history_summary(
     selected_fault_type: str | None,
     until: date | None,
 ) -> dict[str, Any]:
-    cutoff = _history_cutoff(fft, until)
-    eligible = []
-    for item in history_items:
-        item_date = item.get("date")
-        if not isinstance(item, dict) or not isinstance(item_date, str):
-            continue
-        try:
-            history_date = date.fromisoformat(item_date)
-        except ValueError:
-            continue
-        if cutoff is None or history_date <= cutoff:
-            eligible.append(item)
-    eligible.sort(key=lambda item: str(item["date"]), reverse=True)
-    same_equipment = [item for item in eligible if item.get("datasetId") == dataset_id]
-    tag = fault_tag_for(fft, selected_fault_type)
-    matching_fault = [
-        item
-        for item in eligible
-        if tag is not None and item.get("fault") == tag["fault"] and item.get("faultType") == tag["faultType"]
+    selected = select_ai_related_history(
+        dataset_id, fft, history_items, selected_fault_type, until, MAX_HISTORY_ITEMS
+    )
+    same_ids = {item.get("id") for item in selected["items"] if item.get("datasetId") == dataset_id}
+    selected["items"] = [
+        _history_item_summary(item, "same_equipment" if item.get("id") in same_ids else "similar_fault")
+        for item in selected["items"]
     ]
-    selected: list[dict[str, Any]] = []
-    selected_ids = set()
-    for item in same_equipment:
-        selected.append(_history_item_summary(item, "same_equipment"))
-        selected_ids.add(item.get("id"))
-        if len(selected) == MAX_HISTORY_ITEMS:
-            break
-    for item in matching_fault:
-        if item.get("id") in selected_ids:
-            continue
-        selected.append(_history_item_summary(item, "similar_fault"))
-        if len(selected) == MAX_HISTORY_ITEMS:
-            break
-    return {
-        "cutoffDate": cutoff.isoformat() if cutoff is not None else None,
-        "faultTag": tag,
-        "sameEquipmentCount": len(same_equipment),
-        "similarFaultCount": len(matching_fault),
-        "items": selected,
-    }
+    return selected
 
 
 def _equipment_summary(dataset: dict[str, Any]) -> dict[str, Any]:

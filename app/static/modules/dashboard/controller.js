@@ -62,12 +62,10 @@ import {
 } from "../fft/records.js?v=korean-ui-v2";
 import {
   bindRelatedHistory,
-  matchingHistoryItems,
-  relatedHistoryTag,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
 } from "../fft/related-history.js?v=korean-ui-v1";
-import { fetchHistory } from "../api/history.js?v=cms-history-v1";
+import { fetchRelatedHistory } from "../api/history.js?v=cms-history-v1";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {
@@ -77,8 +75,8 @@ import {
 import { bindTrendMetricSelector } from "../trend/metrics.js";
 import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js?v=korean-ui-v1";
 
-let historyItems = [];
 let aiAnalysisRequest = 0;
+let relatedHistoryRequest = 0;
 
 function buildReportRequest() {
   const dashboardData = getDashboardData();
@@ -107,10 +105,22 @@ function resetAiAnalysisFor(fft) {
   resetReportActionsFor(fft);
 }
 
-function relatedHistoryFor(fft, selectedBearingFaultType) {
-  const tag = relatedHistoryTag(fft, selectedBearingFaultType);
-  const items = matchingHistoryItems(historyItems, tag);
-  return { tag: items.length ? tag : null, items };
+async function loadRelatedHistoryFor(fft, selectedBearingFaultType) {
+  const dashboard = getDashboardData();
+  if (!dashboard?.meta?.datasetId || !fft?.recordId) return renderRelatedHistory(null, []);
+  const requestId = ++relatedHistoryRequest;
+  try {
+    const payload = await fetchRelatedHistory(
+      dashboard.meta.datasetId, fft.recordId, selectedBearingFaultType, requestedUntil(),
+    );
+    // A newer FFT/fault selection owns the screen; never let an old response overwrite it.
+    if (requestId !== relatedHistoryRequest) return;
+    renderRelatedHistory(payload.faultTag, payload.items);
+  } catch (error) {
+    if (requestId !== relatedHistoryRequest) return;
+    console.error("Related CMS history loading failed", error);
+    renderRelatedHistory(null, []);
+  }
 }
 
 function renderFft() {
@@ -119,15 +129,14 @@ function renderFft() {
     resetSelectedBearingFaultType(fft);
   }
   const selectedBearingFaultType = getSelectedBearingFaultType();
-  const relatedHistory = relatedHistoryFor(fft, selectedBearingFaultType);
   renderOverviewFftResult(fft);
   renderFftRecordList(fft);
   renderFftChart(fft, selectedBearingFaultType);
   renderTimeWaveChart(fft);
   if (fft?.isAlertFft) {
     renderFftMetadata(fft);
-    renderFftAnalysis(fft, selectedBearingFaultType, {}, relatedHistory.tag);
-    renderRelatedHistory(relatedHistory.tag, relatedHistory.items);
+    renderFftAnalysis(fft, selectedBearingFaultType, {}, null);
+    loadRelatedHistoryFor(fft, selectedBearingFaultType);
     return;
   }
 
@@ -368,16 +377,6 @@ async function initializeDashboard() {
   }
 }
 
-async function loadRelatedHistory() {
-  try {
-    const payload = await fetchHistory();
-    historyItems = payload.items;
-    renderFft();
-  } catch (error) {
-    console.error("Related CMS history loading failed", error);
-  }
-}
-
 export function initializeDashboardApplication() {
   bindEnvelope();
   bindPeriodTabs(handlePeriodChange);
@@ -405,5 +404,4 @@ export function initializeDashboardApplication() {
     renderFftRecordList(getDashboardData()?.fft);
   });
   initializeDashboard();
-  loadRelatedHistory();
 }

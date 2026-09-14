@@ -16,3 +16,10 @@ async function fetchJson(url) {
 export function fetchHistory() {
   return fetchJson("/api/history");
 }
+
+export function fetchRelatedHistory(datasetId, recordId, selectedFaultType, until) {
+  const query = new URLSearchParams({ record_id: recordId });
+  if (selectedFaultType) query.set("selected_fault_type", selectedFaultType);
+  if (until) query.set("until", until);
+  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/related-history?${query}`);
+}

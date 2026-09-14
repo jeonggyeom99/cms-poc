@@ -9,6 +9,7 @@ from .constants import (
     TREND_REQUIRED_POINTS,
     TREND_RISING_THRESHOLD,
 )
+from app.analysis.trend import analyze_velocity_trend
 
 
 def _fill_low_outliers(values: list[float]) -> list[float]:
@@ -81,3 +82,7 @@ def analyze_velave_trend(points: list[dict[str, Any]]) -> dict[str, Any]:
         }
     )
     return analysis
+
+
+# Historical import path retained for integrations.
+analyze_velave_trend = analyze_velocity_trend
