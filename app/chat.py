@@ -213,10 +213,14 @@ def parse_tool_request(message: str, default_record_id: int, reference_end: date
         message,
     )
     korean_dates = [date(int(year), int(month), int(day)) for year, month, day in re.findall(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일", message)]
+    month_day = re.search(r"(?<!\d)(\d{1,2})월\s*(\d{1,2})일", message)
     dates = (
         [date(int(korean_range.group(1)), int(korean_range.group(2)), int(korean_range.group(3))), date(int(korean_range.group(4) or korean_range.group(1)), int(korean_range.group(5)), int(korean_range.group(6)))]
         if korean_range else iso_dates or korean_dates
     )
+    if not dates and month_day and reference_end:
+        candidate = date(reference_end.year, int(month_day.group(1)), int(month_day.group(2)))
+        dates = [date(candidate.year - 1, candidate.month, candidate.day) if candidate > reference_end else candidate]
     recent = re.search(r"최근\s*(\d+)\s*개월", message)
     if re.search(r"베어링|bpfo|bpfi|bsf|ftf", lowered):
         tool_name = "bearing_fft"

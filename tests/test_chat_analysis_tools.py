@@ -92,6 +92,10 @@ def test_chat_routes_date_bound_questions_to_tools_without_fabricating_data() ->
         "recordId": 4,
         "message": "이 설비의 2026-09-07 FFT를 분석해줘",
     }).json()
+    past_fft = call(app, "POST", "/api/dashboard/9/chat", {
+        "recordId": 4,
+        "message": "8월 31일 FFT 분석해줘",
+    }).json()
     bearing = call(app, "POST", "/api/dashboard/8/chat", {
         "recordId": 2,
         "message": "이 설비의 베어링 결함을 확인해줘",
@@ -104,9 +108,14 @@ def test_chat_routes_date_bound_questions_to_tools_without_fabricating_data() ->
     assert fft["toolName"] == "fft"
     assert fft["toolResult"]["record"]["recordId"] == 4
     assert fft["toolResult"]["record"]["measuredAt"].startswith("2026-09-07")
+    assert past_fft["toolName"] == "fft"
+    assert past_fft["toolArguments"]["start"] == "2026-08-31"
+    assert past_fft["toolArguments"]["end"] == "2026-08-31"
+    assert past_fft["toolResult"]["record"]["measuredAt"].startswith("2026-08-31")
+    assert past_fft["toolResult"]["record"]["recordId"] != 4
     assert bearing["toolName"] == "bearing_fft"
     assert bearing["toolResult"]["bearingAnalysis"]["diagnosis"] == "bearing_inner_race"
-    assert len(gateway.contexts) == 2
+    assert len(gateway.contexts) == 3
     assert gateway.contexts[0]["toolName"] == "fft"
     assert "frequencies" not in gateway.contexts[0]["toolResult"]["record"]
     assert fft["message"]["content"] == "Tool 결과에 근거한 AI 설명입니다."
