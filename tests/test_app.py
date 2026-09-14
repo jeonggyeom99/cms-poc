@@ -1050,11 +1050,18 @@ def test_dashboard_chat_uses_selected_tool_and_returns_structured_result(tmp_pat
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["message"]["content"] == "선택한 측정 기록을 먼저 재확인해 주세요."
+    assert payload["model"] != "deterministic-tool-template"
     assert payload["toolName"] == "trend"
     assert payload["toolArguments"]["end"] == "2026-01-04"
     assert payload["toolResult"]["status"] == "ready"
     assert payload["toolResult"]["trend"]["analysis"]["status"] == "insufficient_data"
-    assert gateway.calls == []
+    assert len(gateway.calls) == 1
+    context, history, message = gateway.calls[0]
+    assert context["toolName"] == "trend"
+    assert context["toolResult"]["trend"]["summary"]["velocity"]["latestValue"] == 2.0
+    assert history[0].content == "이전 질문"
+    assert message == "무엇을 먼저 확인하나요?"
 
 
 def test_dashboard_chat_rejects_unknown_record_and_excess_history(tmp_path: Path) -> None:

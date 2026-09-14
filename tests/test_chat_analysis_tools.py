@@ -8,6 +8,15 @@ from app.main import DATA_DIR, create_app
 from app.services.analysis import bearing_fft_tool, fft_tool, trend_tool
 
 
+class ToolNarrationGateway:
+    def __init__(self) -> None:
+        self.contexts: list[dict] = []
+
+    async def respond(self, context: dict, history: list, message: str) -> str:
+        self.contexts.append(context)
+        return "Tool 결과에 근거한 AI 설명입니다."
+
+
 async def request(app, method: str, path: str, payload: dict | None = None) -> httpx.Response:
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
@@ -73,7 +82,8 @@ def test_v191_normal_bearing_record_has_the_same_ui_and_tool_result() -> None:
 
 
 def test_chat_routes_date_bound_questions_to_tools_without_fabricating_data() -> None:
-    app = create_app(DATA_DIR)
+    gateway = ToolNarrationGateway()
+    app = create_app(DATA_DIR, chat_gateway=gateway)
     trend = call(app, "POST", "/api/dashboard/1/chat", {
         "recordId": 2,
         "message": "V032의 2026년 6월 1일부터 9월 1일까지 Trend를 분석해줘",
@@ -96,3 +106,7 @@ def test_chat_routes_date_bound_questions_to_tools_without_fabricating_data() ->
     assert fft["toolResult"]["record"]["measuredAt"].startswith("2026-09-07")
     assert bearing["toolName"] == "bearing_fft"
     assert bearing["toolResult"]["bearingAnalysis"]["diagnosis"] == "bearing_inner_race"
+    assert len(gateway.contexts) == 2
+    assert gateway.contexts[0]["toolName"] == "fft"
+    assert "frequencies" not in gateway.contexts[0]["toolResult"]["record"]
+    assert fft["message"]["content"] == "Tool 결과에 근거한 AI 설명입니다."

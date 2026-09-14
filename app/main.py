@@ -322,8 +322,9 @@ def create_app(
             if matches:
                 dataset_id, dataset = next(((candidate_id, candidate) for candidate_id, candidate in matches if candidate_id == dataset_id), matches[0])
             else:
-                return chat_service_from(request).respond_with_tool(
-                    invocation["tool_name"], invocation, {"status": "unavailable", "reason": "dataset_not_found"}
+                return await chat_service_from(request).respond_with_tool(
+                    invocation["tool_name"], invocation, {"status": "unavailable", "reason": "dataset_not_found"},
+                    chat_request.history, chat_request.message,
                 )
         if invocation["end"] is None:
             invocation["end"] = chat_request.until
@@ -339,7 +340,9 @@ def create_app(
             fft = fft_tool(dataset, invocation["record_id"], invocation["start"], invocation["end"])
             result = {"status": "ready" if trend.get("status") == "ready" or fft.get("status") == "ready" else "unavailable", "trend": trend, "fft": fft}
         arguments = {key: (value.isoformat() if isinstance(value, date) else value) for key, value in invocation.items()}
-        return chat_service_from(request).respond_with_tool(tool_name, arguments, result)
+        return await chat_service_from(request).respond_with_tool(
+            tool_name, arguments, result, chat_request.history, chat_request.message
+        )
 
     @application.post(
         "/api/dashboard/{dataset_id}/email-draft",
