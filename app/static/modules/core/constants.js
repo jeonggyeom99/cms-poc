@@ -18,6 +18,7 @@ export const plotConfig = {
   responsive: true,
   displaylogo: false,
   displayModeBar: false,
+  showTips: false,
   scrollZoom: true,
   doubleClick: "reset",
 };

@@ -67,3 +67,15 @@ def test_trend_and_fft_cards_have_equal_widths() -> None:
     styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 
     assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles
+
+
+def test_chart_tips_are_hidden_without_disabling_chart_navigation() -> None:
+    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+    constants = (ROOT / "app/static/modules/core/constants.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "드래그하여 확대 · 더블 클릭하여 초기화" not in html
+    assert "showTips: false" in constants
+    assert "scrollZoom: true" in constants
+    assert 'doubleClick: "reset"' in constants
