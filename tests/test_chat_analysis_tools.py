@@ -61,6 +61,17 @@ def test_v191_bearing_ui_and_tool_share_harmonic_and_sideband_evidence() -> None
     assert any(fault["sidebandEvidence"] for fault in diagnosis["faults"])
 
 
+def test_v191_normal_bearing_record_has_the_same_ui_and_tool_result() -> None:
+    app = create_app(DATA_DIR)
+    ui = call(app, "GET", "/api/dashboard/8/fft/4?start=2026-09-07&until=2026-09-07").json()
+    tool = bearing_fft_tool(app.state.datasets["8"], 4, date(2026, 9, 7), date(2026, 9, 7))
+
+    assert tool["record"] == ui
+    assert tool["bearingAnalysis"] == ui["analysis"]["diagnosis"]
+    assert tool["bearingAnalysis"]["status"] == "no_anomaly"
+    assert tool["bearingAnalysis"]["diagnosis"] == "normal"
+
+
 def test_chat_routes_date_bound_questions_to_tools_without_fabricating_data() -> None:
     app = create_app(DATA_DIR)
     trend = call(app, "POST", "/api/dashboard/1/chat", {
