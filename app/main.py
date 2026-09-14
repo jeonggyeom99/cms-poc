@@ -18,6 +18,13 @@ from app.ai_analysis import (
     build_ai_context,
     load_project_environment,
 )
+from app.chat import (
+    DashboardChatGateway,
+    DashboardChatRequest,
+    DashboardChatResponse,
+    DashboardChatService,
+    OpenAIDashboardChatGateway,
+)
 from app.data_loader import (
     dataset_summaries,
     dataset_until,
@@ -46,6 +53,7 @@ def create_app(
     data_dir: Path = DATA_DIR,
     ai_gateway: AiAnalysisGateway | None = None,
     report_gateway: ReportAiGateway | None = None,
+    chat_gateway: DashboardChatGateway | None = None,
 ) -> FastAPI:
     load_project_environment(BASE_DIR.parent)
 
@@ -62,6 +70,9 @@ def create_app(
         )
         application.state.report_ai_service = ReportAiService(
             report_gateway or OpenAIReportGateway(settings), settings.model
+        )
+        application.state.dashboard_chat_service = DashboardChatService(
+            chat_gateway or OpenAIDashboardChatGateway(settings), settings.model
         )
         yield
 
@@ -89,6 +100,9 @@ def create_app(
 
     def report_service_from(request: Request) -> ReportAiService:
         return request.app.state.report_ai_service
+
+    def chat_service_from(request: Request) -> DashboardChatService:
+        return request.app.state.dashboard_chat_service
 
     def raise_ai_error(error: AiAnalysisError) -> None:
         status_code = {
@@ -268,6 +282,44 @@ def create_app(
         )
         try:
             return await ai_service_from(request).analyze(context, analysis_request.force)
+        except AiAnalysisError as error:
+            raise_ai_error(error)
+
+    @application.post(
+        "/api/dashboard/{dataset_id}/chat",
+        response_model=DashboardChatResponse,
+    )
+    async def dashboard_chat(
+        dataset_id: str,
+        chat_request: DashboardChatRequest,
+        request: Request,
+    ) -> DashboardChatResponse:
+        dataset = datasets_from(request).get(dataset_id)
+        if dataset is None:
+            raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
+        try:
+            filtered = snapshot(dataset, chat_request.until)
+            filtered_fft = filtered.get("fft")
+            if filtered_fft is None:
+                raise KeyError(chat_request.record_id)
+            selected_fft = load_fft_record(filtered_fft, chat_request.record_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
+        except (OSError, ValueError, SyntaxError) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+        context = build_ai_context(
+            dataset_id,
+            filtered,
+            {**filtered_fft, **selected_fft},
+            history_from(request),
+            chat_request.selected_fault_type,
+            chat_request.until,
+        )
+        try:
+            return await chat_service_from(request).respond(
+                context, chat_request.history, chat_request.message
+            )
         except AiAnalysisError as error:
             raise_ai_error(error)
 

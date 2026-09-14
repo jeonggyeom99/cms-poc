@@ -14,6 +14,7 @@ from app.ai_analysis import (
     OpenAIAnalysisGateway,
     OpenAISettings,
 )
+from app.chat import OpenAIDashboardChatGateway
 from app.data_loader import (
     TREND_RISING_THRESHOLD,
     _fill_low_outliers,
@@ -233,6 +234,15 @@ class FakeAiGateway:
                 )
             ],
         )
+
+
+class FakeChatGateway:
+    def __init__(self) -> None:
+        self.calls: list[tuple[dict, list, str]] = []
+
+    async def respond(self, context: dict, history: list, message: str) -> str:
+        self.calls.append((context, history, message))
+        return "선택한 측정 기록을 먼저 재확인해 주세요."
 
 
 def test_dashboard_until_rebuilds_snapshot_and_limits_fft_records(tmp_path: Path) -> None:
@@ -802,12 +812,12 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")
-    app_module = get(target_app, "/static/app.js?v=korean-ui-v3")
+    app_module = get(target_app, "/static/app.js?v=dashboard-chat-v1")
 
     assert response.status_code == 200
     assert app_module.status_code == 200
-    assert 'type="module" src="/static/app.js?v=korean-ui-v3"' in response.text
-    assert 'controller.js?v=korean-ui-v2' in app_module.text
+    assert 'type="module" src="/static/app.js?v=dashboard-chat-v1"' in response.text
+    assert 'controller.js?v=dashboard-chat-v1' in app_module.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -845,6 +855,10 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="ai-analysis-result"' in response.text
     assert 'id="ai-analysis-run"' in response.text
     assert 'id="ai-analysis-details"' in response.text
+    assert 'id="chat-panel"' in response.text
+    assert 'id="chat-open"' in response.text
+    assert 'id="chat-form"' in response.text
+    assert 'id="chat-messages"' in response.text
     analysis_grid = response.text[
         response.text.index('<section class="analysis-grid"'):
         response.text.index('<p class="mock-notice"')
@@ -1018,3 +1032,64 @@ def test_ai_analysis_api_reports_missing_openai_key(tmp_path: Path) -> None:
         "code": "missing_api_key",
         "message": "OPENAI_API_KEY가 설정되지 않아 AI 분석을 실행할 수 없습니다.",
     }
+
+
+def test_dashboard_chat_uses_compact_selected_context_and_history(tmp_path: Path) -> None:
+    gateway = FakeChatGateway()
+    response = post(
+        create_app(make_data_dir(tmp_path), chat_gateway=gateway),
+        "/api/dashboard/1/chat",
+        {
+            "recordId": 2,
+            "selectedFaultType": "Unbalance",
+            "until": "2026-01-04",
+            "message": "무엇을 먼저 확인하나요?",
+            "history": [{"role": "user", "content": "이전 질문"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == {
+        "role": "assistant",
+        "content": "선택한 측정 기록을 먼저 재확인해 주세요.",
+    }
+    assert len(gateway.calls) == 1
+    context, history, message = gateway.calls[0]
+    assert context["fft"]["recordId"] == 2
+    assert "frequencies" not in context["fft"]
+    assert "amplitudes" not in context["fft"]
+    assert history[0].content == "이전 질문"
+    assert message == "무엇을 먼저 확인하나요?"
+
+
+def test_dashboard_chat_rejects_unknown_record_and_excess_history(tmp_path: Path) -> None:
+    target_app = create_app(make_data_dir(tmp_path), chat_gateway=FakeChatGateway())
+    missing = post(target_app, "/api/dashboard/1/chat", {"recordId": 999, "message": "질문"})
+    excessive_history = post(
+        target_app,
+        "/api/dashboard/1/chat",
+        {
+            "recordId": 2,
+            "message": "질문",
+            "history": [{"role": "user", "content": "질문"}] * 13,
+        },
+    )
+
+    assert missing.status_code == 404
+    assert excessive_history.status_code == 422
+
+
+def test_dashboard_chat_reports_missing_openai_key(tmp_path: Path) -> None:
+    response = post(
+        create_app(
+            make_data_dir(tmp_path),
+            chat_gateway=OpenAIDashboardChatGateway(
+                OpenAISettings(api_key=None, model="test-model", timeout_seconds=1.0)
+            ),
+        ),
+        "/api/dashboard/1/chat",
+        {"recordId": 2, "message": "질문"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "missing_api_key"

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=korean-ui-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=dashboard-chat-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=korean-ui-v3"></script>
+    <script type="module" src="/static/app.js?v=dashboard-chat-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -290,5 +290,37 @@
         <p class="mock-notice">기준값 권고값은 최근 3개월 추세의 정상 범위를 기준으로 계산되며, 설비 종합 상태와는 독립적인 참고 정보입니다.</p>
       </main>
     </div>
+    <aside class="chat-panel" id="chat-panel" aria-label="AI 분석 대화" aria-hidden="true">
+      <header class="chat-head">
+        <div>
+          <span class="chat-orb" aria-hidden="true">✦</span>
+          <div><strong>Analysis Copilot</strong><small>선택 설비 근거 기반</small></div>
+        </div>
+        <div class="chat-head-actions">
+          <button id="chat-reset" type="button">초기화</button>
+          <button class="chat-close" id="chat-close" type="button" aria-label="대화 닫기">×</button>
+        </div>
+      </header>
+      <div class="chat-context-banner">
+        <i aria-hidden="true"></i>
+        <p><strong>구조화 맥락 포함</strong><span>선택 설비 · FFT · 연관 이력</span></p>
+        <small>원시 파형 데이터 제외</small>
+      </div>
+      <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+      <div class="chat-prompt-chips" id="chat-prompt-chips">
+        <button type="button">가장 먼저 볼 항목은?</button>
+        <button type="button">판단 근거를 설명해줘</button>
+        <button type="button" data-action="email-draft">이메일 본문 복사</button>
+      </div>
+      <form class="chat-form" id="chat-form">
+        <label class="sr-only" for="chat-input">분석 질문</label>
+        <textarea id="chat-input" rows="2" maxlength="4000" placeholder="현재 설비에 대해 질문하세요" required></textarea>
+        <button id="chat-send" type="submit" aria-label="메시지 전송">↑</button>
+      </form>
+      <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
+      <p class="chat-disclaimer">답변은 현재 화면의 측정 요약과 연관 이력을 바탕으로 한 보조 의견입니다.</p>
+    </aside>
+    <button class="chat-open" id="chat-open" type="button" aria-label="AI 분석 대화 열기" aria-controls="chat-panel" aria-expanded="false"><span aria-hidden="true">✦</span></button>
+    <div class="chat-backdrop" id="chat-backdrop" aria-hidden="true"></div>
   </body>
 </html>

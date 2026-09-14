@@ -74,6 +74,7 @@ import {
 } from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
 import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js?v=korean-ui-v1";
+import { syncDashboardChatContext } from "../chat/controller.js?v=dashboard-chat-v1";
 
 let aiAnalysisRequest = 0;
 let relatedHistoryRequest = 0;
@@ -259,6 +260,7 @@ async function selectFftRecord(recordId) {
     setDashboardData(updatedDashboardData);
     resetSelectedBearingFaultType(updatedDashboardData.fft);
     renderFft();
+    syncDashboardChatContext();
     resetAiAnalysisFor(updatedDashboardData.fft);
     setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
@@ -300,6 +302,7 @@ export async function loadDashboard(datasetId) {
     populateSummary(dashboardData);
     renderTrend(getCurrentPeriod(), dashboardData);
     renderFft();
+    syncDashboardChatContext();
     renderLevelAnalysis(dashboardData);
     loadEnvelope(dashboardData, requestedUntil());
     resetAiAnalysisFor(dashboardData.fft);
@@ -394,6 +397,7 @@ export function initializeDashboardApplication() {
     if (!button) return;
     setSelectedBearingFaultType(button.dataset.bearingFault);
     renderFft();
+    syncDashboardChatContext();
     resetAiAnalysisFor(getDashboardData()?.fft);
     if (getExpandedGraph() === "fft") renderExpandedGraph();
   });
