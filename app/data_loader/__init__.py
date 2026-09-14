@@ -37,6 +37,7 @@ from .csv_loader import (
 from .datasets import (
     _dataset_sort_key,
     _load_equipment_metadata,
+    dataset_between,
     dataset_summaries,
     dataset_until,
     load_datasets,
@@ -112,6 +113,7 @@ __all__ = [
     "analyze_velave_trend",
     "analyze_velocity_fft",
     "dataset_summaries",
+    "dataset_between",
     "dataset_until",
     "load_datasets",
     "load_fft_record",

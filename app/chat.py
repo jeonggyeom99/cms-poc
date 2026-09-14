@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Sequence
 from datetime import date
 from typing import Literal, Protocol
@@ -48,6 +49,9 @@ class DashboardChatRequest(_ApiModel):
 class DashboardChatResponse(_ApiModel):
     message: ChatTurn
     model: str
+    tool_name: str | None = None
+    tool_arguments: dict = Field(default_factory=dict)
+    tool_result: dict = Field(default_factory=dict)
 
 
 class ChatAnswer(_ApiModel):
@@ -143,3 +147,73 @@ class DashboardChatService:
     ) -> DashboardChatResponse:
         answer = await self._gateway.respond(context, history[-MAX_CHAT_HISTORY:], message)
         return DashboardChatResponse(message=ChatTurn(role="assistant", content=answer), model=self.model)
+
+    def respond_with_tool(self, tool_name: str, arguments: dict, result: dict) -> DashboardChatResponse:
+        """Present only facts returned by the deterministic analysis tool."""
+        if result.get("status") != "ready":
+            reason = {
+                "no_trend_data_in_range": "지정 기간에 Trend 데이터가 없습니다.",
+                "no_fft_data_in_range": "지정 기간에 FFT 데이터가 없습니다.",
+                "fft_record_not_found": "지정한 FFT record를 찾지 못했습니다.",
+                "dataset_not_found": "지정한 설비 데이터를 찾지 못했습니다.",
+            }.get(result.get("reason"), "분석에 필요한 데이터를 찾지 못했습니다.")
+            answer = reason
+        elif tool_name == "trend":
+            trend = result["trend"]
+            analysis = trend["analysis"]
+            velocity = next((item for item in trend["metrics"] if item.get("key") == "velocity"), trend["metrics"][0] if trend["metrics"] else {})
+            summary = trend["summary"].get(velocity.get("key"), {})
+            answer = f"Trend 표본 {len(trend['points'])}건, 최신값 {summary.get('latestValue')} {velocity.get('unit', '')}, 평균값 {summary.get('mean')}입니다. 추세 상태는 {analysis.get('status')}이며 상승 판정은 {analysis.get('isRising')}입니다."
+        elif tool_name == "status":
+            answer = "기간 상태 분석 결과입니다. " + (
+                "Trend와 FFT 데이터를 확인했습니다." if result.get("status") == "ready" else "분석 가능한 Trend 또는 FFT 데이터가 없습니다."
+            )
+        else:
+            record = result["record"]
+            diagnosis = result.get("bearingAnalysis") or record.get("analysis", {}).get("diagnosis", {})
+            answer = f"FFT record {record.get('recordId')} ({record.get('measuredAt')})의 분석 상태는 {diagnosis.get('status')}이고, 판정은 {diagnosis.get('diagnosis')}입니다. {diagnosis.get('message', '')}"
+        return DashboardChatResponse(
+            message=ChatTurn(role="assistant", content=answer), model="deterministic-tool-template",
+            tool_name=tool_name, tool_arguments=arguments, tool_result=result,
+        )
+
+
+def parse_tool_request(message: str, default_record_id: int, reference_end: date | None) -> dict:
+    """Small deterministic Korean/ISO parser; it only selects tools and inputs."""
+    lowered = message.lower()
+    equipment = re.search(r"(?<![A-Za-z0-9])([va]\d{3})(?!\d)", lowered, re.IGNORECASE)
+    iso_dates = [date.fromisoformat(value) for value in re.findall(r"\b(\d{4}-\d{1,2}-\d{1,2})\b", message)]
+    korean_range = re.search(
+        r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:부터|~|까지)\s*(?:(\d{4})년\s*)?(\d{1,2})월\s*(\d{1,2})일",
+        message,
+    )
+    korean_dates = [date(int(year), int(month), int(day)) for year, month, day in re.findall(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일", message)]
+    dates = (
+        [date(int(korean_range.group(1)), int(korean_range.group(2)), int(korean_range.group(3))), date(int(korean_range.group(4) or korean_range.group(1)), int(korean_range.group(5)), int(korean_range.group(6)))]
+        if korean_range else iso_dates or korean_dates
+    )
+    recent = re.search(r"최근\s*(\d+)\s*개월", message)
+    if re.search(r"베어링|bpfo|bpfi|bsf|ftf", lowered):
+        tool_name = "bearing_fft"
+    elif re.search(r"fft|unbalance|misalignment|불평형|축정렬", lowered):
+        tool_name = "fft"
+    elif re.search(r"상태|종합", lowered):
+        tool_name = "status"
+    else:
+        tool_name = "trend"
+    start = end = None
+    if len(dates) >= 2:
+        start, end = dates[0], dates[1]
+    elif dates:
+        end = dates[0]
+        if tool_name in {"fft", "bearing_fft"}:
+            start = end
+    if recent and reference_end:
+        months = int(recent.group(1))
+        month_index = reference_end.year * 12 + reference_end.month - 1 - months
+        year, month_zero = divmod(month_index, 12)
+        start, end = date(year, month_zero + 1, min(reference_end.day, 28)), reference_end
+    record_match = re.search(r"record\s*(?:id)?\s*[:#]?\s*(\d+)", lowered)
+    explicit_record = record_match is not None
+    record_id = int(record_match.group(1)) if record_match else default_record_id
+    return {"tool_name": tool_name, "equipment_code": equipment.group(1).upper() if equipment else None, "record_id": record_id, "record_explicit": explicit_record, "start": start, "end": end}

@@ -10,7 +10,7 @@ from typing import Any
 
 from .constants import EQUIPMENT_METADATA_CONFIG_PATH
 from .csv_loader import (
-    _classify_csv, _load_fft, _load_trend, _load_warning_status,
+    _build_fft_record, _classify_csv, _fft_record_summary, _load_fft, _load_trend, _load_warning_status,
     filter_fft_until, filter_warning_status_until,
 )
 from .level import analyze_velave_level
@@ -262,4 +262,64 @@ def dataset_until(dataset: dict[str, Any], until: datetime) -> dict[str, Any] | 
     else:
         status, label, description, color = "normal", "정상", "최근 VelAve에서 상승 경향이 검출되지 않았습니다.", "#14a47b"
     result["equipment"].update({"status": status, "statusLabel": label, "statusDescription": description, "statusColor": color})
+    return result
+
+
+def dataset_between(
+    dataset: dict[str, Any], start: datetime | None, end: datetime | None
+) -> dict[str, Any] | None:
+    """Rebuild a dashboard snapshot for an inclusive measurement interval."""
+    if end is not None:
+        result = dataset_until(dataset, end)
+        if result is None:
+            return None
+    else:
+        result = copy.deepcopy(dataset)
+
+    if start is None:
+        return result
+
+    trend = result.get("trend")
+    if trend is not None:
+        trend["points"] = [
+            point for point in trend["points"]
+            if datetime.fromisoformat(point["timestamp"]) >= start
+        ]
+        if trend["points"]:
+            from .trend import analyze_velave_trend
+            trend["analysis"] = analyze_velave_trend(trend["points"])
+        else:
+            trend = None
+
+    fft = result.get("fft")
+    if fft is not None:
+        rows = [
+            (record_id, row) for record_id, row in fft.get("_recordsById", {}).items()
+            if datetime.fromisoformat(row["MeasureDate"]) >= start
+        ]
+        if rows:
+            rpm, bearing = fft.get("_rpm"), fft.get("_bearing")
+            summaries = [_fft_record_summary(row, record_id, rpm, bearing) for record_id, row in rows]
+            default = next(((record_id, row) for record_id, row in rows if row["MeasureMode"] != "0"), rows[0])
+            fft = _build_fft_record(default[1], default[0], rpm, bearing)
+            alerts = [summary for summary in summaries if summary["isAlertFft"]]
+            fft.update({"records": summaries, "alertRecordCount": len(alerts), "_recordsById": dict(rows), "_rpm": rpm, "_bearing": bearing})
+        else:
+            fft = None
+
+    warning = result.get("_warningStatus")
+    if warning is not None and datetime.fromisoformat(warning["measuredAt"]) < start:
+        warning = None
+    if trend is None and fft is None:
+        return None
+    if trend is not None:
+        trend["metrics"] = _build_trend_metrics(trend, warning)
+        latest = trend["points"][-1]
+        result["current"].update({"velocity": latest["value"], "acceleration": latest["acceleration"]})
+    else:
+        result["current"].update({"velocity": None, "acceleration": None})
+    result["_warningStatus"] = warning
+    result["trend"], result["fft"] = trend, fft
+    result["levelAnalysis"] = analyze_velave_level(trend["points"] if trend else [], warning)
+    result["meta"]["availability"] = {"trend": trend is not None, "fft": fft is not None, "warningStatus": warning is not None}
     return result

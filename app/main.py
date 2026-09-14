@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import date, datetime, time
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -24,10 +24,10 @@ from app.chat import (
     DashboardChatResponse,
     DashboardChatService,
     OpenAIDashboardChatGateway,
+    parse_tool_request,
 )
 from app.data_loader import (
     dataset_summaries,
-    dataset_until,
     load_datasets,
     load_fft_record,
     load_history,
@@ -39,7 +39,15 @@ from app.reporting.email_ai import EMAIL_DRAFT_REPORT_KIND, generate_email_draft
 from app.reporting.email_draft import EmailDraftResponse, present_email_draft
 from app.reporting.ppt_ai import PPT_REPORT_KIND, generate_ppt_diagnosis
 from app.reporting.ppt_report import build_diagnostic_ppt, diagnostic_ppt_filename_stem
-from app.services.analysis import envelope_for_dashboard, select_fft_analysis_record
+from app.services.analysis import (
+    bearing_fft_tool,
+    envelope_for_dashboard,
+    fft_tool,
+    range_snapshot,
+    select_fft_analysis_record,
+    trend_analysis_result,
+    trend_tool,
+)
 from app.services.history import select_dashboard_related_history
 
 
@@ -122,6 +130,8 @@ def create_app(
         public = {key: value for key, value in dataset.items() if not key.startswith("_")}
         if fft is not None:
             public["fft"] = {key: value for key, value in fft.items() if not key.startswith("_")}
+        if public.get("trend") is not None:
+            public["trend"] = {**public["trend"], "analysisResult": trend_analysis_result(dataset)}
         return public
 
     @application.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -176,10 +186,10 @@ def create_app(
         first_dataset_id = dataset_summaries(available_datasets)[0]["id"]
         return public_dashboard(available_datasets[first_dataset_id])
 
-    def snapshot(dataset: dict, until: date | None) -> dict:
-        if until is None:
+    def snapshot(dataset: dict, until: date | None, start: date | None = None) -> dict:
+        if until is None and start is None:
             return dataset
-        result = dataset_until(dataset, datetime.combine(until, time.max))
+        result = range_snapshot(dataset, start, until)
         if result is None:
             raise HTTPException(status_code=404, detail="기준일 이전에 Trend와 FFT 데이터가 없습니다.")
         return result
@@ -215,20 +225,20 @@ def create_app(
         )
 
     @application.get("/api/dashboard/{dataset_id}")
-    async def dashboard_data(dataset_id: str, request: Request, until: date | None = None) -> dict:
+    async def dashboard_data(dataset_id: str, request: Request, until: date | None = None, start: date | None = None) -> dict:
         available_datasets = datasets_from(request)
         if dataset_id not in available_datasets:
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
-        return public_dashboard(snapshot(available_datasets[dataset_id], until))
+        return public_dashboard(snapshot(available_datasets[dataset_id], until, start))
 
     @application.get("/api/dashboard/{dataset_id}/fft/{record_id}")
-    async def fft_record(dataset_id: str, record_id: int, request: Request, until: date | None = None) -> dict:
+    async def fft_record(dataset_id: str, record_id: int, request: Request, until: date | None = None, start: date | None = None) -> dict:
         available_datasets = datasets_from(request)
         dataset = available_datasets.get(dataset_id)
         if dataset is None or dataset.get("fft") is None:
             raise HTTPException(status_code=404, detail="FFT 데이터를 찾을 수 없습니다.")
         try:
-            filtered = snapshot(dataset, until)
+            filtered = snapshot(dataset, until, start)
             if filtered.get("fft") is None:
                 raise KeyError(record_id)
             return select_fft_analysis_record(filtered["fft"], record_id)
@@ -294,34 +304,42 @@ def create_app(
         chat_request: DashboardChatRequest,
         request: Request,
     ) -> DashboardChatResponse:
-        dataset = datasets_from(request).get(dataset_id)
+        available_datasets = datasets_from(request)
+        dataset = available_datasets.get(dataset_id)
         if dataset is None:
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
-        try:
-            filtered = snapshot(dataset, chat_request.until)
-            filtered_fft = filtered.get("fft")
-            if filtered_fft is None:
-                raise KeyError(chat_request.record_id)
-            selected_fft = load_fft_record(filtered_fft, chat_request.record_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
-        except (OSError, ValueError, SyntaxError) as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-        context = build_ai_context(
-            dataset_id,
-            filtered,
-            {**filtered_fft, **selected_fft},
-            history_from(request),
-            chat_request.selected_fault_type,
-            chat_request.until,
-        )
-        try:
-            return await chat_service_from(request).respond(
-                context, chat_request.history, chat_request.message
-            )
-        except AiAnalysisError as error:
-            raise_ai_error(error)
+        reference_end = chat_request.until
+        if reference_end is None:
+            latest = dataset.get("equipment", {}).get("lastMeasuredAt")
+            reference_end = date.fromisoformat(str(latest).split(" ")[0]) if latest else None
+        invocation = parse_tool_request(chat_request.message, chat_request.record_id, reference_end)
+        requested_code = invocation.pop("equipment_code")
+        if requested_code:
+            matches = [
+                (candidate_id, candidate) for candidate_id, candidate in available_datasets.items()
+                if candidate.get("equipment", {}).get("id") == requested_code
+            ]
+            if matches:
+                dataset_id, dataset = next(((candidate_id, candidate) for candidate_id, candidate in matches if candidate_id == dataset_id), matches[0])
+            else:
+                return chat_service_from(request).respond_with_tool(
+                    invocation["tool_name"], invocation, {"status": "unavailable", "reason": "dataset_not_found"}
+                )
+        if invocation["end"] is None:
+            invocation["end"] = chat_request.until
+        tool_name = invocation["tool_name"]
+        if tool_name == "trend":
+            result = trend_tool(dataset, invocation["start"], invocation["end"])
+        elif tool_name == "bearing_fft":
+            result = bearing_fft_tool(dataset, invocation["record_id"], invocation["start"], invocation["end"], fallback_to_default=not invocation["record_explicit"])
+        elif tool_name == "fft":
+            result = fft_tool(dataset, invocation["record_id"], invocation["start"], invocation["end"], fallback_to_default=not invocation["record_explicit"])
+        else:
+            trend = trend_tool(dataset, invocation["start"], invocation["end"])
+            fft = fft_tool(dataset, invocation["record_id"], invocation["start"], invocation["end"])
+            result = {"status": "ready" if trend.get("status") == "ready" or fft.get("status") == "ready" else "unavailable", "trend": trend, "fft": fft}
+        arguments = {key: (value.isoformat() if isinstance(value, date) else value) for key, value in invocation.items()}
+        return chat_service_from(request).respond_with_tool(tool_name, arguments, result)
 
     @application.post(
         "/api/dashboard/{dataset_id}/email-draft",

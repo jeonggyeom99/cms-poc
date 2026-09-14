@@ -1034,7 +1034,7 @@ def test_ai_analysis_api_reports_missing_openai_key(tmp_path: Path) -> None:
     }
 
 
-def test_dashboard_chat_uses_compact_selected_context_and_history(tmp_path: Path) -> None:
+def test_dashboard_chat_uses_selected_tool_and_returns_structured_result(tmp_path: Path) -> None:
     gateway = FakeChatGateway()
     response = post(
         create_app(make_data_dir(tmp_path), chat_gateway=gateway),
@@ -1049,22 +1049,17 @@ def test_dashboard_chat_uses_compact_selected_context_and_history(tmp_path: Path
     )
 
     assert response.status_code == 200
-    assert response.json()["message"] == {
-        "role": "assistant",
-        "content": "선택한 측정 기록을 먼저 재확인해 주세요.",
-    }
-    assert len(gateway.calls) == 1
-    context, history, message = gateway.calls[0]
-    assert context["fft"]["recordId"] == 2
-    assert "frequencies" not in context["fft"]
-    assert "amplitudes" not in context["fft"]
-    assert history[0].content == "이전 질문"
-    assert message == "무엇을 먼저 확인하나요?"
+    payload = response.json()
+    assert payload["toolName"] == "trend"
+    assert payload["toolArguments"]["end"] == "2026-01-04"
+    assert payload["toolResult"]["status"] == "ready"
+    assert payload["toolResult"]["trend"]["analysis"]["status"] == "insufficient_data"
+    assert gateway.calls == []
 
 
 def test_dashboard_chat_rejects_unknown_record_and_excess_history(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path), chat_gateway=FakeChatGateway())
-    missing = post(target_app, "/api/dashboard/1/chat", {"recordId": 999, "message": "질문"})
+    missing = post(target_app, "/api/dashboard/1/chat", {"recordId": 999, "message": "FFT record 999를 분석해줘"})
     excessive_history = post(
         target_app,
         "/api/dashboard/1/chat",
@@ -1075,11 +1070,18 @@ def test_dashboard_chat_rejects_unknown_record_and_excess_history(tmp_path: Path
         },
     )
 
-    assert missing.status_code == 404
+    assert missing.status_code == 200
+    assert missing.json()["toolResult"] == {
+        "status": "unavailable",
+        "reason": "fft_record_not_found",
+        "recordId": 999,
+        "start": None,
+        "end": None,
+    }
     assert excessive_history.status_code == 422
 
 
-def test_dashboard_chat_reports_missing_openai_key(tmp_path: Path) -> None:
+def test_dashboard_chat_does_not_require_openai_for_tool_answers(tmp_path: Path) -> None:
     response = post(
         create_app(
             make_data_dir(tmp_path),
@@ -1091,5 +1093,5 @@ def test_dashboard_chat_reports_missing_openai_key(tmp_path: Path) -> None:
         {"recordId": 2, "message": "질문"},
     )
 
-    assert response.status_code == 503
-    assert response.json()["detail"]["code"] == "missing_api_key"
+    assert response.status_code == 200
+    assert response.json()["model"] == "deterministic-tool-template"

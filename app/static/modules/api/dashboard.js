@@ -11,12 +11,18 @@ export async function fetchDatasetSummaries() {
   return items;
 }
 
-export function fetchDashboard(datasetId, until) {
-  const query = until ? `?until=${encodeURIComponent(until)}` : "";
+export function fetchDashboard(datasetId, until, start) {
+  const params = new URLSearchParams();
+  if (until) params.set("until", until);
+  if (start) params.set("start", start);
+  const query = params.size ? `?${params}` : "";
   return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}${query}`);
 }
 
-export function fetchFftRecord(datasetId, recordId, until) {
-  const query = until ? `?until=${encodeURIComponent(until)}` : "";
+export function fetchFftRecord(datasetId, recordId, until, start) {
+  const params = new URLSearchParams();
+  if (until) params.set("until", until);
+  if (start) params.set("start", start);
+  const query = params.size ? `?${params}` : "";
   return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}${query}`);
 }
