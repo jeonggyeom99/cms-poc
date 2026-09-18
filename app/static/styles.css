@@ -31,9 +31,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at 92% 0%, rgba(157, 190, 63, 0.13), transparent 25rem),
-    var(--bg);
+  background: #eef3f5;
   color: var(--ink);
   font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", Inter, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -65,28 +63,44 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 28px;
-  height: 72px;
-  padding: 0 max(24px, calc((100vw - 1440px) / 2));
-  background: var(--navy);
-  color: #fff;
+  gap: 20px;
+  height: 77px;
+  padding: 0 max(28px, calc((100vw - 1440px) / 2));
+  border-bottom: 1px solid rgba(31, 61, 88, 0.16);
+  background: rgba(255, 255, 255, 0.94);
+  color: #172b40;
+  backdrop-filter: blur(14px);
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
+  gap: 13px;
   color: inherit;
   text-decoration: none;
+}
+
+.brand__mark {
+  display: flex;
+  gap: 4px;
+}
+
+.brand__mark i {
+  width: 7px;
+  height: 23px;
+  border-radius: 99px;
+  background: linear-gradient(#168f9a, rgba(22, 143, 154, 0.22));
 }
 
 .dashboard-home-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 8px;
-  color: #dfe9ec;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid rgba(31, 61, 88, 0.16);
+  border-radius: 9px;
+  color: #355064;
   font-size: 12px;
   font-weight: 750;
   text-decoration: none;
@@ -105,12 +119,13 @@ select {
 }
 
 .dashboard-home-link:hover {
-  border-color: rgba(217, 255, 77, 0.68);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(22, 143, 154, 0.5);
+  background: rgba(22, 143, 154, 0.08);
+  color: #0a6670;
 }
 
 .dashboard-home-link:focus-visible {
-  outline: 3px solid rgba(217, 255, 77, 0.52);
+  outline: 3px solid rgba(22, 143, 154, 0.35);
   outline-offset: 3px;
 }
 
@@ -120,15 +135,15 @@ select {
 }
 
 .brand strong {
-  letter-spacing: 0.03em;
+  margin-top: 3px;
+  font-size: 16px;
 }
 
 .brand small {
-  margin-top: 2px;
-  color: #9eb2ba;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: #5f7183;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
 }
 
 .topbar-meta {
@@ -164,8 +179,8 @@ main {
 }
 
 .dataset-select-wrap label {
-  color: #bac8cd;
-  font-size: 11px;
+  color: #5f7183;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -174,19 +189,19 @@ main {
   width: 100%;
   height: 40px;
   padding: 0 42px 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(31, 61, 88, 0.16);
   border-radius: 8px;
   outline: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.76);
+  color: #172b40;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
 }
 
 .dataset-select-wrap select:focus {
-  border-color: var(--lime);
-  box-shadow: 0 0 0 3px rgba(217, 255, 77, 0.18);
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(22, 143, 154, 0.18);
 }
 
 .dataset-select-wrap select:disabled {
@@ -214,26 +229,17 @@ h1 {
 }
 
 .equipment-overview {
-  position: relative;
-  overflow: hidden;
   margin-bottom: 16px;
   padding: 24px 32px;
-  color: #fff;
-  background: linear-gradient(118deg, #0b1c31 0%, #112d48 62%, #12475a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(31, 61, 88, 0.16);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
 }
 
 .equipment-overview::after {
-  position: absolute;
-  top: -105%;
-  right: 22%;
-  width: 260px;
-  height: 430px;
-  content: "";
-  background: linear-gradient(90deg, transparent, rgba(83, 223, 230, 0.08), transparent);
-  transform: rotate(25deg);
+  display: none;
 }
 
 .equipment-overview-main,
@@ -256,20 +262,20 @@ h1 {
 .equipment-overview h1 {
   overflow-wrap: anywhere;
   margin: 0 0 9px;
-  color: #fff;
+  color: #172b40;
   font-size: clamp(25px, 2.3vw, 36px);
   line-height: 1.25;
   letter-spacing: -0.035em;
 }
 
-#dashboard-until { margin: 0; color: #aebed0; font-size: 14px; font-weight: 700; }
+#dashboard-until { margin: 0; color: #5f7183; font-size: 14px; font-weight: 700; }
 
 .equipment-metadata {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 24px;
   margin: 0;
-  color: #aebed0;
+  color: #5f7183;
   font-size: 14px;
 }
 
@@ -279,13 +285,13 @@ h1 {
 }
 
 .equipment-metadata dt {
-  color: #8fa4ba;
+  color: #5f7183;
   font-weight: 700;
 }
 
 .equipment-metadata dd {
   margin: 0;
-  color: #fff;
+  color: #172b40;
   font-weight: 750;
 }
 
@@ -294,21 +300,21 @@ h1 {
   flex: 0 0 clamp(220px, 25vw, 300px);
   gap: 8px;
   padding: 17px 19px;
-  background: rgba(4, 16, 30, 0.34);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 61, 88, 0.16);
   border-left: 3px solid #94a3aa;
   border-radius: 12px;
 }
 
 .overview-fft-result-label {
-  color: #8fa4ba;
+  color: #5f7183;
   font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.12em;
 }
 
 .overview-fft-result strong {
-  color: #d6e0ea;
+  color: #172b40;
   font-size: clamp(22px, 2vw, 28px);
   letter-spacing: -0.03em;
   line-height: 1.2;
@@ -324,8 +330,8 @@ h1 {
 .overview-metric {
   min-width: 0;
   padding: 15px 16px 13px;
-  background: rgba(4, 16, 30, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 61, 88, 0.12);
   border-radius: 11px;
 }
 
@@ -390,7 +396,7 @@ h1 {
 }
 
 .overview-fft-result.is-neutral {
-  background: rgba(4, 16, 30, 0.34);
+  background: rgba(255, 255, 255, 0.72);
   border-left-color: #94a3aa;
 }
 
@@ -400,7 +406,7 @@ h1 {
 }
 
 .overview-fft-result.is-caution strong {
-  color: #ffca6a;
+  color: #a66500;
 }
 
 .overview-fft-result.is-danger {
@@ -409,7 +415,7 @@ h1 {
 }
 
 .overview-fft-result.is-danger strong {
-  color: #ffacac;
+  color: #b83535;
 }
 
 .metric-value {
@@ -420,25 +426,25 @@ h1 {
 }
 
 .metric-value strong {
-  color: #fff;
+  color: #172b40;
   font-size: 29px;
   letter-spacing: -0.04em;
 }
 
 .metric-value span {
-  color: #aebed0;
+  color: #5f7183;
   font-size: 12px;
 }
 
 .threshold-row,
 .metric-note {
   margin: 0;
-  color: #aebed0;
+  color: #5f7183;
   font-size: 11px;
 }
 
 .threshold-row b {
-  color: #fff;
+  color: #172b40;
   font-weight: 750;
 }
 
@@ -1378,9 +1384,10 @@ body.graph-modal-open {
 }
 
 .related-history-section-heading h2 {
-  margin: 3px 0 4px;
+  margin: 0 0 4px;
   color: var(--navy);
-  font-size: 18px;
+  font-size: 20px;
+  letter-spacing: -0.025em;
 }
 
 .related-history-section-heading p {

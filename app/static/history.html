@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CMS 설비 진단 과거 이력을 조회합니다.">
     <title>과거 이력 | 설비 진단</title>
-    <link rel="stylesheet" href="/static/history.css?v=ui-consistency-v1">
+    <link rel="stylesheet" href="/static/history.css?v=topbar-layout-v2">
     <script type="module" src="/static/modules/history/controller.js?v=korean-ui-v1"></script>
   </head>
   <body>
@@ -15,12 +15,18 @@
           <span class="history-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span>
             <small>설비 진단 시스템</small>
-            <strong>설비 진단</strong>
+            <strong>설비 모니터링</strong>
           </span>
         </a>
         <nav class="history-navigation" aria-label="주요 메뉴">
-          <a href="/">설비 현황</a>
-          <a href="/history" aria-current="page">과거 이력</a>
+          <a href="/">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z" /></svg>
+            <span>설비 현황</span>
+          </a>
+          <a href="/history" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></svg>
+            <span>과거 이력</span>
+          </a>
         </nav>
       </header>
 

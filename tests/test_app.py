@@ -794,7 +794,7 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
-    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=korean-ui-v1">' in response.text
+    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=topbar-layout-v3">' in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-excel-data.js"' in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-tree-data.js"' in response.text
     assert 'src="/static/modules/equipment-status/controller.js?v=equipment-status-demo-merge"' in response.text
@@ -812,12 +812,12 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")
-    app_module = get(target_app, "/static/app.js?v=dashboard-chat-v1")
+    app_module = get(target_app, "/static/app.js?v=dashboard-chat-v2")
 
     assert response.status_code == 200
     assert app_module.status_code == 200
-    assert 'type="module" src="/static/app.js?v=dashboard-chat-v1"' in response.text
-    assert 'controller.js?v=dashboard-chat-v1' in app_module.text
+    assert 'type="module" src="/static/app.js?v=dashboard-chat-v2"' in response.text
+    assert 'controller.js?v=dashboard-chat-v2' in app_module.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -851,7 +851,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-related-history"' in response.text
     assert 'id="fft-related-history-count"' in response.text
     assert 'id="fft-related-history-list"' in response.text
-    assert "인공지능 진단" in response.text
+    assert "<h2>AI 분석</h2>" in response.text
     assert 'id="ai-analysis-result"' in response.text
     assert 'id="ai-analysis-run"' in response.text
     assert 'id="ai-analysis-details"' in response.text

@@ -22,7 +22,7 @@ select {
 }
 
 .equipment-status-page {
-  --es-surface: rgba(255, 255, 255, 0.88);
+  --es-surface: rgba(255, 255, 255, 0.94);
   --es-border: rgba(31, 61, 88, 0.16);
   --es-text: #172b40;
   --es-muted: #5f7183;
@@ -32,10 +32,7 @@ select {
   --es-critical: #df655e;
   --es-unknown: #7b8b99;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 8% 0, rgba(67, 208, 218, 0.2), transparent 32%),
-    radial-gradient(circle at 90% 15%, rgba(255, 138, 76, 0.16), transparent 25%),
-    linear-gradient(180deg, #f4f8fb, #eaf1f5 52%, #f7fafc);
+  background: #eef3f5;
 }
 
 .equipment-status-topbar {
@@ -43,9 +40,10 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px 28px;
+  height: 77px;
+  padding: 0 max(28px, calc((100vw - 1440px) / 2));
   border-bottom: 1px solid var(--es-border);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
 }
 
@@ -58,6 +56,7 @@ select {
 }
 
 .equipment-status-brand:focus-visible,
+.equipment-status-home-link:focus-visible,
 .equipment-status-history-link:focus-visible,
 .equipment-status-item__link:focus-visible,
 .equipment-status-search button:focus-visible,
@@ -101,42 +100,53 @@ select {
 .equipment-status-topbar__actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 6px;
+  min-height: 40px;
+  padding: 3px;
+  border: 1px solid var(--es-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.64);
 }
 
+.equipment-status-home-link,
 .equipment-status-history-link {
-  padding: 8px 12px;
-  border: 1px solid var(--es-border);
-  border-radius: 9px;
-  color: #355064;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: var(--es-muted);
   font-size: 12px;
   font-weight: 750;
   text-decoration: none;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
+.equipment-status-home-link svg,
+.equipment-status-history-link svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.equipment-status-home-link[aria-current="page"] {
+  background: #174b5a;
+  color: #fff;
+}
+
+.equipment-status-home-link:hover,
 .equipment-status-history-link:hover {
-  border-color: rgba(22, 143, 154, 0.5);
   background: rgba(22, 143, 154, 0.08);
   color: #0a6670;
 }
 
-.equipment-status-live {
-  color: var(--es-muted);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-}
-
-.equipment-status-live b {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: #36b66b;
-  box-shadow: 0 0 12px #36b66b;
+.equipment-status-home-link[aria-current="page"]:hover {
+  background: #174b5a;
+  color: #fff;
 }
 
 .equipment-status-content {
@@ -413,6 +423,12 @@ select {
   text-align: center;
 }
 
+@media (max-width: 760px) {
+  .equipment-status-brand small {
+    display: none;
+  }
+}
+
 @media (max-width: 680px) {
   .equipment-status-topbar,
   .equipment-status-heading {
@@ -422,6 +438,7 @@ select {
 
   .equipment-status-topbar {
     gap: 14px;
+    height: auto;
     padding: 17px 18px;
   }
 

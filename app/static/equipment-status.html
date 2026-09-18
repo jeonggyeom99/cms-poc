@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Excel 진단 이력과 CSV 기반 설비 상태를 조회합니다.">
     <title>설비 현황 | 설비 진단</title>
-    <link rel="stylesheet" href="/static/equipment-status.css?v=korean-ui-v1">
+    <link rel="stylesheet" href="/static/equipment-status.css?v=topbar-layout-v3">
     <script src="/static/equipment-status-demo/equipment-status-excel-data.js"></script>
     <script src="/static/equipment-status-demo/equipment-status-tree-data.js"></script>
     <script type="module" src="/static/modules/equipment-status/controller.js?v=equipment-status-demo-merge"></script>
@@ -20,10 +20,16 @@
             <strong>설비 모니터링</strong>
           </span>
         </a>
-        <div class="equipment-status-topbar__actions">
-          <a class="equipment-status-history-link" href="/history">과거 이력</a>
-          <span class="equipment-status-live"><b aria-hidden="true"></b>실시간 모니터링</span>
-        </div>
+        <nav class="equipment-status-topbar__actions" aria-label="주요 메뉴">
+          <a class="equipment-status-home-link" href="/" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z" /></svg>
+            <span>설비 현황</span>
+          </a>
+          <a class="equipment-status-history-link" href="/history">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></svg>
+            <span>과거 이력</span>
+          </a>
+        </nav>
       </header>
 
       <main class="equipment-status-content">
