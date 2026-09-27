@@ -1,36 +1,30 @@
-"""Programmatic one-slide diagnostic PPTX generation."""
+"""Template-based one-slide CMS diagnostic PPTX generation."""
 
 from __future__ import annotations
 
 import math
 import re
-import struct
 from collections.abc import Mapping
+from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
+from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
-from pptx.util import Inches, Pt
+from pptx.util import Pt
 
 from app.reporting.ppt_ai import PptDiagnosis
 
 
-SLIDE_WIDTH = Inches(40 / 3)
-SLIDE_HEIGHT = Inches(7.5)
-
+TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "docs" / "ppt_result_sample.pptx"
 FONT_NAME = "Malgun Gothic"
-NAVY = RGBColor(15, 43, 54)
-TEAL = RGBColor(18, 119, 126)
-PALE_TEAL = RGBColor(224, 242, 241)
-PALE_BLUE = RGBColor(234, 243, 246)
-PANEL = RGBColor(248, 250, 251)
-TEXT = RGBColor(27, 49, 59)
-MUTED = RGBColor(92, 111, 119)
-WHITE = RGBColor(255, 255, 255)
-OUTLINE = RGBColor(205, 220, 224)
+TITLE_COLOR = (15, 81, 127)
+BODY_COLOR = (0, 0, 0)
+ACTION_COLOR = (0, 0, 255)
 
 
 def build_diagnostic_ppt(
@@ -39,109 +33,41 @@ def build_diagnostic_ppt(
     trend_png: bytes | None,
     fft_png: bytes | None,
 ) -> bytes:
-    """Build one 16:9 diagnostic slide from compact evidence and chart PNGs."""
-    presentation = Presentation()
-    presentation.slide_width = SLIDE_WIDTH
-    presentation.slide_height = SLIDE_HEIGHT
-    slide = presentation.slides.add_slide(presentation.slide_layouts[6])
-    slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = WHITE
+    """Fill the supplied single-slide template with current diagnostic evidence."""
+    if not TEMPLATE_PATH.is_file():
+        raise ValueError("진단 보고서 PPT 템플릿을 찾을 수 없습니다.")
 
+    presentation = Presentation(TEMPLATE_PATH)
+    if not presentation.slides:
+        raise ValueError("진단 보고서 PPT 템플릿에 슬라이드가 없습니다.")
+
+    _remove_extra_slides(presentation)
+    slide = presentation.slides[0]
     evidence = _evidence(report_context)
     equipment = _mapping(evidence.get("equipment"))
     trend = _mapping(evidence.get("trend"))
     fft = _mapping(evidence.get("fft"))
+    metrics = _metrics_by_key(trend)
 
-    equipment_name = _text(
-        equipment.get("displayName") or equipment.get("name"),
-        "설비명 미제공",
-        70,
-    )
-    plant = _text(equipment.get("plant"), "공장 정보 미제공", 45)
-    sensor_number = _text(
-        equipment.get("sensorNumber") or equipment.get("sensor_number") or equipment.get("id"),
-        "미제공",
-        28,
-    )
-    risk_label = _risk_label(equipment)
-    fft_label = _fft_label(fft)
+    tables = [shape.table for shape in slide.shapes if getattr(shape, "has_table", False)]
+    if len(tables) < 2:
+        raise ValueError("진단 보고서 PPT 템플릿의 표 구성을 확인할 수 없습니다.")
+    _, metadata_table = tables[:2]
+    title = _find_title_shape(slide)
+    trend_text, fft_text = _find_analysis_text_shapes(slide)
+    picture_frames = _picture_frames(slide)
+    if len(picture_frames) < 2:
+        raise ValueError("진단 보고서 PPT 템플릿의 그래프 영역을 확인할 수 없습니다.")
 
-    _add_panel(slide, 0, 0, SLIDE_WIDTH, Inches(1.04), NAVY)
-    _add_panel(slide, 0, Inches(0.96), SLIDE_WIDTH, Inches(0.08), TEAL)
-    _add_text(
-        slide,
-        equipment_name,
-        Inches(0.4),
-        Inches(0.16),
-        Inches(7.5),
-        Inches(0.34),
-        20,
-        WHITE,
-        bold=True,
-    )
-    _add_text(
-        slide,
-        f"{plant} | SENSOR {sensor_number}",
-        Inches(0.42),
-        Inches(0.57),
-        Inches(7.4),
-        Inches(0.22),
-        9.5,
-        PALE_TEAL,
-    )
-    _add_badge(slide, f"위험도: {risk_label}", Inches(8.48), Inches(0.23), Inches(1.95))
-    _add_badge(slide, f"FFT: {fft_label}", Inches(10.55), Inches(0.23), Inches(2.35))
+    plant = _plain_text(equipment.get("plant"), 45)
+    title_text = f"[{plant}] CMS Data 모니터링 및 진단결과" if plant else "CMS Data 모니터링 및 진단결과"
+    _set_text(title, title_text, 27, TITLE_COLOR, bold=True)
+    _fill_metadata_table(metadata_table, equipment, metrics, fft, diagnosis)
+    _set_text(trend_text, _plain_text(diagnosis.trend_finding, 120), 12, BODY_COLOR, bold=True)
+    _set_fft_panel_text(fft_text, diagnosis)
 
-    measured_at = _text(
-        fft.get("measuredAt") or equipment.get("lastMeasuredAt"),
-        "정보 없음",
-        32,
-    )
-    metadata_items = [
-        ("설비 코드", _text(equipment.get("id"), "정보 없음", 25)),
-        ("측정 위치", _text(equipment.get("measurementPoint"), "정보 없음", 36)),
-        ("회전수", _with_unit(equipment.get("rpm"), "rpm")),
-        ("베어링", _text(equipment.get("bearing"), "정보 없음", 25)),
-        ("측정 시각", measured_at),
-    ]
-    _add_metadata_grid(slide, metadata_items)
-
-    _add_diagnosis_strip(slide, diagnosis)
-
-    _add_analysis_panel(
-        slide,
-        title="Trend 분석",
-        finding=diagnosis.trend_finding,
-        png=trend_png,
-        left=Inches(0.4),
-        chart_label="Trend",
-        context_available=bool(trend.get("available", True)),
-    )
-    _add_analysis_panel(
-        slide,
-        title="FFT 정밀 진단",
-        finding=diagnosis.fft_finding,
-        png=fft_png,
-        left=Inches(6.8),
-        chart_label="FFT",
-        context_available=bool(fft.get("available", True)),
-    )
-
-    limitation = _text(
-        " / ".join(diagnosis.limitations),
-        "제공된 데이터 범위에서만 보조적으로 해석했습니다.",
-        165,
-    )
-    _add_text(
-        slide,
-        f"AI 보조 분석 한계: {limitation}",
-        Inches(0.42),
-        Inches(7.1),
-        Inches(12.45),
-        Inches(0.19),
-        7.5,
-        MUTED,
-    )
+    _clear_template_annotations(slide, (title, trend_text, fft_text))
+    _replace_chart_images(slide, picture_frames, trend_png, fft_png)
 
     output = BytesIO()
     presentation.save(output)
@@ -153,12 +79,18 @@ def diagnostic_ppt_filename_stem(report_context: Mapping[str, Any]) -> str:
     evidence = _evidence(report_context)
     equipment = _mapping(evidence.get("equipment"))
     fft = _mapping(evidence.get("fft"))
-    equipment_id = _text(equipment.get("id"), "equipment", 48)
-    safe_equipment_id = re.sub(r"[^A-Za-z0-9_-]+", "-", equipment_id).strip("-")
-    safe_equipment_id = safe_equipment_id or "equipment"
-    measured_at = _text(fft.get("measuredAt") or equipment.get("lastMeasuredAt"), "", 40)
+    equipment_id = _plain_text(equipment.get("id"), 48) or "equipment"
+    safe_equipment_id = re.sub(r"[^A-Za-z0-9_-]+", "-", equipment_id).strip("-") or "equipment"
+    measured_at = _plain_text(fft.get("measuredAt") or equipment.get("lastMeasuredAt"), 40)
     date_token = "".join(re.findall(r"\d", measured_at))[:8] or "report"
     return f"cms-diagnostic-{safe_equipment_id}-{date_token}"
+
+
+def _remove_extra_slides(presentation: Presentation) -> None:
+    while len(presentation.slides) > 1:
+        slide_id = presentation.slides._sldIdLst[-1]
+        presentation.part.drop_rel(slide_id.rId)
+        del presentation.slides._sldIdLst[-1]
 
 
 def _evidence(report_context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -170,249 +102,212 @@ def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def _text(value: Any, fallback: str, limit: int) -> str:
+def _plain_text(value: Any, limit: int) -> str:
     if value is None or isinstance(value, (Mapping, list, tuple, set)):
-        return fallback
+        return ""
     normalized = " ".join(str(value).split())
-    if not normalized:
-        return fallback
-    return normalized if len(normalized) <= limit else f"{normalized[: max(limit - 3, 1)]}..."
+    return normalized[:limit] if normalized else ""
 
 
-def _with_unit(value: Any, unit: str) -> str:
+def _format_number(value: Any, digits: int = 2) -> str:
     if isinstance(value, bool):
-        return "정보 없음"
+        return ""
     try:
         number = float(value)
     except (TypeError, ValueError):
-        return "정보 없음"
+        return ""
     if not math.isfinite(number):
-        return "정보 없음"
-    formatted = f"{number:,.0f}" if number.is_integer() else f"{number:,.2f}".rstrip("0").rstrip(".")
-    return f"{formatted} {unit}"
+        return ""
+    if digits == 0:
+        return f"{number:,.0f}"
+    return f"{number:,.{digits}f}".rstrip("0").rstrip(".")
 
 
-def _risk_label(equipment: Mapping[str, Any]) -> str:
-    configured = _text(equipment.get("statusLabel"), "", 24)
-    if configured:
-        return configured
+def _format_with_unit(value: Any, unit: str, digits: int = 2) -> str:
+    formatted = _format_number(value, digits)
+    return f"{formatted} {unit}" if formatted and unit else formatted
+
+
+def _format_thresholds(metric: Mapping[str, Any]) -> str:
+    warning = _format_number(metric.get("warningThreshold"))
+    danger = _format_number(metric.get("dangerThreshold"))
+    return f"{warning} / {danger}" if warning and danger else warning or danger
+
+
+def _metrics_by_key(trend: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    metrics = trend.get("metrics")
+    if not isinstance(metrics, list):
+        return {}
     return {
-        "normal": "정상",
-        "caution": "주의",
-        "danger": "위험",
-    }.get(str(equipment.get("status", "")).lower(), "미평가")
+        str(metric.get("key")): metric
+        for metric in metrics
+        if isinstance(metric, Mapping) and isinstance(metric.get("key"), str)
+    }
 
 
-def _fft_label(fft: Mapping[str, Any]) -> str:
-    measurement = _mapping(fft.get("measurement"))
-    measure_mode = _mapping(measurement.get("measureMode"))
-    diagnosis = _mapping(fft.get("diagnosis"))
-    return _text(
-        measure_mode.get("label") or diagnosis.get("label"),
-        "정보 없음",
-        24,
+def _find_title_shape(slide: Any) -> Any:
+    candidates = [
+        shape
+        for shape in slide.shapes
+        if getattr(shape, "has_text_frame", False) and not getattr(shape, "has_table", False)
+    ]
+    if not candidates:
+        raise ValueError("진단 보고서 PPT 템플릿의 제목 영역을 확인할 수 없습니다.")
+    return min(candidates, key=lambda shape: shape.top)
+
+
+def _find_analysis_text_shapes(slide: Any) -> tuple[Any, Any]:
+    candidates = [
+        shape
+        for shape in slide.shapes
+        if getattr(shape, "has_text_frame", False)
+        and not getattr(shape, "has_table", False)
+        and shape.top > 2_000_000
+    ]
+    if len(candidates) < 2:
+        raise ValueError("진단 보고서 PPT 템플릿의 분석 설명 영역을 확인할 수 없습니다.")
+    candidates.sort(key=lambda shape: shape.left)
+    return candidates[0], candidates[1]
+
+
+def _picture_frames(slide: Any) -> list[tuple[int, int, int, int]]:
+    frames = [
+        (shape.left, shape.top, shape.width, shape.height)
+        for shape in slide.shapes
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE
+    ]
+    return sorted(frames)
+
+
+def _fill_metadata_table(
+    table: Any,
+    equipment: Mapping[str, Any],
+    metrics: Mapping[str, Mapping[str, Any]],
+    fft: Mapping[str, Any],
+    diagnosis: PptDiagnosis,
+) -> None:
+    velocity = metrics.get("velocity", {})
+    acceleration = metrics.get("accelerationAll", {})
+    values = {
+        (0, 1): _plain_text(equipment.get("plant"), 45),
+        (0, 5): "",
+        (0, 8): _format_report_timestamp(fft.get("measuredAt")),
+        (0, 11): "",
+        (1, 1): _plain_text(equipment.get("name") or equipment.get("displayName"), 80),
+        (1, 8): "",
+        (1, 11): _plain_text(equipment.get("sensorNumber") or equipment.get("sensor_number"), 24),
+        (2, 2): _format_with_unit(equipment.get("rpm"), "RPM", 0),
+        (2, 6): _plain_text(equipment.get("bearing"), 32),
+        (2, 9): _format_thresholds(velocity),
+        (2, 12): _format_thresholds(acceleration),
+        (3, 1): _phenomenon_text(velocity, acceleration, diagnosis.trend_finding),
+        (4, 1): _plain_text(diagnosis.headline, 150),
+    }
+    for (row, column), value in values.items():
+        font_size = 10 if row == 4 else 11
+        _set_table_cell_text(table.cell(row, column), value, font_size)
+
+
+def _format_report_timestamp(value: Any) -> str:
+    source = _plain_text(value, 40)
+    if not source:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(source.replace("Z", "+00:00"))
+    except ValueError:
+        return source
+    return f"’{parsed:%y}.{parsed.month}.{parsed.day} {parsed:%H:%M}"
+
+
+def _phenomenon_text(
+    velocity: Mapping[str, Any], acceleration: Mapping[str, Any], finding: str
+) -> str:
+    readings = [
+        _format_with_unit(velocity.get("latestValue"), _plain_text(velocity.get("unit"), 12)),
+        _format_with_unit(acceleration.get("latestValue"), _plain_text(acceleration.get("unit"), 12)),
+    ]
+    labels = ("속도", "가속도 ALL")
+    current = ", ".join(
+        f"{label} {reading}" for label, reading in zip(labels, readings, strict=True) if reading
     )
+    return ". ".join(part for part in (current, _plain_text(finding, 150)) if part)
 
 
-def _add_panel(slide: Any, left: int, top: int, width: int, height: int, color: RGBColor) -> Any:
-    panel = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    panel.fill.solid()
-    panel.fill.fore_color.rgb = color
-    panel.line.fill.background()
-    return panel
-
-
-def _add_text(
-    slide: Any,
-    value: str,
-    left: int,
-    top: int,
-    width: int,
-    height: int,
-    font_size: float,
-    color: RGBColor,
-    bold: bool = False,
-    alignment: PP_ALIGN = PP_ALIGN.LEFT,
-) -> Any:
-    text_box = slide.shapes.add_textbox(left, top, width, height)
-    text_frame = text_box.text_frame
+def _set_fft_panel_text(shape: Any, diagnosis: PptDiagnosis) -> None:
+    text_frame = shape.text_frame
     text_frame.clear()
     text_frame.word_wrap = True
     text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-    text_frame.margin_left = Inches(0.02)
-    text_frame.margin_right = Inches(0.02)
-    text_frame.margin_top = 0
-    text_frame.margin_bottom = 0
-    paragraph = text_frame.paragraphs[0]
-    paragraph.alignment = alignment
+    _add_paragraph(text_frame.paragraphs[0], _plain_text(diagnosis.fft_finding, 150), 12, BODY_COLOR, bold=True)
+    action = next((item.action for item in diagnosis.recommended_actions if item.action), "")
+    if action:
+        _add_paragraph(text_frame.add_paragraph(), _plain_text(action, 100), 12, ACTION_COLOR)
+
+
+def _set_text(shape: Any, value: str, size: float, color: tuple[int, int, int], bold: bool = False) -> None:
+    text_frame = shape.text_frame
+    text_frame.clear()
+    text_frame.word_wrap = True
+    text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    _add_paragraph(text_frame.paragraphs[0], value, size, color, bold)
+
+
+def _set_table_cell_text(cell: Any, value: str, font_size: float) -> None:
+    text_frame = cell.text_frame
+    text_frame.clear()
+    text_frame.word_wrap = True
+    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    _add_paragraph(text_frame.paragraphs[0], value, font_size, BODY_COLOR)
+
+
+def _add_paragraph(paragraph: Any, value: str, size: float, color: tuple[int, int, int], bold: bool = False) -> None:
+    paragraph.alignment = PP_ALIGN.LEFT
     paragraph.space_after = Pt(0)
     run = paragraph.add_run()
     run.text = value
     run.font.name = FONT_NAME
-    run.font.size = Pt(font_size)
+    run.font.size = Pt(size)
     run.font.bold = bold
-    run.font.color.rgb = color
-    return text_box
+    run.font.color.rgb = RGBColor(*color)
 
 
-def _add_badge(slide: Any, label: str, left: int, top: int, width: int) -> None:
-    _add_panel(slide, left, top, width, Inches(0.34), TEAL)
-    _add_text(
-        slide,
-        _text(label, "정보 없음", 32),
-        left + Inches(0.03),
-        top + Inches(0.02),
-        width - Inches(0.06),
-        Inches(0.28),
-        8.5,
-        WHITE,
-        bold=True,
-        alignment=PP_ALIGN.CENTER,
-    )
+def _clear_template_annotations(slide: Any, retained_text_shapes: tuple[Any, ...]) -> None:
+    """Remove sample images and frequency callouts after preserving text and tables."""
+    retained_elements = {id(shape._element) for shape in retained_text_shapes}
+    for shape in list(slide.shapes):
+        if getattr(shape, "has_table", False) or id(shape._element) in retained_elements:
+            continue
+        shape._element.getparent().remove(shape._element)
 
 
-def _add_metadata_grid(slide: Any, items: list[tuple[str, str]]) -> None:
-    left = Inches(0.4)
-    top = Inches(1.18)
-    total_width = Inches(12.5)
-    gap = Inches(0.06)
-    cell_width = int((total_width - gap * (len(items) - 1)) / len(items))
-    for index, (label, value) in enumerate(items):
-        cell_left = left + index * (cell_width + gap)
-        _add_panel(slide, cell_left, top, cell_width, Inches(0.64), PANEL)
-        cell = slide.shapes[-1]
-        cell.line.color.rgb = OUTLINE
-        _add_text(slide, label, cell_left + Inches(0.08), top + Inches(0.07), cell_width - Inches(0.16), Inches(0.16), 7.5, MUTED)
-        _add_text(
-            slide,
-            _text(value, "정보 없음", 34),
-            cell_left + Inches(0.08),
-            top + Inches(0.28),
-            cell_width - Inches(0.16),
-            Inches(0.24),
-            10,
-            TEXT,
-            bold=True,
-        )
-
-
-def _add_diagnosis_strip(slide: Any, diagnosis: PptDiagnosis) -> None:
-    top = Inches(1.98)
-    _add_panel(slide, Inches(0.4), top, Inches(12.5), Inches(0.86), PALE_BLUE)
-    _add_panel(slide, Inches(0.4), top, Inches(1.22), Inches(0.86), TEAL)
-    _add_text(slide, "진단 결과", Inches(0.51), top + Inches(0.16), Inches(1.0), Inches(0.22), 11, WHITE, bold=True)
-    _add_text(
-        slide,
-        _text(diagnosis.headline, "진단 요약 미제공", 78),
-        Inches(1.83),
-        top + Inches(0.09),
-        Inches(7.1),
-        Inches(0.28),
-        13,
-        TEXT,
-        bold=True,
-    )
-    _add_text(
-        slide,
-        _text(diagnosis.conclusion, "제공된 근거를 추가 확인해야 합니다.", 106),
-        Inches(1.83),
-        top + Inches(0.43),
-        Inches(7.1),
-        Inches(0.28),
-        8.5,
-        MUTED,
-    )
-    _add_text(slide, "권장 조치", Inches(9.2), top + Inches(0.1), Inches(3.3), Inches(0.16), 7.5, MUTED, bold=True)
-    _add_text(
-        slide,
-        _actions_text(diagnosis),
-        Inches(9.2),
-        top + Inches(0.33),
-        Inches(3.28),
-        Inches(0.34),
-        8.5,
-        TEXT,
-    )
-
-
-def _actions_text(diagnosis: PptDiagnosis) -> str:
-    labels = {"immediate": "즉시", "high": "우선", "planned": "계획"}
-    actions = [
-        f"{labels[action.priority]}: {action.action}"
-        for action in diagnosis.recommended_actions
-    ]
-    return _text(" / ".join(actions), "권장 조치 정보 없음", 118)
-
-
-def _add_analysis_panel(
+def _replace_chart_images(
     slide: Any,
-    title: str,
-    finding: str,
-    png: bytes | None,
-    left: int,
-    chart_label: str,
-    context_available: bool,
+    frames: list[tuple[int, int, int, int]],
+    trend_png: bytes | None,
+    fft_png: bytes | None,
 ) -> None:
-    width = Inches(6.1)
-    _add_panel(slide, left, Inches(3.05), width, Inches(0.23), NAVY)
-    _add_text(slide, title, left + Inches(0.08), Inches(3.05), width - Inches(0.16), Inches(0.23), 10.5, WHITE, bold=True)
-    finding_text = finding if context_available else "분석에 필요한 원본 정보가 충분하지 않습니다."
-    _add_text(slide, _text(finding_text, "분석 결과 미제공", 145), left + Inches(0.03), Inches(3.37), width - Inches(0.06), Inches(0.5), 9, TEXT)
-    _add_chart(slide, png, left, Inches(4.02), width, Inches(2.75), chart_label)
+    for frame, image in zip(frames[:2], (trend_png, fft_png), strict=True):
+        if image:
+            slide.shapes.add_picture(_fit_png_to_frame(image, frame[2], frame[3]), *frame)
 
 
-def _add_chart(
-    slide: Any,
-    png: bytes | None,
-    left: int,
-    top: int,
-    width: int,
-    height: int,
-    label: str,
-) -> None:
-    _add_panel(slide, left, top, width, height, PANEL)
-    chart_frame = slide.shapes[-1]
-    chart_frame.line.color.rgb = OUTLINE
-    dimensions = _png_dimensions(png)
-    if dimensions is None:
-        _add_chart_placeholder(slide, label, left, top, width, height)
-        return
-    image_width, image_height = dimensions
-    scale = min(width / image_width, height / image_height)
-    displayed_width = int(image_width * scale)
-    displayed_height = int(image_height * scale)
-    try:
-        slide.shapes.add_picture(
-            BytesIO(png),
-            left + int((width - displayed_width) / 2),
-            top + int((height - displayed_height) / 2),
-            displayed_width,
-            displayed_height,
-        )
-    except Exception:
-        _add_chart_placeholder(slide, label, left, top, width, height)
-
-
-def _png_dimensions(png: bytes | None) -> tuple[int, int] | None:
-    if not isinstance(png, bytes) or len(png) < 24 or png[:8] != b"\x89PNG\r\n\x1a\n":
-        return None
-    width, height = struct.unpack(">II", png[16:24])
-    if width <= 0 or height <= 0:
-        return None
-    return width, height
-
-
-def _add_chart_placeholder(slide: Any, label: str, left: int, top: int, width: int, height: int) -> None:
-    _add_text(slide, f"{label} 그래프 미제공", left, top + Inches(1.03), width, Inches(0.28), 12, MUTED, bold=True, alignment=PP_ALIGN.CENTER)
-    _add_text(
-        slide,
-        "캡처된 그래프가 제공되지 않았습니다.",
-        left,
-        top + Inches(1.35),
-        width,
-        Inches(0.2),
-        8.5,
-        MUTED,
-        alignment=PP_ALIGN.CENTER,
-    )
+def _fit_png_to_frame(image: bytes, width: int, height: int) -> BytesIO:
+    """Center-crop a PNG to the template's fixed chart frame without distortion."""
+    with Image.open(BytesIO(image)) as source:
+        source = source.convert("RGB")
+        source_ratio = source.width / source.height
+        target_ratio = width / height
+        if source_ratio > target_ratio:
+            cropped_width = round(source.height * target_ratio)
+            left = (source.width - cropped_width) // 2
+            source = source.crop((left, 0, left + cropped_width, source.height))
+        elif source_ratio < target_ratio:
+            cropped_height = round(source.width / target_ratio)
+            top = (source.height - cropped_height) // 2
+            source = source.crop((0, top, source.width, top + cropped_height))
+        output = BytesIO()
+        source.save(output, format="PNG")
+        output.seek(0)
+        return output

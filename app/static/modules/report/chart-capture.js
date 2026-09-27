@@ -2,8 +2,8 @@ import { getPlotly } from "../core/plot.js?v=report-capture-v1";
 
 const imageOptions = {
   format: "png",
-  width: 1100,
-  height: 500,
+  width: 920,
+  height: 720,
   scale: 1,
 };
 

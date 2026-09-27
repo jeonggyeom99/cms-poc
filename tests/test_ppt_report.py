@@ -50,6 +50,7 @@ def compact_context() -> dict:
                 "displayName": "No.2 Direct Cooling Pump / Pump DS",
                 "plant": "Water Treatment",
                 "measurementPoint": "Pump DS",
+                "sensorNumber": "32",
                 "rpm": 1780,
                 "bearing": "6318",
                 "status": "caution",
@@ -58,7 +59,24 @@ def compact_context() -> dict:
             "trend": {
                 "available": True,
                 "analysis": {"status": "rising", "slope": 0.01},
-                "metrics": [{"label": "속도", "latestValue": 2.0, "unit": "mm/s"}],
+                "metrics": [
+                    {
+                        "key": "velocity",
+                        "label": "속도",
+                        "latestValue": 2.0,
+                        "unit": "mm/s",
+                        "warningThreshold": 1.5,
+                        "dangerThreshold": 3.0,
+                    },
+                    {
+                        "key": "accelerationAll",
+                        "label": "가속도 ALL",
+                        "latestValue": 0.3,
+                        "unit": "g",
+                        "warningThreshold": 0.5,
+                        "dangerThreshold": 1.0,
+                    },
+                ],
             },
             "fft": {
                 "available": True,
@@ -93,32 +111,54 @@ def visible_text(slide) -> str:
     )
 
 
-def test_build_diagnostic_ppt_creates_one_widescreen_slide_with_chart_images() -> None:
+def test_build_diagnostic_ppt_fills_the_reference_template_with_chart_images() -> None:
     output = build_diagnostic_ppt(compact_context(), diagnosis(), tiny_png(), tiny_png())
     presentation = Presentation(BytesIO(output))
 
     assert len(presentation.slides) == 1
-    assert presentation.slide_width * 9 == presentation.slide_height * 16
+    assert presentation.slide_width == 12192000
+    assert presentation.slide_height == 6858000
     slide = presentation.slides[0]
     text = visible_text(slide)
-    assert "No.2 Direct Cooling Pump / Pump DS" in text
-    assert "진단 결과" in text
-    assert "Trend 분석" in text
-    assert "FFT 정밀 진단" in text
+    tables = [shape.table for shape in slide.shapes if getattr(shape, "has_table", False)]
+    metadata = tables[1]
+    assert "[Water Treatment] CMS Data 모니터링 및 진단결과" in text
+    assert metadata.cell(1, 1).text == "No.2 Direct Cooling Pump / Pump DS"
+    assert metadata.cell(0, 1).text == "Water Treatment"
+    assert metadata.cell(0, 8).text == "’26.1.15 12:00"
+    assert metadata.cell(1, 11).text == "32"
+    assert metadata.cell(2, 2).text == "1,780 RPM"
+    assert metadata.cell(2, 9).text == "1.5 / 3"
+    assert metadata.cell(2, 12).text == "0.5 / 1"
+    assert metadata.cell(3, 1).text.startswith("속도 2 mm/s, 가속도 ALL 0.3 g.")
+    assert metadata.cell(4, 1).text == diagnosis().headline
     assert "체결 상태와 운전 조건을 현장 점검합니다." in text
-    assert "AI 보조 분석 한계" in text
+    assert "Bearing 내륜 결함에 의한 충격" not in text
     assert sum(shape.shape_type == MSO_SHAPE_TYPE.PICTURE for shape in slide.shapes) >= 2
     assert diagnostic_ppt_filename_stem(compact_context()) == "cms-diagnostic-V032-20260115"
 
 
-def test_build_diagnostic_ppt_uses_placeholders_for_missing_source_data() -> None:
+def test_build_diagnostic_ppt_leaves_missing_source_data_blank() -> None:
     context = deepcopy(compact_context())
     del context["evidence"]["equipment"]["displayName"]
+    del context["evidence"]["equipment"]["plant"]
+    del context["evidence"]["equipment"]["sensorNumber"]
+    del context["evidence"]["fft"]["measuredAt"]
+    context["evidence"]["trend"]["metrics"] = []
     output = build_diagnostic_ppt(context, diagnosis(), None, tiny_png())
     presentation = Presentation(BytesIO(output))
 
-    assert "설비명 미제공" in visible_text(presentation.slides[0])
-    assert "Trend 그래프 미제공" in visible_text(presentation.slides[0])
+    slide = presentation.slides[0]
+    tables = [shape.table for shape in slide.shapes if getattr(shape, "has_table", False)]
+    metadata = tables[1]
+    assert "정보 없음" not in visible_text(slide)
+    assert metadata.cell(0, 1).text == ""
+    assert metadata.cell(0, 8).text == ""
+    assert metadata.cell(1, 1).text == ""
+    assert metadata.cell(1, 11).text == ""
+    assert metadata.cell(2, 9).text == ""
+    assert metadata.cell(2, 12).text == ""
+    assert sum(shape.shape_type == MSO_SHAPE_TYPE.PICTURE for shape in slide.shapes) == 1
 
 
 def test_ppt_diagnosis_rejects_html_text() -> None:
