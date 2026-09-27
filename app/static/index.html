@@ -7,7 +7,7 @@
     <title>설비 진단 화면</title>
     <link rel="stylesheet" href="/static/styles.css?v=fft-current-history-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=fft-current-history-v1"></script>
+    <script type="module" src="/static/app.js?v=fft-current-history-v2"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -186,7 +186,7 @@
                 <p class="fft-record-list-status" id="fft-record-list-status" role="status">조건을 충족하는 주파수 측정 기록을 불러오는 중입니다.</p>
                 <div class="fft-record-filters" role="group" aria-label="주파수 분석 목록 필터">
                   <button type="button" data-fft-filter-group="abnormal" data-fft-filter-value="true" aria-pressed="false">이상발생</button>
-                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="2" aria-pressed="false">가속도 포락선</button>
+                  <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="2" aria-pressed="false">가속도</button>
                   <button type="button" data-fft-filter-group="measureMode" data-fft-filter-value="3" aria-pressed="false">속도</button>
                   <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="2" aria-pressed="false">정기</button>
                   <button type="button" data-fft-filter-group="extractionType" data-fft-filter-value="alert" aria-pressed="false">주의·위험경보</button>

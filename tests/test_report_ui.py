@@ -63,6 +63,14 @@ def test_time_wave_graph_is_wired_with_sample_index_axis_and_expansion() -> None
     assert 'getExpandedGraph() === "timewave"' in controller
 
 
+def test_fft_history_excludes_acceleration_all_and_renames_acceleration_env() -> None:
+    records = (ROOT / "app/static/modules/fft/records.js").read_text(encoding="utf-8")
+    formatting = (ROOT / "app/static/modules/core/format.js").read_text(encoding="utf-8")
+
+    assert 'record.measureMode?.code !== "0"' in records
+    assert '"가속도ENV": "가속도"' in formatting
+
+
 def test_trend_and_fft_cards_have_equal_widths() -> None:
     styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 

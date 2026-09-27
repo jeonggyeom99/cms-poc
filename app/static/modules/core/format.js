@@ -19,7 +19,7 @@ export function formatCodedLabel(value) {
   if (!value) return "--";
   return ({
     "가속도ALL": "전체 가속도",
-    "가속도ENV": "가속도 포락선",
+    "가속도ENV": "가속도",
   })[value.label] || value.label || "알 수 없음";
 }
 

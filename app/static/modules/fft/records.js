@@ -1,4 +1,4 @@
-import { formatCodedLabel } from "../core/format.js?v=korean-ui-v2";
+import { formatCodedLabel } from "../core/format.js?v=fft-current-history-v2";
 import { fftExtractionClass } from "./analysis.js?v=korean-ui-v1";
 
 const fftRecordFilters = {
@@ -125,7 +125,9 @@ function renderRecordList(fft, records, { listId, countId, setStatus, statusText
 }
 
 export function renderFftRecordList(fft, selectedRecordId) {
-  const allRecords = fft?.records ?? [];
+  const allRecords = (fft?.records ?? []).filter(
+    (record) => record.measureMode?.code !== "0",
+  );
   const records = allRecords.filter(matchesFftRecordFilters);
   syncFftRecordFilters();
   renderRecordList(fft, records, {
@@ -143,7 +145,9 @@ export function renderFftRecordList(fft, selectedRecordId) {
 }
 
 export function renderFftHistoryList(fft) {
-  const records = fft?.records ?? [];
+  const records = (fft?.records ?? []).filter(
+    (record) => record.measureMode?.code !== "0",
+  );
   renderRecordList(fft, records, {
     listId: "fft-history-list",
     countId: "fft-history-count",

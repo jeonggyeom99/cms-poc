@@ -48,7 +48,7 @@ import {
   setSelectedFftRecord,
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
-import { availabilityLabel } from "../core/format.js?v=korean-ui-v2";
+import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
 import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=fft-current-history-v1";
 import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
@@ -61,7 +61,7 @@ import {
   setFftHistoryStatus,
   syncFftRecordSelection,
   toggleFftRecordFilter,
-} from "../fft/records.js?v=fft-current-history-v1";
+} from "../fft/records.js?v=fft-current-history-v2";
 import {
   bindRelatedHistory,
   renderRelatedHistory,
