@@ -195,7 +195,7 @@ class DashboardChatService:
 
 def _tool_evidence(value: object) -> object:
     """Exclude raw waveform/spectrum arrays while preserving tool-produced facts."""
-    excluded = {"frequencies", "amplitudes", "timeWaveSamples", "raw", "filtered", "envelope", "timeSeconds"}
+    excluded = {"frequencies", "amplitudes", "timeWaveSamples", "raw", "filtered", "timeSeconds"}
     if isinstance(value, dict):
         return {key: _tool_evidence(item) for key, item in value.items() if key not in excluded}
     if isinstance(value, list):

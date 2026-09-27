@@ -1,4 +1,4 @@
-"""Sampling rule shared by waveform display and envelope analysis."""
+"""Sampling rule shared by waveform display and FFT analysis."""
 from .constants import FREQUENCY_RANGES_HZ
 
 

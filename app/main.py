@@ -41,7 +41,6 @@ from app.reporting.ppt_ai import PPT_REPORT_KIND, generate_ppt_diagnosis
 from app.reporting.ppt_report import build_diagnostic_ppt, diagnostic_ppt_filename_stem
 from app.services.analysis import (
     bearing_fft_tool,
-    envelope_for_dashboard,
     fft_tool,
     range_snapshot,
     select_fft_analysis_record,
@@ -245,17 +244,6 @@ def create_app(
         except KeyError as error:
             raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
         except (OSError, ValueError, SyntaxError) as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-    @application.get("/api/dashboard/{dataset_id}/fft/{record_id}/envelope")
-    async def envelope_analysis(
-        dataset_id: str, record_id: int, request: Request,
-        low_hz: float = 1000, high_hz: float = 2200, until: date | None = None,
-    ) -> dict:
-        record = await fft_record(dataset_id, record_id, request, until)
-        try:
-            return envelope_for_dashboard(record, low_hz, high_hz)
-        except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
     @application.post(

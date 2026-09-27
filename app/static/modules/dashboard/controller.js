@@ -73,7 +73,6 @@ import {
   renderTrend,
 } from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
-import { bindEnvelope, loadEnvelope, resetEnvelope } from "../envelope/controller.js?v=korean-ui-v1";
 import { syncDashboardChatContext } from "../chat/controller.js?v=dashboard-chat-v2";
 
 let aiAnalysisRequest = 0;
@@ -283,7 +282,6 @@ async function selectFftRecord(recordId) {
 }
 
 export async function loadDashboard(datasetId) {
-  resetEnvelope();
   const select = document.getElementById("dataset-select");
   resetFftRecordState();
   resetRelatedHistoryExpansion();
@@ -309,11 +307,9 @@ export async function loadDashboard(datasetId) {
     renderFft();
     syncDashboardChatContext();
     renderLevelAnalysis(dashboardData);
-    loadEnvelope(dashboardData, requestedUntil());
     resetAiAnalysisFor(dashboardData.fft);
   } catch (error) {
     console.error("Dashboard data loading failed", error);
-    resetEnvelope("설비 데이터를 불러오지 못해 포락선 분석을 준비할 수 없습니다.");
     setExpandButtonEnabled("trend", false);
     setExpandButtonEnabled("fft", false);
     setExpandButtonEnabled("timewave", false);
@@ -386,7 +382,6 @@ async function initializeDashboard() {
 }
 
 export function initializeDashboardApplication() {
-  bindEnvelope();
   bindPeriodTabs(handlePeriodChange);
   bindGraphModal({
     onExpandGraph: handleOpenExpandedGraph,
