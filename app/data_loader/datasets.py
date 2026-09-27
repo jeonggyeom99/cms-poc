@@ -10,7 +10,7 @@ from typing import Any
 
 from .constants import EQUIPMENT_METADATA_CONFIG_PATH
 from .csv_loader import (
-    _build_fft_record, _classify_csv, _fft_record_summary, _load_fft, _load_trend, _load_warning_status,
+    _build_fft_record, _classify_csv, _default_fft_record, _fft_record_summary, _load_fft, _load_trend, _load_warning_status,
     filter_fft_until, filter_warning_status_until,
 )
 from .level import analyze_velave_level
@@ -300,7 +300,7 @@ def dataset_between(
         if rows:
             rpm, bearing = fft.get("_rpm"), fft.get("_bearing")
             summaries = [_fft_record_summary(row, record_id, rpm, bearing) for record_id, row in rows]
-            default = next(((record_id, row) for record_id, row in rows if row["MeasureMode"] != "0"), rows[0])
+            default = _default_fft_record(rows)
             fft = _build_fft_record(default[1], default[0], rpm, bearing)
             alerts = [summary for summary in summaries if summary["isAlertFft"]]
             fft.update({"records": summaries, "alertRecordCount": len(alerts), "_recordsById": dict(rows), "_rpm": rpm, "_bearing": bearing})

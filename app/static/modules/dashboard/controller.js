@@ -34,6 +34,7 @@ import {
   getCurrentPeriod,
   getDashboardData,
   getSelectedBearingFaultType,
+  getSelectedFftRecord,
   getExpandedGraph,
   getSelectedTrendMetrics,
   isCurrentFftSelectionRequest,
@@ -44,10 +45,11 @@ import {
   setCurrentPeriod,
   setDashboardData,
   setSelectedBearingFaultType,
-} from "../core/state.js?v=acceleration-bearing-fft";
+  setSelectedFftRecord,
+} from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=korean-ui-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=korean-ui-v1";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=fft-current-history-v1";
 import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -59,7 +61,7 @@ import {
   setFftHistoryStatus,
   syncFftRecordSelection,
   toggleFftRecordFilter,
-} from "../fft/records.js?v=korean-ui-v2";
+} from "../fft/records.js?v=fft-current-history-v1";
 import {
   bindRelatedHistory,
   renderRelatedHistory,
@@ -73,14 +75,14 @@ import {
   renderTrend,
 } from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
-import { syncDashboardChatContext } from "../chat/controller.js?v=dashboard-chat-v2";
+import { syncDashboardChatContext } from "../chat/controller.js?v=fft-current-history-v1";
 
 let aiAnalysisRequest = 0;
 let relatedHistoryRequest = 0;
 
 function buildReportRequest() {
   const dashboardData = getDashboardData();
-  const recordId = dashboardData?.fft?.recordId;
+  const recordId = getSelectedFftRecord()?.recordId;
   if (!dashboardData?.meta?.datasetId || !Number.isInteger(recordId)) return null;
   return {
     datasetId: dashboardData.meta.datasetId,
@@ -124,28 +126,27 @@ async function loadRelatedHistoryFor(fft, selectedBearingFaultType) {
 }
 
 function renderFft() {
-  const fft = getDashboardData()?.fft;
-  if (fft?.analysis?.diagnosis?.faults?.length && !getSelectedBearingFaultType()) {
-    resetSelectedBearingFaultType(fft);
+  const currentFft = getDashboardData()?.fft;
+  const selectedFft = getSelectedFftRecord();
+  if (selectedFft?.analysis?.diagnosis?.faults?.length && !getSelectedBearingFaultType()) {
+    resetSelectedBearingFaultType(selectedFft);
   }
   const selectedBearingFaultType = getSelectedBearingFaultType();
-  renderOverviewFftResult(fft);
-  renderFftRecordList(fft);
-  renderFftChart(fft, selectedBearingFaultType);
-  renderTimeWaveChart(fft);
-  if (fft?.isAlertFft) {
-    renderFftMetadata(fft);
-    renderFftAnalysis(fft, selectedBearingFaultType, {}, null);
-    loadRelatedHistoryFor(fft, selectedBearingFaultType);
+  renderOverviewFftResult(currentFft);
+  renderFftRecordList(currentFft, selectedFft?.recordId);
+  renderFftChart(selectedFft, selectedBearingFaultType);
+  renderTimeWaveChart(selectedFft);
+  if (selectedFft) {
+    renderFftMetadata(selectedFft);
+    renderFftAnalysis(selectedFft, selectedBearingFaultType, {}, null);
+    loadRelatedHistoryFor(selectedFft, selectedBearingFaultType);
     return;
   }
 
   renderFftMetadata(null);
-  renderFftAnalysis(null, null, fft ? {
-    resultLabel: "대상 없음",
-    description: "최대 진폭이 0.5를 초과하거나 주의·위험경보인 주파수 기록만 표시합니다.",
-    heading: "표시할 주파수 분석 대상이 없습니다.",
-    detail: "좌측 목록에 대상 기록이 생기면 그래프와 분석 결과를 확인할 수 있습니다.",
+  renderFftAnalysis(null, null, currentFft ? {
+    heading: "선택한 주파수 기록이 없습니다.",
+    detail: "좌측 목록에서 날짜별 주파수 기록을 선택해 주세요.",
   } : {});
   renderRelatedHistory(null, []);
 }
@@ -162,9 +163,9 @@ function renderExpandedGraph() {
       ),
     );
   } else if (getExpandedGraph() === "fft" && dashboardData?.fft) {
-    renderPlot("graph-modal-chart", buildFftFigure(dashboardData.fft, getSelectedBearingFaultType()));
+    renderPlot("graph-modal-chart", buildFftFigure(getSelectedFftRecord(), getSelectedBearingFaultType()));
   } else if (getExpandedGraph() === "timewave" && dashboardData?.fft) {
-    renderPlot("graph-modal-chart", buildTimeWaveFigure(dashboardData.fft));
+    renderPlot("graph-modal-chart", buildTimeWaveFigure(getSelectedFftRecord()));
   }
 }
 
@@ -180,7 +181,9 @@ function handleTrendMetricSelectionChange() {
 }
 
 function handleOpenExpandedGraph(graphType, trigger) {
-  if (["fft", "timewave"].includes(graphType)) renderFftHistoryList(getDashboardData()?.fft);
+  if (["fft", "timewave"].includes(graphType)) {
+    renderFftHistoryList({ ...getDashboardData()?.fft, recordId: getSelectedFftRecord()?.recordId });
+  }
   openExpandedGraph(graphType, trigger, renderExpandedGraph);
 }
 
@@ -207,7 +210,7 @@ function replaceDatasetIdInUrl(datasetId) {
 
 async function runAiAnalysis(force) {
   const dashboardData = getDashboardData();
-  const fft = dashboardData?.fft;
+  const fft = getSelectedFftRecord();
   if (!dashboardData?.meta?.datasetId || !fft?.recordId) {
     resetAiAnalysisFor(null);
     return;
@@ -235,13 +238,13 @@ async function selectFftRecord(recordId) {
   const dashboardData = getDashboardData();
   const fft = dashboardData?.fft;
   const recordExists = fft?.records?.some((record) => record.id === recordId);
-  if (!fft || !recordExists || recordId === fft.recordId) return;
+  if (!fft || !recordExists || recordId === getSelectedFftRecord()?.recordId) return;
 
   const requestId = createFftSelectionRequest();
   resetRelatedHistoryExpansion();
   const list = document.getElementById("fft-record-list");
   list.setAttribute("aria-busy", "true");
-  syncFftRecordSelection(fft, recordId);
+  syncFftRecordSelection(fft, recordId, getSelectedFftRecord()?.recordId);
   setFftRecordStatus("선택한 주파수 기록을 불러오는 중...");
   setFftHistoryStatus("선택한 주파수 기록을 불러오는 중...");
 
@@ -257,15 +260,11 @@ async function selectFftRecord(recordId) {
       throw new Error("Invalid FFT record structure");
     }
 
-    const updatedDashboardData = {
-      ...dashboardData,
-      fft: { ...fft, ...record, records: fft.records },
-    };
-    setDashboardData(updatedDashboardData);
-    resetSelectedBearingFaultType(updatedDashboardData.fft);
+    setSelectedFftRecord(record);
+    resetSelectedBearingFaultType(record);
     renderFft();
     syncDashboardChatContext();
-    resetAiAnalysisFor(updatedDashboardData.fft);
+    resetAiAnalysisFor(record);
     setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
       renderExpandedGraph();
@@ -273,7 +272,7 @@ async function selectFftRecord(recordId) {
   } catch (error) {
     if (!isCurrentFftSelectionRequest(requestId)) return;
     console.error("FFT record loading failed", error);
-    syncFftRecordSelection(fft);
+    syncFftRecordSelection(fft, null, getSelectedFftRecord()?.recordId);
     setFftRecordStatus("선택한 주파수 기록을 불러오지 못했습니다.", true);
     setFftHistoryStatus("선택한 주파수 기록을 불러오지 못했습니다.", true);
   } finally {
@@ -297,6 +296,7 @@ export async function loadDashboard(datasetId) {
     if (dashboardData.fft) {
       const { records, ...selectedRecord } = dashboardData.fft;
       cacheFftRecord(selectedRecord.recordId, selectedRecord);
+      setSelectedFftRecord(selectedRecord);
     }
     resetCurrentPeriod();
     syncPeriodTabs(getCurrentPeriod());
@@ -398,14 +398,14 @@ export function initializeDashboardApplication() {
     setSelectedBearingFaultType(button.dataset.bearingFault);
     renderFft();
     syncDashboardChatContext();
-    resetAiAnalysisFor(getDashboardData()?.fft);
+    resetAiAnalysisFor(getSelectedFftRecord());
     if (getExpandedGraph() === "fft") renderExpandedGraph();
   });
   document.getElementById("fft-record-browser").addEventListener("click", (event) => {
     const button = event.target.closest("[data-fft-filter-group]");
     if (!button) return;
     toggleFftRecordFilter(button.dataset.fftFilterGroup, button.dataset.fftFilterValue);
-    renderFftRecordList(getDashboardData()?.fft);
+    renderFftRecordList(getDashboardData()?.fft, getSelectedFftRecord()?.recordId);
   });
   initializeDashboard();
 }

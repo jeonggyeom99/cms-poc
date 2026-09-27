@@ -6,6 +6,7 @@ let selectedTrendMetrics = new Set(["velocity"]);
 let fftRecordCache = new Map();
 let fftSelectionRequest = 0;
 let selectedBearingFaultType = null;
+let selectedFftRecord = null;
 
 export function getDashboardData() {
   return dashboardData;
@@ -63,6 +64,15 @@ export function resetFftRecordState() {
   fftSelectionRequest += 1;
   fftRecordCache = new Map();
   selectedBearingFaultType = null;
+  selectedFftRecord = null;
+}
+
+export function getSelectedFftRecord() {
+  return selectedFftRecord ?? dashboardData?.fft ?? null;
+}
+
+export function setSelectedFftRecord(record) {
+  selectedFftRecord = record;
 }
 
 export function getSelectedBearingFaultType() {

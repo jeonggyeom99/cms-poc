@@ -320,6 +320,12 @@ h1 {
   line-height: 1.2;
 }
 
+.overview-fft-result small {
+  color: #5f7183;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .overview-metrics {
   display: grid;
   grid-template-columns: 1.2fr repeat(3, 1fr);
@@ -403,6 +409,15 @@ h1 {
 .overview-fft-result.is-caution {
   border-left-color: var(--caution);
   background: rgba(241, 165, 38, 0.1);
+}
+
+.overview-fft-result.is-normal {
+  border-left-color: var(--normal);
+  background: rgba(20, 153, 109, 0.09);
+}
+
+.overview-fft-result.is-normal strong {
+  color: #087655;
 }
 
 .overview-fft-result.is-caution strong {

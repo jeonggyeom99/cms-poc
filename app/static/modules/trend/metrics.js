@@ -4,7 +4,7 @@ import {
   getDashboardData,
   getSelectedTrendMetrics,
   setSelectedTrendMetrics,
-} from "../core/state.js?v=acceleration-bearing-fft";
+} from "../core/state.js?v=fft-current-history-v1";
 
 export function syncTrendMetricSelector() {
   const selectedTrendMetrics = getSelectedTrendMetrics();

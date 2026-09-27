@@ -3,6 +3,7 @@ import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
 import { buildFftDiagnosisFigure } from "./chart.js?v=korean-ui-v1";
 
 const COMPACT_FFT_DIAGNOSES = Object.freeze({
+  normal: { label: "정상", state: "normal" },
   unbalance: { label: "불균형", state: "caution" },
   misalignment: { label: "축정렬 불량", state: "danger" },
   bearing_inner_race: { label: "베어링 내륜", state: "danger" },
@@ -11,6 +12,9 @@ const COMPACT_FFT_DIAGNOSES = Object.freeze({
 });
 
 function compactFftDiagnosis(diagnosis) {
+  if (!diagnosis || diagnosis.status === "unavailable") {
+    return { label: "분석 불가", state: "neutral" };
+  }
   const diagnosisKey = diagnosis?.diagnosis;
   return Object.hasOwn(COMPACT_FFT_DIAGNOSES, diagnosisKey)
     ? COMPACT_FFT_DIAGNOSES[diagnosisKey]
@@ -20,11 +24,13 @@ function compactFftDiagnosis(diagnosis) {
 export function renderOverviewFftResult(fft) {
   const panel = document.querySelector(".overview-fft-result");
   const result = document.getElementById("overview-fft-result");
-  if (!panel || !result) return;
+  const measuredAt = document.getElementById("overview-fft-measured-at");
+  if (!panel || !result || !measuredAt) return;
 
   const { label, state } = compactFftDiagnosis(fft?.analysis?.diagnosis);
   panel.className = `overview-fft-result is-${state}`;
   result.textContent = label;
+  measuredAt.textContent = fft?.measuredAt ? `기준 측정일시 ${fft.measuredAt}` : "기준 측정일시 --";
 }
 
 export function fftExtractionClass(code) {
@@ -69,9 +75,16 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     return;
   }
 
+  if (diagnosis.status === "unavailable") {
+    details.className = "analysis-placeholder";
+    details.innerHTML = `<strong>주파수 진단 대상 아님</strong><p>${diagnosis.message ?? "선택한 측정모드는 회전·베어링 주파수 진단을 지원하지 않습니다."}</p>`;
+    return;
+  }
+
   const bearingFault = bearingFaultView(fft, selectedFaultType);
   const hasBearingDiagnosis = Array.isArray(diagnosis?.faults);
   const hasVelocityDiagnosis = diagnosis.status === "analyzed" && !hasBearingDiagnosis;
+  const hasVelocityNormal = diagnosis.status === "no_anomaly" && !hasBearingDiagnosis;
 
   const frequencyUnit = fft.frequencyUnit === "Hz" ? "Hz" : "bin";
   const amplitudeUnit = fft.amplitudeUnit ?? "";
@@ -133,6 +146,12 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 주파수 진단 결과">
       <span>속도 주파수 진단 결과</span>
       <strong>${diagnosis.label}</strong>
+    </section>` : ""}
+    ${hasVelocityNormal ? `
+    <section class="fft-diagnosis-card normal" aria-label="속도 주파수 진단 결과">
+      <span>속도 주파수 진단 결과</span>
+      <strong>${diagnosis.label}</strong>
+      <small>${diagnosis.message}</small>
     </section>` : ""}
     ${historyTags}`;
   if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft, bearingFault?.type));

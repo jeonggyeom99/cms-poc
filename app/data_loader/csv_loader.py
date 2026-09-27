@@ -157,14 +157,7 @@ def _load_fft(
     alert_record_ids = {
         record["id"] for record in record_summaries if record["isAlertFft"]
     }
-    default_record = next(
-        (
-            item
-            for item in rows
-            if item[0] in alert_record_ids and item[1]["MeasureMode"] != "0"
-        ),
-        next((item for item in rows if item[1]["MeasureMode"] == "3"), rows[0]),
-    )
+    default_record = _default_fft_record(rows)
     fft = _build_fft_record(default_record[1], default_record[0], rpm, bearing)
     fft["records"] = record_summaries
     fft["alertRecordCount"] = len(alert_record_ids)
@@ -181,6 +174,16 @@ def load_fft_record(fft: dict[str, Any], record_id: int) -> dict[str, Any]:
     return _build_fft_record(row, record_id, fft.get("_rpm"), fft.get("_bearing"))
 
 
+def _default_fft_record(rows: list[tuple[int, dict[str, str]]]) -> tuple[int, dict[str, str]]:
+    """Select the most recent record that supports frequency diagnosis.
+
+    Rows are already sorted newest first.  Alert status intentionally does not
+    influence this choice: the dashboard's current FFT state must describe the
+    most recent analysable measurement, not a past alert.
+    """
+    return next((item for item in rows if item[1]["MeasureMode"] in {"2", "3"}), rows[0])
+
+
 def filter_fft_until(fft: dict[str, Any] | None, until: datetime) -> dict[str, Any] | None:
     if fft is None:
         return None
@@ -194,7 +197,7 @@ def filter_fft_until(fft: dict[str, Any] | None, until: datetime) -> dict[str, A
     rpm, bearing = fft.get("_rpm"), fft.get("_bearing")
     summaries = [_fft_record_summary(row, record_id, rpm, bearing) for record_id, row in rows]
     alerts = {record["id"] for record in summaries if record["isAlertFft"]}
-    default = next((item for item in rows if item[0] in alerts and item[1]["MeasureMode"] != "0"), next((item for item in rows if item[1]["MeasureMode"] == "3"), rows[0]))
+    default = _default_fft_record(rows)
     result = _build_fft_record(default[1], default[0], rpm, bearing)
     result.update({"records": summaries, "alertRecordCount": len(alerts), "_recordsById": dict(rows), "_rpm": rpm, "_bearing": bearing})
     return result

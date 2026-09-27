@@ -1,5 +1,5 @@
 import { sendDashboardChat } from "../api/chat.js?v=dashboard-chat-v1";
-import { getDashboardData, getSelectedBearingFaultType } from "../core/state.js?v=acceleration-bearing-fft";
+import { getDashboardData, getSelectedBearingFaultType, getSelectedFftRecord } from "../core/state.js?v=fft-current-history-v1";
 
 const STORAGE_PREFIX = "cms-dashboard-chat-v1:";
 const MAX_HISTORY = 12;
@@ -29,7 +29,7 @@ function requestedUntil() {
 
 function context() {
   const data = getDashboardData();
-  const recordId = data?.fft?.recordId;
+  const recordId = getSelectedFftRecord()?.recordId;
   if (!data?.meta?.datasetId || !Number.isInteger(recordId)) return null;
   return {
     datasetId: data.meta.datasetId,

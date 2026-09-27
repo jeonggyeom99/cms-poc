@@ -323,8 +323,10 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
     assert dataset["current"]["warningThreshold"] == pytest.approx(4.72)
     assert dataset["current"]["dangerThreshold"] == pytest.approx(5.44)
     assert dataset["levelAnalysis"]["configured"]["measuredAt"] == "2026-01-05 00:00:00"
-    assert dataset["fft"]["measuredAt"] == "2026-01-03 00:00:00"
-    assert dataset["fft"]["recordId"] == 2
+    # The dashboard current state follows the latest analysable FFT, even when
+    # an older record has the larger amplitude.
+    assert dataset["fft"]["measuredAt"] == "2026-01-04 00:00:00"
+    assert dataset["fft"]["recordId"] == 4
     assert [record["id"] for record in dataset["fft"]["records"]] == [4, 2, 3]
     assert dataset["fft"]["records"][0]["hasHighAmplitude"] is False
     assert dataset["fft"]["records"][1]["hasHighAmplitude"] is True
@@ -343,9 +345,9 @@ def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) 
         "frequencyRange": 500.0,
     }
     assert dataset["fft"]["lineCount"] == 2
-    assert dataset["fft"]["amplitudeUnit"] == "g"
+    assert dataset["fft"]["amplitudeUnit"] == "mm/s"
     assert dataset["fft"]["frequencies"] == [250.0, 500.0]
-    assert dataset["fft"]["amplitudes"] == pytest.approx([9.0, 9.0])
+    assert dataset["fft"]["amplitudes"] == pytest.approx([0.3, 0.4])
 
     fft_only = datasets["2"]
     assert fft_only["fft"]["frequencyRange"] == 1000.0
@@ -812,12 +814,12 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")
-    app_module = get(target_app, "/static/app.js?v=dashboard-chat-v2")
+    app_module = get(target_app, "/static/app.js?v=fft-current-history-v1")
 
     assert response.status_code == 200
     assert app_module.status_code == 200
-    assert 'type="module" src="/static/app.js?v=dashboard-chat-v2"' in response.text
-    assert 'controller.js?v=dashboard-chat-v2' in app_module.text
+    assert 'type="module" src="/static/app.js?v=fft-current-history-v1"' in response.text
+    assert 'controller.js?v=fft-current-history-v1' in app_module.text
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -922,7 +924,7 @@ def test_fft_record_api_returns_selected_spectrum_without_internal_fields(tmp_pa
     dashboard_response = get(target_app, "/api/dashboard/1")
     assert dashboard_response.status_code == 200
     fft = dashboard_response.json()["fft"]
-    assert fft["recordId"] == 2
+    assert fft["recordId"] == 4
     assert "_sourcePath" not in fft
     assert len(fft["records"]) == 3
     assert all("amplitudes" not in record for record in fft["records"])
