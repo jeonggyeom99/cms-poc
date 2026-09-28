@@ -10,7 +10,7 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=equipment-ai-v2";
+} from "../analysis/ai.js?v=equipment-ai-v3";
 import {
   bindEmailDraft,
   resetEmailDraft,
@@ -246,10 +246,9 @@ async function runAiAnalysis(force, pinCurrentSelection = false) {
       force,
     });
     if (requestId !== aiAnalysisRequest) return;
-    renderAiAnalysis(payload);
+    renderAiAnalysis(payload, baseline);
   } catch (error) {
     if (requestId !== aiAnalysisRequest) return;
-    console.error("AI analysis loading failed", error);
     renderAiAnalysisError(
       error.message || "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.",
       baseline,

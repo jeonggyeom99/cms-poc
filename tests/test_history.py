@@ -172,7 +172,7 @@ def test_history_api_reports_missing_and_invalid_csv(tmp_path: Path) -> None:
     assert "21개 컬럼" in invalid_response.json()["detail"]
 
 
-def test_ai_related_history_is_globally_sorted_after_combining_relations() -> None:
+def test_ai_related_history_uses_same_sensor_fault_and_strictly_prior_records() -> None:
     fft = {
         "measuredAt": "2026-09-07 12:00:00",
         "analysis": {
@@ -183,15 +183,12 @@ def test_ai_related_history_is_globally_sorted_after_combining_relations() -> No
         },
     }
     items = [
-        {"id": "same-old", "datasetId": "9", "date": "2026-01-01", "fault": "기타", "faultType": "Looseness"},
-        {"id": "similar-new", "datasetId": "8", "date": "2026-08-20", "fault": "축", "faultType": "Unbalance"},
-        {"id": "same-new", "datasetId": "9", "date": "2026-07-10", "fault": "축", "faultType": "Unbalance"},
+        {"id": "wrong-fault", "datasetId": "9", "sensorNumber": "009", "date": "2026-01-01", "fault": "기타", "faultType": "Looseness"},
+        {"id": "other-equipment", "datasetId": "8", "sensorNumber": "008", "date": "2026-08-20", "fault": "축", "faultType": "Unbalance"},
+        {"id": "same-new", "datasetId": "9", "sensorNumber": "009", "date": "2026-07-10", "fault": "축", "faultType": "Unbalance"},
+        {"id": "same-day", "datasetId": "9", "sensorNumber": "009", "date": "2026-09-07", "fault": "축", "faultType": "Unbalance"},
     ]
 
-    result = select_ai_related_history("9", fft, items)
+    result = select_ai_related_history("9", fft, items, equipment={"id": "V009"})
 
-    assert [item["id"] for item in result["items"]] == [
-        "similar-new",
-        "same-new",
-        "same-old",
-    ]
+    assert [item["id"] for item in result["items"]] == ["same-new"]

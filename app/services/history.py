@@ -18,10 +18,12 @@ def matches_fault(item: dict[str, Any], tag: dict[str, str] | None) -> bool:
     return tag is not None and item.get("fault") == tag["fault"] and item.get("faultType") == tag["faultType"]
 
 
-def filter_by_cutoff(items: list[dict[str, Any]], cutoff: date | None) -> list[dict[str, Any]]:
+def filter_by_cutoff(items: list[dict[str, Any]], cutoff: date | None, *, strictly_before: bool = False) -> list[dict[str, Any]]:
     result=[]
     for item in items:
-        try: valid=cutoff is None or date.fromisoformat(str(item.get("date"))) <= cutoff
+        try:
+            item_date = date.fromisoformat(str(item.get("date")))
+            valid = cutoff is None or (item_date < cutoff if strictly_before else item_date <= cutoff)
         except ValueError: valid=False
         if valid: result.append(item)
     return sorted(result,key=lambda item:str(item.get("date")),reverse=True)
@@ -46,10 +48,30 @@ def select_dashboard_related_history(fft: dict[str, Any], items: list[dict[str, 
     return {"faultTag":tag,"items":filter_by_cutoff([item for item in items if matches_fault(item,tag)],cutoff)}
 
 
-def select_ai_related_history(dataset_id: str, fft: dict[str, Any], items: list[dict[str, Any]], selected_fault_type: str | None = None, until: date | None = None, limit: int = 5) -> dict[str, Any]:
+def _identity(value: Any) -> str:
+    return "".join(character for character in str(value or "").upper() if character.isalnum())
+
+
+def _same_equipment(item: dict[str, Any], equipment: dict[str, Any] | None, dataset_id: str) -> bool:
+    """Prefer stable sensor/equipment identifiers; retain datasetId only for legacy callers."""
+    if equipment:
+        equipment_id = _identity(equipment.get("id"))
+        sensor = _identity(equipment.get("sensorNumber"))
+        item_sensor = _identity(item.get("sensorNumber"))
+        if item_sensor and item_sensor in {equipment_id.removeprefix("V"), sensor}:
+            return True
+        item_name, equipment_name = _identity(item.get("equipmentName")), _identity(equipment.get("name"))
+        return bool(item_name and equipment_name and item_name == equipment_name)
+    return item.get("datasetId") == dataset_id
+
+
+def select_ai_related_history(dataset_id: str, fft: dict[str, Any], items: list[dict[str, Any]], selected_fault_type: str | None = None, until: date | None = None, limit: int = 5, *, equipment: dict[str, Any] | None = None) -> dict[str, Any]:
     measured=str(fft.get("measuredAt","")).split(" ")[0]
     try: cutoff=min(date.fromisoformat(measured),until) if until else date.fromisoformat(measured)
     except ValueError: cutoff=until
-    eligible=filter_by_cutoff(items,cutoff); tag=normalize_fault_tag(fft,selected_fault_type); same=[item for item in eligible if item.get("datasetId")==dataset_id]; similar=[item for item in eligible if matches_fault(item,tag)]
-    selected=filter_by_cutoff(deduplicate_history(same+similar),cutoff)[:limit]
-    return {"cutoffDate":cutoff.isoformat() if cutoff else None,"faultTag":tag,"sameEquipmentCount":len(same),"similarFaultCount":len(similar),"items":selected}
+    eligible=filter_by_cutoff(items,cutoff,strictly_before=True); tag=normalize_fault_tag(fft,selected_fault_type)
+    # AI comparison history is deliberately narrow: same equipment *and* same
+    # standardized fault type.  Do not invent a similar case when none exists.
+    selected=[item for item in eligible if _same_equipment(item,equipment,dataset_id) and matches_fault(item,tag)]
+    selected=deduplicate_history(selected)[:limit]
+    return {"cutoffDate":cutoff.isoformat() if cutoff else None,"faultTag":tag,"sameEquipmentCount":len(selected),"similarFaultCount":0,"items":selected}

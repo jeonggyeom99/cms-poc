@@ -17,6 +17,9 @@ from app.ai_analysis import (
     build_ai_context,
 )
 from app.reporting.ai import OpenAIReportGateway
+from app.data_loader import load_datasets, load_history
+from pathlib import Path
+import pytest
 
 
 def diagnosis() -> AiDiagnosis:
@@ -202,6 +205,7 @@ def history_item(record_id: str, record_date: str, dataset_id: str | None, fault
         "date": record_date,
         "datasetId": dataset_id,
         "equipmentName": f"History {record_id}",
+        "sensorNumber": "001" if record_id == "2" else "999",
         "fault": "축",
         "faultType": fault_type,
         "issue": "진동 상승",
@@ -233,12 +237,49 @@ def test_build_ai_context_summarizes_signals_and_excludes_future_history() -> No
     assert context["trend"]["metrics"][0]["change30Days"] == 0.5
     assert context["fft"]["diagnosis"]["diagnosis"] == "unbalance"
     assert context["relatedHistory"]["faultTag"] == {"fault": "축", "faultType": "Unbalance"}
-    assert [item["recordNumber"] for item in context["relatedHistory"]["items"]] == [2, 1]
-    assert [item["relation"] for item in context["relatedHistory"]["items"]] == ["similar_fault", "same_equipment"]
+    assert [item["recordNumber"] for item in context["relatedHistory"]["items"]] == [2]
+    assert [item["relation"] for item in context["relatedHistory"]["items"]] == ["same_equipment"]
     compact_context = json.dumps(context)
     assert "frequencies" not in compact_context
     assert "amplitudes" not in compact_context
     assert "2026-02-01" not in compact_context
+
+
+def test_repository_datasets_have_compact_ai_context_contract() -> None:
+    data_dir = Path(__file__).resolve().parents[1] / "data"
+    datasets, history = load_datasets(data_dir), load_history(data_dir)["items"]
+    expected_limitations = {
+        "2": "bearing_not_configured",
+        "3": "bearing_not_found",
+        "7": "bearing_not_configured",
+        "9": "bearing_not_configured",
+    }
+
+    assert set(datasets) == {str(number) for number in range(1, 10)}
+    for dataset_id, dataset in datasets.items():
+        fft = dataset["fft"]
+        context = build_ai_context(dataset_id, dataset, fft, history)
+        raw_spectrum = fft["analysis"]
+        assert context["fft"]["spectrum"]["status"] == raw_spectrum["status"]
+        assert context["fft"]["spectrum"]["amplitudeThreshold"] == raw_spectrum["amplitudeThreshold"]
+        assert len(context["fft"]["spectrum"]["peaks"]) == len(raw_spectrum["peaks"][:5])
+        for summarized, raw_peak in zip(context["fft"]["spectrum"]["peaks"], raw_spectrum["peaks"][:5]):
+            assert summarized["frequency"] == raw_peak["frequency"]
+            assert summarized["amplitude"] == pytest.approx(raw_peak["amplitude"])
+            assert summarized["count"] == raw_peak["count"]
+        assert context["levelAnalysis"]["comparisonAvailable"] == (dataset["levelAnalysis"]["status"] == "compared")
+        assert context["fft"]["diagnosticLimitation"] == (
+            None if dataset_id not in expected_limitations else {
+                "code": expected_limitations[dataset_id],
+                "label": {
+                    "bearing_not_configured": "베어링 모델 정보 누락",
+                    "bearing_not_found": "베어링 계수 마스터 미등록 또는 불일치",
+                }[expected_limitations[dataset_id]],
+                "message": context["fft"]["diagnosis"]["message"],
+            }
+        )
+        compact = json.dumps(context)
+        assert "frequencies" not in compact and "amplitudes" not in compact
 
 
 class CountingGateway:

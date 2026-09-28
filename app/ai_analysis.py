@@ -347,7 +347,11 @@ def _fault_summary(items: Any) -> list[dict[str, Any]]:
 
 def _fft_summary(fft: dict[str, Any]) -> dict[str, Any]:
     analysis = fft.get("analysis") if isinstance(fft.get("analysis"), dict) else {}
-    spectrum = analysis.get("spectrum") if isinstance(analysis.get("spectrum"), dict) else {}
+    # Records emitted by the CSV loader use the spectrum result directly as
+    # ``analysis``.  The first API contract used ``analysis.spectrum``.  Keep
+    # accepting the latter for persisted/older records, without dropping the
+    # direct result used by current datasets.
+    spectrum = analysis.get("spectrum") if isinstance(analysis.get("spectrum"), dict) else analysis
     diagnosis = analysis.get("diagnosis") if isinstance(analysis.get("diagnosis"), dict) else {}
     metadata = fft.get("metadata") if isinstance(fft.get("metadata"), dict) else {}
     peaks = []
@@ -420,6 +424,14 @@ def _fft_summary(fft: dict[str, Any]) -> dict[str, Any]:
             },
             "harmonics": _harmonic_summary(diagnosis.get("harmonics")),
             "faults": _fault_summary(diagnosis.get("faults")),
+            "bearing": {
+                "available": (diagnosis.get("bearing") or {}).get("available")
+                if isinstance(diagnosis.get("bearing"), dict) and isinstance((diagnosis.get("bearing") or {}).get("available"), bool)
+                else None,
+                "reason": _text((diagnosis.get("bearing") or {}).get("reason"), 80)
+                if isinstance(diagnosis.get("bearing"), dict)
+                else None,
+            },
         },
         "alertRecordCount": fft.get("alertRecordCount") if isinstance(fft.get("alertRecordCount"), int) else None,
         "recentAlertRecords": alerts,
@@ -433,9 +445,15 @@ def _level_summary(dataset: dict[str, Any]) -> dict[str, Any]:
     recommended = level.get("recommended") if isinstance(level.get("recommended"), dict) else {}
     configured = level.get("configured") if isinstance(level.get("configured"), dict) else {}
     difference = level.get("difference") if isinstance(level.get("difference"), dict) else {}
+    status = _text(level.get("status"), 40) or "unavailable"
     return {
-        "available": _text(level.get("status"), 40) == "available",
-        "status": _text(level.get("status"), 40) or "unavailable",
+        # ``compared`` is the successful configured-threshold comparison,
+        # not an unavailable state.  Keep calculation and comparison facts
+        # separate so a current caution state and a stable trend cannot read
+        # as contradictory evidence.
+        "available": status in {"compared", "recommendation_only"},
+        "status": status,
+        "comparisonAvailable": status == "compared",
         "period": {"start": _timestamp_text(level.get("windowStart")), "end": _timestamp_text(level.get("windowEnd"))},
         "usedPoints": level.get("usedPoints") if isinstance(level.get("usedPoints"), int) else None,
         "normalMean": _rounded(level.get("normalMean")),
@@ -487,17 +505,18 @@ def _history_item_summary(item: dict[str, Any], relation: str) -> dict[str, Any]
 
 def _related_history_summary(
     dataset_id: str,
+    dataset: dict[str, Any],
     fft: dict[str, Any],
     history_items: list[dict[str, Any]],
     selected_fault_type: str | None,
     until: date | None,
 ) -> dict[str, Any]:
     selected = select_ai_related_history(
-        dataset_id, fft, history_items, selected_fault_type, until, MAX_HISTORY_ITEMS
+        dataset_id, fft, history_items, selected_fault_type, until, MAX_HISTORY_ITEMS,
+        equipment=_equipment_summary(dataset),
     )
-    same_ids = {item.get("id") for item in selected["items"] if item.get("datasetId") == dataset_id}
     selected["items"] = [
-        _history_item_summary(item, "same_equipment" if item.get("id") in same_ids else "similar_fault")
+        _history_item_summary(item, "same_equipment")
         for item in selected["items"]
     ]
     return selected
@@ -520,6 +539,22 @@ def _equipment_summary(dataset: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _diagnostic_limitation(fft: dict[str, Any]) -> dict[str, str] | None:
+    diagnosis = fft.get("diagnosis") if isinstance(fft.get("diagnosis"), dict) else {}
+    bearing = diagnosis.get("bearing") if isinstance(diagnosis.get("bearing"), dict) else {}
+    reason = _text(bearing.get("reason"), 80)
+    labels = {
+        "bearing_not_configured": "베어링 모델 정보 누락",
+        "bearing_not_found": "베어링 계수 마스터 미등록 또는 불일치",
+        "bearing_master_ambiguous": "베어링 계수 마스터 중복",
+        "bearing_coefficients_invalid": "베어링 계수 마스터 값 오류",
+        "bearing_master_unavailable": "베어링 계수 마스터를 읽을 수 없음",
+    }
+    if reason not in labels:
+        return None
+    return {"code": reason, "label": labels[reason], "message": _text(diagnosis.get("message"), 500) or labels[reason]}
+
+
 def _data_quality_notes(
     trend: dict[str, Any], fft: dict[str, Any], history: dict[str, Any]
 ) -> list[str]:
@@ -528,7 +563,9 @@ def _data_quality_notes(
         notes.append("Trend 데이터가 없어 시간 추세를 함께 판단할 수 없습니다.")
     elif trend.get("analysis", {}).get("status") == "insufficient_data":
         notes.append("Trend 표본 수가 상승 추세 판정 기준에 부족합니다.")
-    if fft.get("diagnosis", {}).get("status") == "unavailable":
+    if fft.get("diagnosticLimitation"):
+        notes.append(f"FFT 결함 판정 제한: {fft['diagnosticLimitation']['label']}.")
+    elif fft.get("diagnosis", {}).get("status") == "unavailable":
         notes.append("선택 FFT의 규칙 기반 진단이 불가하거나 필요한 설비 정보가 부족합니다.")
     if not fft.get("spectrum", {}).get("peaks"):
         notes.append("선택 FFT에서 유의한 Peak 요약이 없습니다.")
@@ -580,8 +617,9 @@ def build_ai_context(
 
     trend = _trend_summary(trend_dataset)
     fft_summary = _fft_summary(analyzed_fft)
+    fft_summary["diagnosticLimitation"] = _diagnostic_limitation(fft_summary)
     related_history = _related_history_summary(
-        dataset_id, analyzed_fft, history_items, selected_fault_type, until
+        dataset_id, trend_dataset, analyzed_fft, history_items, selected_fault_type, until
     )
     return {
         "promptVersion": PROMPT_VERSION,
