@@ -10,7 +10,7 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=equipment-ai-v1";
+} from "../analysis/ai.js?v=equipment-ai-v2";
 import {
   bindEmailDraft,
   resetEmailDraft,

@@ -819,8 +819,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=equipment-ai-v1"' in response.text
-    assert 'controller.js?v=equipment-ai-v1' in app_module
+    assert 'type="module" src="/static/app.js?v=equipment-ai-v2"' in response.text
+    assert 'controller.js?v=equipment-ai-v2' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -859,6 +859,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="ai-analysis-run"' in response.text
     assert 'id="ai-analysis-details"' in response.text
     assert 'id="ai-analysis-reference"' in response.text
+    assert 'id="ai-analysis-details-title"' in response.text
     assert 'id="chat-panel"' in response.text
     assert 'id="chat-open"' in response.text
     assert 'id="chat-form"' in response.text
@@ -868,7 +869,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
         response.text.index('<section class="chart-grid"')
     ]
     assert equipment_card.index('id="overview-fft-measured-at"') < equipment_card.index('class="equipment-ai-diagnosis"')
-    assert 'class="card ai-analysis-card"' not in response.text
+    assert 'id="ai-analysis-details"' not in equipment_card
+    assert 'class="card ai-analysis-card"' in response.text
     assert 'id="fft-analysis-description"' not in response.text
 
 

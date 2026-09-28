@@ -270,22 +270,24 @@ h1 {
 }
 
 .ai-analysis-reference {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 750;
 }
 
-.equipment-ai-diagnosis .analysis-lead {
-  margin: 8px 0 14px;
-}
-
-.equipment-ai-diagnosis .ai-analysis-details {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.equipment-ai-diagnosis .ai-analysis-details > .ai-analysis-details {
-  display: contents;
+.ai-analysis-summary {
+  display: -webkit-box;
+  max-width: 880px;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: #40545f;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .equipment-summary {
@@ -2400,10 +2402,6 @@ body.graph-modal-open {
   .overview-fft-result {
     flex-basis: auto;
     width: 100%;
-  }
-
-  .equipment-ai-diagnosis .ai-analysis-details {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .analysis-grid {
