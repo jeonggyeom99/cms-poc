@@ -10,17 +10,17 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=korean-ui-v1";
+} from "../analysis/ai.js?v=equipment-ai-v1";
 import {
   bindEmailDraft,
   resetEmailDraft,
   setEmailDraftAvailable,
-} from "../report/email-draft.js?v=korean-ui-v1";
+} from "../report/email-draft.js?v=equipment-ai-v1";
 import {
   bindPptExport,
   resetPptExport,
   setPptExportAvailable,
-} from "../report/ppt-export.js?v=korean-ui-v1";
+} from "../report/ppt-export.js?v=equipment-ai-v1";
 import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
 import {
   bindPeriodTabs,
@@ -30,6 +30,7 @@ import {
 import {
   cacheFftRecord,
   createFftSelectionRequest,
+  getAiDiagnosisReference,
   getCachedFftRecord,
   getCurrentPeriod,
   getDashboardData,
@@ -42,11 +43,12 @@ import {
   resetFftRecordState,
   resetSelectedTrendMetrics,
   resetSelectedBearingFaultType,
+  setAiDiagnosisReference,
   setCurrentPeriod,
   setDashboardData,
   setSelectedBearingFaultType,
   setSelectedFftRecord,
-} from "../core/state.js?v=fft-current-history-v1";
+} from "../core/state.js?v=equipment-ai-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
 import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=fft-current-history-v1";
@@ -82,12 +84,14 @@ let relatedHistoryRequest = 0;
 
 function buildReportRequest() {
   const dashboardData = getDashboardData();
-  const recordId = getSelectedFftRecord()?.recordId;
+  const reference = getAiDiagnosisReference();
+  const recordId = reference?.record?.recordId;
   if (!dashboardData?.meta?.datasetId || !Number.isInteger(recordId)) return null;
   return {
     datasetId: dashboardData.meta.datasetId,
     recordId,
-    selectedFaultType: getSelectedBearingFaultType(),
+    selectedFaultType: reference.selectedFaultType,
+    fftRecord: reference.record,
     until: requestedUntil(),
     force: false,
   };
@@ -101,10 +105,20 @@ function resetReportActionsFor(fft) {
   setEmailDraftAvailable(available);
 }
 
-function resetAiAnalysisFor(fft) {
+function diagnosisBaseline() {
+  const reference = getAiDiagnosisReference();
+  return reference?.record ? {
+    dashboard: getDashboardData(),
+    fft: reference.record,
+    selectedFaultType: reference.selectedFaultType,
+  } : null;
+}
+
+function resetAiAnalysisForEquipment() {
   aiAnalysisRequest += 1;
-  resetAiAnalysis({ available: Boolean(fft?.recordId) });
-  resetReportActionsFor(fft);
+  const baseline = diagnosisBaseline();
+  resetAiAnalysis({ available: Boolean(baseline?.fft?.recordId), baseline });
+  resetReportActionsFor(baseline?.fft);
 }
 
 async function loadRelatedHistoryFor(fft, selectedBearingFaultType) {
@@ -208,20 +222,26 @@ function replaceDatasetIdInUrl(datasetId) {
   window.history.replaceState(window.history.state, "", url);
 }
 
-async function runAiAnalysis(force) {
+async function runAiAnalysis(force, pinCurrentSelection = false) {
   const dashboardData = getDashboardData();
-  const fft = getSelectedFftRecord();
+  if (pinCurrentSelection) {
+    setAiDiagnosisReference(getSelectedFftRecord(), getSelectedBearingFaultType());
+    resetReportActionsFor(getAiDiagnosisReference()?.record);
+  }
+  const reference = getAiDiagnosisReference();
+  const fft = reference?.record;
+  const baseline = diagnosisBaseline();
   if (!dashboardData?.meta?.datasetId || !fft?.recordId) {
-    resetAiAnalysisFor(null);
+    resetAiAnalysisForEquipment();
     return;
   }
 
   const requestId = ++aiAnalysisRequest;
-  setAiAnalysisLoading();
+  setAiAnalysisLoading(baseline);
   try {
     const payload = await fetchAiAnalysis(dashboardData.meta.datasetId, {
       recordId: fft.recordId,
-      selectedFaultType: getSelectedBearingFaultType(),
+      selectedFaultType: reference.selectedFaultType,
       until: requestedUntil(),
       force,
     });
@@ -230,7 +250,10 @@ async function runAiAnalysis(force) {
   } catch (error) {
     if (requestId !== aiAnalysisRequest) return;
     console.error("AI analysis loading failed", error);
-    renderAiAnalysisError(error.message || "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    renderAiAnalysisError(
+      error.message || "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      baseline,
+    );
   }
 }
 
@@ -264,7 +287,6 @@ async function selectFftRecord(recordId) {
     resetSelectedBearingFaultType(record);
     renderFft();
     syncDashboardChatContext();
-    resetAiAnalysisFor(record);
     setFftHistoryStatus(`${fft.records.length.toLocaleString("ko-KR")}개 측정 기록`);
     if (getExpandedGraph() === "fft") {
       renderExpandedGraph();
@@ -285,7 +307,7 @@ export async function loadDashboard(datasetId) {
   resetFftRecordState();
   resetRelatedHistoryExpansion();
   resetFftRecordFilters();
-  resetAiAnalysisFor(null);
+  resetAiAnalysisForEquipment();
   select.disabled = true;
   setExpandButtonEnabled("trend", false);
   setExpandButtonEnabled("fft", false);
@@ -302,12 +324,14 @@ export async function loadDashboard(datasetId) {
     syncPeriodTabs(getCurrentPeriod());
     resetSelectedTrendMetrics(dashboardData);
     resetSelectedBearingFaultType(dashboardData.fft);
+    setAiDiagnosisReference(getSelectedFftRecord(), getSelectedBearingFaultType());
     populateSummary(dashboardData);
     renderTrend(getCurrentPeriod(), dashboardData);
     renderFft();
     syncDashboardChatContext();
     renderLevelAnalysis(dashboardData);
-    resetAiAnalysisFor(dashboardData.fft);
+    resetAiAnalysisForEquipment();
+    void runAiAnalysis(false);
   } catch (error) {
     console.error("Dashboard data loading failed", error);
     setExpandButtonEnabled("trend", false);
@@ -389,7 +413,7 @@ export function initializeDashboardApplication() {
   });
   bindTrendMetricSelector(handleTrendMetricSelectionChange);
   bindRelatedHistory();
-  bindAiAnalysis(runAiAnalysis);
+  bindAiAnalysis((force) => runAiAnalysis(force, true));
   bindPptExport(buildReportRequest);
   bindEmailDraft(buildReportRequest);
   document.getElementById("fft-analysis-details").addEventListener("click", (event) => {
@@ -398,7 +422,6 @@ export function initializeDashboardApplication() {
     setSelectedBearingFaultType(button.dataset.bearingFault);
     renderFft();
     syncDashboardChatContext();
-    resetAiAnalysisFor(getSelectedFftRecord());
     if (getExpandedGraph() === "fft") renderExpandedGraph();
   });
   document.getElementById("fft-record-browser").addEventListener("click", (event) => {

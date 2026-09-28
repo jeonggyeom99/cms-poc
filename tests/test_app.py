@@ -814,12 +814,13 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")
-    app_module = get(target_app, "/static/app.js?v=fft-current-history-v2")
+    app_module = (Path(__file__).resolve().parents[1] / "app/static/app.js").read_text(
+        encoding="utf-8"
+    )
 
     assert response.status_code == 200
-    assert app_module.status_code == 200
-    assert 'type="module" src="/static/app.js?v=fft-current-history-v2"' in response.text
-    assert 'controller.js?v=fft-current-history-v2' in app_module.text
+    assert 'type="module" src="/static/app.js?v=equipment-ai-v1"' in response.text
+    assert 'controller.js?v=equipment-ai-v1' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -853,19 +854,21 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-related-history"' in response.text
     assert 'id="fft-related-history-count"' in response.text
     assert 'id="fft-related-history-list"' in response.text
-    assert "<h2>AI 분석</h2>" in response.text
+    assert '<h2 id="ai-analysis-title">AI 분석</h2>' in response.text
     assert 'id="ai-analysis-result"' in response.text
     assert 'id="ai-analysis-run"' in response.text
     assert 'id="ai-analysis-details"' in response.text
+    assert 'id="ai-analysis-reference"' in response.text
     assert 'id="chat-panel"' in response.text
     assert 'id="chat-open"' in response.text
     assert 'id="chat-form"' in response.text
     assert 'id="chat-messages"' in response.text
-    analysis_grid = response.text[
-        response.text.index('<section class="analysis-grid"'):
-        response.text.index('<p class="mock-notice"')
+    equipment_card = response.text[
+        response.text.index('<section class="equipment-overview"'):
+        response.text.index('<section class="chart-grid"')
     ]
-    assert analysis_grid.index('class="card ai-analysis-card"') < analysis_grid.index('id="fft-related-history"')
+    assert equipment_card.index('id="overview-fft-measured-at"') < equipment_card.index('class="equipment-ai-diagnosis"')
+    assert 'class="card ai-analysis-card"' not in response.text
     assert 'id="fft-analysis-description"' not in response.text
 
 
@@ -1004,6 +1007,11 @@ def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -
     assert response.json()["analysis"]["riskLevel"] == "caution"
     assert len(gateway.contexts) == 1
     context = gateway.contexts[0]
+    assert context["analysisTools"] == {
+        "trend": "ready",
+        "fft": "ready",
+        "bearingFft": "ready",
+    }
     assert context["fft"]["recordId"] == 2
     assert context["fft"]["measurement"]["measureMode"]["code"] == "2"
     trend_metrics = {metric["key"]: metric for metric in context["trend"]["metrics"]}

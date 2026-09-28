@@ -16,6 +16,7 @@ from typing import Any, Literal, Protocol
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.analysis.trend import summarize_trend_metrics
+from app.services.analysis import bearing_fft_tool, fft_tool, trend_tool
 from app.services.history import normalize_fault_tag, select_ai_related_history
 
 
@@ -545,18 +546,55 @@ def build_ai_context(
     until: date | None = None,
 ) -> dict[str, Any]:
     """Build a compact, evidence-only context without raw FFT arrays."""
-    trend = _trend_summary(dataset)
-    fft_summary = _fft_summary(fft)
+    trend_result = trend_tool(dataset, None, None)
+    trend_dataset = dataset
+    if trend_result.get("status") == "ready":
+        trend_dataset = {
+            **dataset,
+            "trend": trend_result["trend"],
+            "levelAnalysis": trend_result["level"],
+        }
+
+    record_id = fft.get("recordId") if isinstance(fft.get("recordId"), int) else None
+    fft_result = fft_tool(dataset, record_id, None, None)
+    analyzed_fft = fft
+    if fft_result.get("status") == "ready":
+        analyzed_fft = {
+            **(dataset.get("fft") if isinstance(dataset.get("fft"), dict) else {}),
+            **fft_result["record"],
+        }
+
+    measure_mode = (
+        ((analyzed_fft.get("metadata") or {}).get("measureMode") or {}).get("code")
+        if isinstance(analyzed_fft.get("metadata"), dict)
+        else None
+    )
+    bearing_result: dict[str, Any] = {"status": "not_applicable"}
+    if measure_mode in {"0", "2"}:
+        bearing_result = bearing_fft_tool(dataset, record_id, None, None)
+        if bearing_result.get("status") == "ready":
+            analyzed_fft = {
+                **(dataset.get("fft") if isinstance(dataset.get("fft"), dict) else {}),
+                **bearing_result["record"],
+            }
+
+    trend = _trend_summary(trend_dataset)
+    fft_summary = _fft_summary(analyzed_fft)
     related_history = _related_history_summary(
-        dataset_id, fft, history_items, selected_fault_type, until
+        dataset_id, analyzed_fft, history_items, selected_fault_type, until
     )
     return {
         "promptVersion": PROMPT_VERSION,
         "scope": "선택한 FFT 레코드에 대한 CMS 보조 분석",
-        "equipment": _equipment_summary(dataset),
+        "equipment": _equipment_summary(trend_dataset),
+        "analysisTools": {
+            "trend": trend_result.get("status"),
+            "fft": fft_result.get("status"),
+            "bearingFft": bearing_result.get("status"),
+        },
         "trend": trend,
         "fft": fft_summary,
-        "levelAnalysis": _level_summary(dataset),
+        "levelAnalysis": _level_summary(trend_dataset),
         "relatedHistory": related_history,
         "dataQuality": {"notes": _data_quality_notes(trend, fft_summary, related_history)},
     }

@@ -255,6 +255,39 @@ h1 {
   gap: 32px;
 }
 
+.equipment-ai-diagnosis {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(31, 61, 88, 0.14);
+}
+
+.equipment-ai-diagnosis .card-header h2 {
+  margin: 3px 0 0;
+  color: var(--navy);
+  font-size: 20px;
+}
+
+.ai-analysis-reference {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.equipment-ai-diagnosis .analysis-lead {
+  margin: 8px 0 14px;
+}
+
+.equipment-ai-diagnosis .ai-analysis-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.equipment-ai-diagnosis .ai-analysis-details > .ai-analysis-details {
+  display: contents;
+}
+
 .equipment-summary {
   min-width: 0;
 }
@@ -2147,6 +2180,13 @@ body.graph-modal-open {
   font-size: 12px;
 }
 
+.ai-analysis-notice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .ai-analysis-list {
   display: grid;
   gap: 8px;
@@ -2360,6 +2400,10 @@ body.graph-modal-open {
   .overview-fft-result {
     flex-basis: auto;
     width: 100%;
+  }
+
+  .equipment-ai-diagnosis .ai-analysis-details {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .analysis-grid {

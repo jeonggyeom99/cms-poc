@@ -34,6 +34,41 @@ def test_dashboard_report_actions_and_email_dialog_are_wired() -> None:
     assert "captureDashboardCharts" in email_draft
 
 
+def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
+    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+    controller = (ROOT / "app/static/modules/dashboard/controller.js").read_text(
+        encoding="utf-8"
+    )
+    capture = (ROOT / "app/static/modules/report/chart-capture.js").read_text(
+        encoding="utf-8"
+    )
+
+    equipment = html[
+        html.index('<section class="equipment-overview"'):
+        html.index('<section class="chart-grid"')
+    ]
+    assert 'class="equipment-ai-diagnosis"' in equipment
+    assert 'id="ai-analysis-reference"' in equipment
+    assert 'class="card ai-analysis-card"' not in html
+
+    selection = controller[
+        controller.index("async function selectFftRecord"):
+        controller.index("export async function loadDashboard")
+    ]
+    bearing_click = controller[
+        controller.index('document.getElementById("fft-analysis-details")'):
+        controller.index('document.getElementById("fft-record-browser")')
+    ]
+    assert "resetAiAnalysis" not in selection
+    assert "setAiDiagnosisReference" not in selection
+    assert "resetAiAnalysis" not in bearing_click
+    assert "setAiDiagnosisReference" not in bearing_click
+    assert "bindAiAnalysis((force) => runAiAnalysis(force, true))" in controller
+    assert "setAiDiagnosisReference(getSelectedFftRecord(), getSelectedBearingFaultType())" in controller
+    assert "fftRecord: reference.record" in controller
+    assert "captureReferenceFft" in capture
+
+
 def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:
     chart = (ROOT / "app/static/modules/fft/chart.js").read_text(encoding="utf-8")
 

@@ -233,8 +233,8 @@ def test_build_ai_context_summarizes_signals_and_excludes_future_history() -> No
     assert context["trend"]["metrics"][0]["change30Days"] == 0.5
     assert context["fft"]["diagnosis"]["diagnosis"] == "unbalance"
     assert context["relatedHistory"]["faultTag"] == {"fault": "축", "faultType": "Unbalance"}
-    assert [item["recordNumber"] for item in context["relatedHistory"]["items"]] == [1, 2]
-    assert [item["relation"] for item in context["relatedHistory"]["items"]] == ["same_equipment", "similar_fault"]
+    assert [item["recordNumber"] for item in context["relatedHistory"]["items"]] == [2, 1]
+    assert [item["relation"] for item in context["relatedHistory"]["items"]] == ["similar_fault", "same_equipment"]
     compact_context = json.dumps(context)
     assert "frequencies" not in compact_context
     assert "amplitudes" not in compact_context

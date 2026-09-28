@@ -1,5 +1,5 @@
 import { fetchDiagnosticPpt } from "../api/ppt-report.js?v=diagnostic-ppt-v1";
-import { captureDashboardCharts } from "./chart-capture.js?v=report-capture-v1";
+import { captureDashboardCharts } from "./chart-capture.js?v=equipment-ai-v1";
 
 const READY_LABEL = "진단 보고서 저장";
 const BUSY_LABEL = "진단 보고서 생성 중...";
@@ -63,7 +63,10 @@ async function exportDiagnosticPpt() {
   renderButton();
   setStatus("추세와 주파수 그래프를 캡처하여 진단 보고서를 생성하고 있습니다.", "busy");
   try {
-    const { trendImageDataUrl, fftImageDataUrl } = await captureDashboardCharts();
+    const { trendImageDataUrl, fftImageDataUrl } = await captureDashboardCharts({
+      fft: request.fftRecord,
+      selectedFaultType: request.selectedFaultType,
+    });
     const payload = await fetchDiagnosticPpt(request.datasetId, {
       recordId: request.recordId,
       selectedFaultType: request.selectedFaultType,

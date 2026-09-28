@@ -7,6 +7,7 @@ let fftRecordCache = new Map();
 let fftSelectionRequest = 0;
 let selectedBearingFaultType = null;
 let selectedFftRecord = null;
+let aiDiagnosisReference = null;
 
 export function getDashboardData() {
   return dashboardData;
@@ -65,6 +66,7 @@ export function resetFftRecordState() {
   fftRecordCache = new Map();
   selectedBearingFaultType = null;
   selectedFftRecord = null;
+  aiDiagnosisReference = null;
 }
 
 export function getSelectedFftRecord() {
@@ -73,6 +75,15 @@ export function getSelectedFftRecord() {
 
 export function setSelectedFftRecord(record) {
   selectedFftRecord = record;
+}
+
+export function getAiDiagnosisReference() {
+  return aiDiagnosisReference;
+}
+
+export function setAiDiagnosisReference(record, selectedFaultType = null) {
+  aiDiagnosisReference = record?.recordId ? { record, selectedFaultType } : null;
+  return aiDiagnosisReference;
 }
 
 export function getSelectedBearingFaultType() {

@@ -7,6 +7,7 @@ import pytest
 
 from app.data_loader import HISTORY_COLUMNS, HISTORY_FILE_NAME, load_history
 from app.main import create_app
+from app.services.history import select_ai_related_history
 
 
 REPOSITORY_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -169,3 +170,28 @@ def test_history_api_reports_missing_and_invalid_csv(tmp_path: Path) -> None:
     assert missing_response.json()["detail"] == "CMS 이력 CSV를 찾을 수 없습니다."
     assert invalid_response.status_code == 422
     assert "21개 컬럼" in invalid_response.json()["detail"]
+
+
+def test_ai_related_history_is_globally_sorted_after_combining_relations() -> None:
+    fft = {
+        "measuredAt": "2026-09-07 12:00:00",
+        "analysis": {
+            "diagnosis": {
+                "status": "analyzed",
+                "diagnosis": "unbalance",
+            }
+        },
+    }
+    items = [
+        {"id": "same-old", "datasetId": "9", "date": "2026-01-01", "fault": "기타", "faultType": "Looseness"},
+        {"id": "similar-new", "datasetId": "8", "date": "2026-08-20", "fault": "축", "faultType": "Unbalance"},
+        {"id": "same-new", "datasetId": "9", "date": "2026-07-10", "fault": "축", "faultType": "Unbalance"},
+    ]
+
+    result = select_ai_related_history("9", fft, items)
+
+    assert [item["id"] for item in result["items"]] == [
+        "similar-new",
+        "same-new",
+        "same-old",
+    ]

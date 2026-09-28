@@ -1,5 +1,5 @@
 import { fetchEmailDraft } from "../api/email-draft.js?v=email-draft-v1";
-import { captureDashboardCharts } from "./chart-capture.js?v=report-capture-v1";
+import { captureDashboardCharts } from "./chart-capture.js?v=equipment-ai-v1";
 
 const state = {
   available: false,
@@ -190,7 +190,10 @@ async function openEmailDraft() {
   setBusy(true);
   status("추세와 주파수 그래프를 준비하고 인공지능 이메일 초안을 만들고 있습니다.");
   try {
-    const images = await captureDashboardCharts();
+    const images = await captureDashboardCharts({
+      fft: request.fftRecord,
+      selectedFaultType: request.selectedFaultType,
+    });
     const payload = await fetchEmailDraft(request.datasetId, request);
     if (requestId !== state.requestId) return;
     renderDraft(payload?.draft, images);

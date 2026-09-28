@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=fft-current-history-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=equipment-ai-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=fft-current-history-v2"></script>
+    <script type="module" src="/static/app.js?v=equipment-ai-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -48,6 +48,27 @@
               <small id="overview-fft-measured-at">기준 측정일시 --</small>
             </aside>
           </div>
+          <section class="equipment-ai-diagnosis" aria-labelledby="ai-analysis-title">
+            <div class="card-header">
+              <div>
+                <span class="eyebrow">설비 단위 종합 진단</span>
+                <h2 id="ai-analysis-title">AI 분석</h2>
+              </div>
+              <span class="result-chip unknown" id="ai-analysis-result">분석 대기</span>
+            </div>
+            <p class="ai-analysis-reference" id="ai-analysis-reference">진단 기준 측정일시 --</p>
+            <p class="analysis-lead" id="ai-analysis-description">설비를 선택하면 기본 주파수 기록을 기준으로 자동 분석합니다.</p>
+            <div class="analysis-placeholder ai-analysis-placeholder" id="ai-analysis-details" aria-live="polite">
+              <strong>인공지능 분석에 사용할 설비 데이터를 불러오는 중입니다.</strong>
+              <p>추세, 기준값, 주파수 및 과거 이력을 종합해 표시합니다.</p>
+            </div>
+            <div class="ai-analysis-actions">
+              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>다시 분석</button>
+              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
+              <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
+            </div>
+            <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
+          </section>
         </section>
 
         <section class="chart-grid" aria-label="진동 그래프">
@@ -206,24 +227,6 @@
                   <p>좌측 목록에서 날짜별 주파수 기록을 선택하면 분석 결과를 표시합니다.</p>
                 </div>
               </section>
-            </div>
-          </article>
-
-          <article class="card ai-analysis-card">
-            <div class="card-header">
-              <h2>AI 분석</h2>
-              <span class="result-chip unknown" id="ai-analysis-result">분석 대기</span>
-            </div>
-            <p class="analysis-lead" id="ai-analysis-description">선택한 주파수 기록, 추세, 설비 정보 및 연관 과거 이력을 종합해 분석합니다.</p>
-            <div class="ai-analysis-actions">
-              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>인공지능 분석 실행</button>
-              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
-              <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
-            </div>
-            <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
-            <div class="analysis-placeholder ai-analysis-placeholder" id="ai-analysis-details" aria-live="polite">
-              <strong>인공지능 분석에 사용할 주파수 기록을 불러오는 중입니다.</strong>
-              <p>선택한 측정 기록을 기준으로 분석을 실행할 수 있습니다.</p>
             </div>
           </article>
 

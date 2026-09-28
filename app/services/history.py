@@ -51,5 +51,5 @@ def select_ai_related_history(dataset_id: str, fft: dict[str, Any], items: list[
     try: cutoff=min(date.fromisoformat(measured),until) if until else date.fromisoformat(measured)
     except ValueError: cutoff=until
     eligible=filter_by_cutoff(items,cutoff); tag=normalize_fault_tag(fft,selected_fault_type); same=[item for item in eligible if item.get("datasetId")==dataset_id]; similar=[item for item in eligible if matches_fault(item,tag)]
-    selected=deduplicate_history(same+similar)[:limit]
+    selected=filter_by_cutoff(deduplicate_history(same+similar),cutoff)[:limit]
     return {"cutoffDate":cutoff.isoformat() if cutoff else None,"faultTag":tag,"sameEquipmentCount":len(same),"similarFaultCount":len(similar),"items":selected}
