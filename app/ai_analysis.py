@@ -24,7 +24,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v4"
+PROMPT_VERSION = "cms-dashboard-analysis-v5"
 
 
 def _camel_case(name: str) -> str:
@@ -666,13 +666,15 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
     headline = result.headline.lower()
     if len(result.headline) > 140:
         issues.append("headline은 핵심 진단과 확인 조치만 담아 140자 이내로 작성하세요.")
+    if not any(word in headline for word in ("확인", "점검", "재측정", "검토")):
+        issues.append("headline에 구체적인 확인 또는 재측정 조치를 연결하세요.")
     trend = context.get("trend") or {}
     metrics = trend.get("metrics") or []
     velocity = next((item for item in metrics if item.get("key") == "velocity"), None)
     if velocity and velocity.get("thresholdState") == "caution" and "주의" not in headline:
         issues.append("headline에 속도 진동의 주의 구간을 명시하세요.")
     if trend.get("analysis", {}).get("status") == "rising" and not any(
-        word in headline for word in ("상승", "증가", "우상향")
+        word in headline for word in ("상승", "증가", "우상향", "올라", "높아", "커져")
     ):
         issues.append("headline에 상승 추세를 명시하세요.")
 
@@ -704,12 +706,12 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
                 issues.append("첫 번째 likelyCause를 유의한 베어링 결함 유형과 일치시키세요.")
             frequency = harmonic.get("detectedFrequency")
             amplitude = harmonic.get("amplitude")
-            if order is not None and f"{order}x" not in headline:
-                issues.append("headline에 결함 고조파 순서를 명시하세요.")
-            if frequency is not None and not _mentions_measurement(headline, frequency, "Hz"):
-                issues.append("headline에 실제 결함 주파수(Hz)를 포함하세요.")
-            if amplitude is not None and not _mentions_measurement(headline, amplitude, "g"):
-                issues.append("headline에 실제 피크 진폭(g)을 포함하세요.")
+            if order is not None and f"{order}x" not in evidence_text:
+                issues.append("fftFindings에 결함 고조파 순서를 명시하세요.")
+            if frequency is not None and not _mentions_measurement(evidence_text, frequency, "Hz"):
+                issues.append("fftFindings에 실제 결함 주파수(Hz)를 포함하세요.")
+            if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "g"):
+                issues.append("fftFindings에 실제 피크 진폭(g)을 포함하세요.")
             if not any(word in evidence_text for word in cause_names):
                 issues.append("fftFindings에 해당 베어링 결함 유형을 명시하세요.")
             if not any(word in rationale for word in cause_names):
@@ -747,10 +749,11 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
             if one_x and one_x.get("detectedFrequency") is not None:
                 frequency = one_x["detectedFrequency"]
                 amplitude = one_x.get("amplitude")
-                if "1x" not in headline or not _mentions_measurement(headline, frequency, "Hz"):
-                    issues.append("headline에 속도 FFT의 1X 주파수(Hz)를 포함하세요.")
-                if amplitude is not None and not _mentions_measurement(headline, amplitude, "mm/s"):
-                    issues.append("headline에 속도 FFT의 1X 진폭(mm/s)을 포함하세요.")
+                evidence_text = " ".join(finding.detail.lower() for finding in result.fft_findings)
+                if "1x" not in evidence_text or not _mentions_measurement(evidence_text, frequency, "Hz"):
+                    issues.append("fftFindings에 속도 FFT의 1X 주파수(Hz)를 포함하세요.")
+                if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "mm/s"):
+                    issues.append("fftFindings에 속도 FFT의 1X 진폭(mm/s)을 포함하세요.")
 
     if mode_code in {"0", "2"} and diagnosis.get("status") != "analyzed":
         limitations = " ".join(result.counter_evidence).lower()
@@ -788,17 +791,17 @@ configured thresholds. Include counter-evidence whenever the supplied evidence
 is incomplete or does not support the leading cause. Keep each list concise and
 practical.
 
-Write headline in at most 140 Korean characters as a short, useful synthesis
-for an operator, not a list of states
-or a count of FFT peaks. Connect the velocity Trend state (thresholdState and
-analysis.status) to the SELECTED FFT record's measurement mode, specific
-diagnostic frequency and amplitude, and the most supported possible cause.
-Name the relevant evidence in fftFindings and explain the same connection in the
-leading likelyCause.rationale. Give a practical confirmation step in
-recommendedActions. Say "후보", "가능성" or equivalent; never claim a confirmed
-fault from these measurements alone. Do not call the trend rising unless
-trend.analysis.status is rising. If Trend or diagnostic FFT evidence is missing,
-say what cannot be inferred instead of inventing a connection.
+headline은 현장 담당자가 바로 읽을 수 있는 자연스러운 한국어 1~2문장으로 작성한다.
+140자를 넘기지 말고, 가능하면 100자 안팎으로 쓴다. 속도 진동의 현재 수준과
+최근 변화, 선택한 FFT가 시사하는 원인 후보, 확인할 행동을 흐름 있게 연결한다.
+측정값을 나열하거나 입력 필드명·영문 상태값을 그대로 옮기지 않는다.
+"후보를 지지합니다" 같은 번역투 대신 "의심됩니다", "가능성이 있어 확인이
+필요합니다"처럼 자연스럽게 쓴다. 고장 확정 표현은 피한다.
+1X, Hz, g 등 상세 측정값은 headline에 억지로 넣지 말고 fftFindings에 적는다.
+첫 likelyCause.rationale은 같은 결함 근거를 설명하고, recommendedActions에는
+재측정 또는 현장 점검처럼 실행할 수 있는 조치를 제시한다.
+Trend 분석 상태가 rising일 때만 상승이라고 쓰고, 진단 FFT 근거가 없으면
+원인을 만들어 내지 말고 판단의 제한을 알린다.
 
 For acceleration FFT (measureMode 0 or 2), a bearing cause requires diagnosis.status
 analyzed and a significant harmonic in the corresponding fault entry. BPFI means
@@ -815,9 +818,9 @@ unavailable, describe that limitation in counterEvidence and avoid a specific
 bearing cause. When the Trend rises and the FFT diagnosis supports a cause,
 describe them as jointly warranting inspection, not proof of causation.
 
-Example only when the supplied values support it: "속도 진동이 주의 구간에서 상승
-중이며, 가속도 FFT의 BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.
-베어링 내륜 결함 후보로 보고 운전 조건 확인과 재측정이 필요합니다."
+근거가 일치할 때 headline 예시: "속도 진동이 최근 올라 주의 수준에 이르렀습니다.
+가속도 FFT에서 베어링 내륜 결함이 의심돼 같은 조건에서 재측정이 필요합니다."
+이 경우 BPFI 1X의 실제 주파수(Hz)와 진폭(g)은 fftFindings에 기록한다.
 """
 
 

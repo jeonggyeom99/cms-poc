@@ -291,10 +291,7 @@ def test_ai_context_exposes_inner_race_harmonic_separately_from_shaft_1x() -> No
 
 def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_bearing_cause() -> None:
     expected = diagnosis().model_copy(update={
-        "headline": (
-            "속도 진동이 주의 구간에서 상승 중이며, 가속도 FFT의 BPFI 1X 결함주파수 "
-            "147 Hz에서 0.7 g 피크가 확인됩니다. 베어링 내륜 결함 후보로 보고 재측정이 필요합니다."
-        ),
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
         "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
         "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
     })
@@ -306,12 +303,11 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
     rounded_harmonic["detectedFrequency"] = 141.25
     rounded_harmonic["amplitude"] = 2.509788
     rounded = expected.model_copy(update={
-        "headline": "속도 진동이 주의 구간에서 상승 중이며 가속도 FFT의 BPFI 1X 141.25 Hz 피크가 2.51 g입니다. 내륜 결함 후보로 재측정이 필요합니다.",
         "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 141.25 Hz에서 2.51 g 피크")],
         "likely_causes": [AiLikelyCause(cause="내륜 결함 후보", confidence="medium", rationale="BPFI 1X 141.25 Hz의 2.51 g 피크")],
     })
     assert diagnosis_quality_issues(rounded_context, rounded) == []
-    wrong_frequency = rounded.model_copy(update={"headline": rounded.headline.replace("141.25 Hz", "120 Hz")})
+    wrong_frequency = rounded.model_copy(update={"fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 120 Hz에서 2.51 g 피크")]})
     assert any("주파수" in issue for issue in diagnosis_quality_issues(rounded_context, wrong_frequency))
     verbose = expected.model_copy(update={"headline": expected.headline + " 추가 설명" * 30})
     assert any("140자" in issue for issue in diagnosis_quality_issues(bearing_context, verbose))
@@ -325,7 +321,8 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
     velocity_context = build_ai_context("1", sample_dataset(), sample_fft(), [])
     assert any("베어링" in issue for issue in diagnosis_quality_issues(velocity_context, expected))
     velocity_expected = diagnosis().model_copy(update={
-        "headline": "속도 진동이 주의 구간에서 상승 중이며 속도 FFT의 1X 30 Hz 피크가 1.2 mm/s입니다. 불평형 후보로 보고 재측정이 필요합니다."
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
+        "fft_findings": [AiFinding(heading="1X", detail="속도 FFT 1X 30 Hz에서 1.2 mm/s 피크가 확인됩니다.")],
     })
     assert diagnosis_quality_issues(velocity_context, velocity_expected) == []
     assert diagnosis_quality_issues(velocity_context, diagnosis())
@@ -339,10 +336,7 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
 def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
     calls: list[dict] = []
     expected = diagnosis().model_copy(update={
-        "headline": (
-            "속도 진동이 주의 구간에서 상승 중이며, 가속도 FFT의 BPFI 1X 결함주파수 "
-            "147 Hz에서 0.7 g 피크가 확인됩니다. 베어링 내륜 결함 후보로 보고 재측정이 필요합니다."
-        ),
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
         "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
         "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
     })
