@@ -6,6 +6,7 @@ import asyncio
 import json
 import math
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -23,7 +24,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v3"
+PROMPT_VERSION = "cms-dashboard-analysis-v4"
 
 
 def _camel_case(name: str) -> str:
@@ -115,6 +116,11 @@ class AiProviderError(AiAnalysisError):
 class AiResponseError(AiAnalysisError):
     def __init__(self) -> None:
         super().__init__("invalid_response", "AI 분석 결과 형식을 확인하지 못했습니다. 다시 시도해 주세요.")
+
+
+class AiEvidenceError(AiAnalysisError):
+    def __init__(self) -> None:
+        super().__init__("invalid_response", "AI 진단의 측정 근거를 확인하지 못했습니다. 다시 시도해 주세요.")
 
 
 @dataclass(frozen=True)
@@ -643,6 +649,17 @@ class AiAnalysisGateway(Protocol):
         """Return a validated diagnosis for an already-sanitized context."""
 
 
+def _mentions_measurement(text: str, value: float | None, unit: str) -> bool:
+    if value is None:
+        return False
+    pattern = rf"(?<!\w)(\d+(?:\.\d+)?)\s*{re.escape(unit)}(?![A-Za-z])"
+    tolerance = max(0.05 if unit == "g" else 0.5, abs(value) * 0.01)
+    return any(
+        abs(float(match.group(1)) - value) <= tolerance
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE)
+    )
+
+
 def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> list[str]:
     """Reject generic or unsupported conclusions for the selected FFT record."""
     issues: list[str] = []
@@ -687,19 +704,22 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
                 issues.append("첫 번째 likelyCause를 유의한 베어링 결함 유형과 일치시키세요.")
             frequency = harmonic.get("detectedFrequency")
             amplitude = harmonic.get("amplitude")
-            evidence_parts = [headline, evidence_text, rationale]
-            if order is not None and not all(f"{order}x" in part for part in evidence_parts):
-                issues.append("headline·fftFindings·원인 설명에 결함 고조파 순서를 연결하세요.")
-            if frequency is not None and not all(
-                f"{frequency:g}" in part and "hz" in part for part in evidence_parts
-            ):
-                issues.append("headline·fftFindings·원인 설명에 결함 주파수(Hz)를 포함하세요.")
-            if amplitude is not None and not all(
-                f"{amplitude:g}" in part and "g" in part for part in evidence_parts
-            ):
-                issues.append("headline·fftFindings·원인 설명에 피크 진폭(g)을 포함하세요.")
+            if order is not None and f"{order}x" not in headline:
+                issues.append("headline에 결함 고조파 순서를 명시하세요.")
+            if frequency is not None and not _mentions_measurement(headline, frequency, "Hz"):
+                issues.append("headline에 실제 결함 주파수(Hz)를 포함하세요.")
+            if amplitude is not None and not _mentions_measurement(headline, amplitude, "g"):
+                issues.append("headline에 실제 피크 진폭(g)을 포함하세요.")
             if not any(word in evidence_text for word in cause_names):
                 issues.append("fftFindings에 해당 베어링 결함 유형을 명시하세요.")
+            if not any(word in rationale for word in cause_names):
+                issues.append("첫 번째 likelyCause의 설명에 결함 유형을 연결하세요.")
+            if not any(
+                _mentions_measurement(part, value, unit)
+                for part in (evidence_text, rationale)
+                for value, unit in ((frequency, "Hz"), (amplitude, "g"))
+            ):
+                issues.append("FFT 근거나 원인 설명에 실제 측정값을 제시하세요.")
             if not any(word in headline for word in ("후보", "가능성", "추정", "의심")):
                 issues.append("headline에 결함 가설의 불확실성을 표시하세요.")
             unsupported_races = {
@@ -727,9 +747,9 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
             if one_x and one_x.get("detectedFrequency") is not None:
                 frequency = one_x["detectedFrequency"]
                 amplitude = one_x.get("amplitude")
-                if not all(word in headline for word in ("1x", f"{frequency:g}", "hz")):
+                if "1x" not in headline or not _mentions_measurement(headline, frequency, "Hz"):
                     issues.append("headline에 속도 FFT의 1X 주파수(Hz)를 포함하세요.")
-                if amplitude is not None and not all(word in headline for word in (f"{amplitude:g}", "mm/s")):
+                if amplitude is not None and not _mentions_measurement(headline, amplitude, "mm/s"):
                     issues.append("headline에 속도 FFT의 1X 진폭(mm/s)을 포함하세요.")
 
     if mode_code in {"0", "2"} and diagnosis.get("status") != "analyzed":
@@ -784,6 +804,8 @@ For acceleration FFT (measureMode 0 or 2), a bearing cause requires diagnosis.st
 analyzed and a significant harmonic in the corresponding fault entry. BPFI means
 inner race, BPFO outer race, BSF rolling element, and FTF cage. State the fault
 type, harmonic order, detectedFrequency in Hz and amplitude in g when available.
+Round displayed frequencies and amplitudes to one or two decimal places; keep
+their units and underlying evidence consistent.
 The bearing defect's 1X harmonic is NOT the shaft rotation's 1X. A generic
 spectrum peak or a velocity FFT 1X alone cannot establish an inner/outer race
 cause. For velocity FFT (measureMode 3), use its shaft harmonics and supported
@@ -851,10 +873,10 @@ class OpenAIAnalysisGateway:
                             {"role": "assistant", "content": content},
                             {"role": "user", "content": "진단 근거 검사에서 다음 문제가 발견되었습니다. 제공된 데이터만 사용해 JSON 전체를 다시 작성하세요: " + " ".join(issues)},
                         ]
-                raise AiResponseError()
+                raise AiEvidenceError()
         except asyncio.TimeoutError as error:
             raise AiTimeoutError() from error
-        except AiResponseError:
+        except AiAnalysisError:
             raise
         except Exception as error:
             if type(error).__name__ == "RateLimitError":

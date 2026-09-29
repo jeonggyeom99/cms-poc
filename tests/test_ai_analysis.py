@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from app.ai_analysis import (
     AiAnalysisService,
     AiDiagnosis,
+    AiEvidenceError,
     AiFinding,
     AiLikelyCause,
     AiRecommendedAction,
@@ -300,6 +301,18 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
     bearing_context = inner_race_context()
     assert diagnosis_quality_issues(bearing_context, expected) == []
     assert diagnosis_quality_issues(bearing_context, diagnosis())
+    rounded_context = deepcopy(bearing_context)
+    rounded_harmonic = rounded_context["fft"]["diagnosis"]["faults"][0]["harmonics"][0]
+    rounded_harmonic["detectedFrequency"] = 141.25
+    rounded_harmonic["amplitude"] = 2.509788
+    rounded = expected.model_copy(update={
+        "headline": "속도 진동이 주의 구간에서 상승 중이며 가속도 FFT의 BPFI 1X 141.25 Hz 피크가 2.51 g입니다. 내륜 결함 후보로 재측정이 필요합니다.",
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 141.25 Hz에서 2.51 g 피크")],
+        "likely_causes": [AiLikelyCause(cause="내륜 결함 후보", confidence="medium", rationale="BPFI 1X 141.25 Hz의 2.51 g 피크")],
+    })
+    assert diagnosis_quality_issues(rounded_context, rounded) == []
+    wrong_frequency = rounded.model_copy(update={"headline": rounded.headline.replace("141.25 Hz", "120 Hz")})
+    assert any("주파수" in issue for issue in diagnosis_quality_issues(rounded_context, wrong_frequency))
     verbose = expected.model_copy(update={"headline": expected.headline + " 추가 설명" * 30})
     assert any("140자" in issue for issue in diagnosis_quality_issues(bearing_context, verbose))
     keyword_only = expected.model_copy(update={
@@ -357,6 +370,31 @@ def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
     assert len(calls) == 2
     assert len(calls[1]["messages"]) == 4
     assert "진단 근거 검사" in calls[1]["messages"][-1]["content"]
+
+
+def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeypatch) -> None:
+    calls = 0
+
+    async def create(**kwargs):
+        nonlocal calls
+        calls += 1
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=diagnosis().model_dump_json(), refusal=None))]
+        )
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs) -> None:
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=create))
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
+    gateway = OpenAIAnalysisGateway(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
+
+    with pytest.raises(AiEvidenceError):
+        asyncio.run(gateway.analyze(inner_race_context()))
+    assert calls == 2
 
 
 def test_repository_datasets_have_compact_ai_context_contract() -> None:
