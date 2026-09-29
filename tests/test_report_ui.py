@@ -106,8 +106,10 @@ def test_ai_analysis_shows_generated_diagnosis_in_overview() -> None:
         analysis.index("export function bindAiAnalysis(")
     ]
 
-    assert "description.textContent = analysis.headline?.trim() || conciseSummary(baseline);" in ready
-    assert "description.textContent = conciseSummary(baseline);" in error
+    assert "description.textContent = analysis.headline;" in ready
+    assert "conciseSummary" not in analysis
+    assert 'result.textContent = "AI 진단 실패";' in error
+    assert 'description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";' in error
 
 
 def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:

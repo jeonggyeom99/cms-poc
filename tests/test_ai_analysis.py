@@ -300,6 +300,8 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
     bearing_context = inner_race_context()
     assert diagnosis_quality_issues(bearing_context, expected) == []
     assert diagnosis_quality_issues(bearing_context, diagnosis())
+    verbose = expected.model_copy(update={"headline": expected.headline + " 추가 설명" * 30})
+    assert any("140자" in issue for issue in diagnosis_quality_issues(bearing_context, verbose))
     keyword_only = expected.model_copy(update={
         "headline": "주의 상승 BPFI 147 0.7 가능성",
         "fft_findings": [AiFinding(heading="FFT", detail="피크가 있습니다.")],

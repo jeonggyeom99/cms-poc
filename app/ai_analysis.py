@@ -23,7 +23,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v2"
+PROMPT_VERSION = "cms-dashboard-analysis-v3"
 
 
 def _camel_case(name: str) -> str:
@@ -647,6 +647,8 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
     """Reject generic or unsupported conclusions for the selected FFT record."""
     issues: list[str] = []
     headline = result.headline.lower()
+    if len(result.headline) > 140:
+        issues.append("headline은 핵심 진단과 확인 조치만 담아 140자 이내로 작성하세요.")
     trend = context.get("trend") or {}
     metrics = trend.get("metrics") or []
     velocity = next((item for item in metrics if item.get("key") == "velocity"), None)
@@ -766,7 +768,8 @@ configured thresholds. Include counter-evidence whenever the supplied evidence
 is incomplete or does not support the leading cause. Keep each list concise and
 practical.
 
-Write headline as a short, useful synthesis for an operator, not a list of states
+Write headline in at most 140 Korean characters as a short, useful synthesis
+for an operator, not a list of states
 or a count of FFT peaks. Connect the velocity Trend state (thresholdState and
 analysis.status) to the SELECTED FFT record's measurement mode, specific
 diagnostic frequency and amplitude, and the most supported possible cause.
