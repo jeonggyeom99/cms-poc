@@ -240,7 +240,7 @@ export function renderAiAnalysis(payload, baseline = null) {
   const analysis = payload.analysis;
   result.className = `result-chip ${riskClass(analysis.riskLevel)}`;
   result.textContent = analysis.riskLabel || "분석 완료";
-  description.textContent = conciseSummary(baseline);
+  description.textContent = analysis.headline?.trim() || conciseSummary(baseline);
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");

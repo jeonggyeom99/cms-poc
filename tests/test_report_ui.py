@@ -93,6 +93,23 @@ def test_ai_analysis_hides_rule_based_findings_until_ai_result_arrives() -> None
     assert "renderBaseline(details, baseline" not in loading
 
 
+def test_ai_analysis_shows_generated_diagnosis_in_overview() -> None:
+    analysis = (ROOT / "app/static/modules/analysis/ai.js").read_text(
+        encoding="utf-8"
+    )
+    ready = analysis[
+        analysis.index("export function renderAiAnalysis("):
+        analysis.index("export function renderAiAnalysisError(")
+    ]
+    error = analysis[
+        analysis.index("export function renderAiAnalysisError("):
+        analysis.index("export function bindAiAnalysis(")
+    ]
+
+    assert "description.textContent = analysis.headline?.trim() || conciseSummary(baseline);" in ready
+    assert "description.textContent = conciseSummary(baseline);" in error
+
+
 def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:
     chart = (ROOT / "app/static/modules/fft/chart.js").read_text(encoding="utf-8")
 
