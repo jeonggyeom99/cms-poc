@@ -202,11 +202,17 @@ export function resetAiAnalysis({ available, heading, detail, baseline = null })
   result.className = "result-chip unknown";
   result.textContent = "분석 대기";
   description.textContent = available
-    ? conciseSummary(baseline)
+    ? "AI 분석 결과를 기다리고 있습니다."
     : "주파수 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
   renderReference(reference, baseline);
   setAction(run, "다시 분석", !available);
-  if (baseline?.fft) renderBaseline(details, baseline);
+  if (baseline?.fft) {
+    placeholder(
+      details,
+      "AI 분석 대기",
+      "선택한 주파수 기록을 바탕으로 AI 분석 결과를 준비하고 있습니다.",
+    );
+  }
   else placeholder(
       details,
       heading || "인공지능 분석에 사용할 주파수 기록이 없습니다.",
@@ -218,13 +224,14 @@ export function setAiAnalysisLoading(baseline) {
   const { result, description, run, details, reference } = elements();
   result.className = "result-chip unknown";
   result.textContent = "분석 중";
-  description.textContent = conciseSummary(baseline);
+  description.textContent = "AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요.";
   setAction(run, "인공지능 분석 중...", true);
   renderReference(reference, baseline);
-  renderBaseline(details, baseline, {
-    heading: "AI 분석 중",
-    detail: "규칙 기반 근거를 유지한 상태로 인공지능 보강 결과를 기다리고 있습니다.",
-  });
+  placeholder(
+    details,
+    "AI 분석 중",
+    "선택한 주파수 기록을 바탕으로 AI 분석 결과를 생성하고 있습니다.",
+  );
   details.setAttribute("aria-busy", "true");
 }
 

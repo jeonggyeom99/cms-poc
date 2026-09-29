@@ -71,6 +71,28 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
     assert "captureReferenceFft" in capture
 
 
+def test_ai_analysis_hides_rule_based_findings_until_ai_result_arrives() -> None:
+    analysis = (ROOT / "app/static/modules/analysis/ai.js").read_text(
+        encoding="utf-8"
+    )
+
+    reset = analysis[
+        analysis.index("export function resetAiAnalysis"):
+        analysis.index("export function setAiAnalysisLoading")
+    ]
+    loading = analysis[
+        analysis.index("export function setAiAnalysisLoading"):
+        analysis.index("export function renderAiAnalysis")
+    ]
+
+    assert '"AI 분석 결과를 기다리고 있습니다."' in reset
+    assert '"AI 분석 대기"' in reset
+    assert "renderBaseline(details, baseline)" not in reset
+    assert '"AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요."' in loading
+    assert '"AI 분석 중"' in loading
+    assert "renderBaseline(details, baseline" not in loading
+
+
 def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:
     chart = (ROOT / "app/static/modules/fft/chart.js").read_text(encoding="utf-8")
 
