@@ -1,8 +1,8 @@
-import { fetchDiagnosticPpt } from "../api/ppt-report.js?v=diagnostic-ppt-v1";
-import { captureDashboardCharts } from "./chart-capture.js?v=equipment-ai-v1";
+import { fetchDiagnosticPpt } from "../api/ppt-report.js?v=ppt-ui-validation-v1";
+import { captureDashboardCharts } from "./chart-capture.js?v=ppt-ui-validation-v1";
 
 const READY_LABEL = "진단 보고서 저장";
-const BUSY_LABEL = "진단 보고서 생성 중...";
+const BUSY_LABEL = "PPT 생성 및 UI 검증 중...";
 
 let buildRequestForExport = null;
 let boundButton = null;
@@ -61,21 +61,28 @@ async function exportDiagnosticPpt() {
 
   exporting = true;
   renderButton();
-  setStatus("추세와 주파수 그래프를 캡처하여 진단 보고서를 생성하고 있습니다.", "busy");
+  setStatus("PPT 생성 및 UI 검증 중입니다. 필요하면 배치를 자동 수정합니다.", "busy");
   try {
     const { trendImageDataUrl, fftImageDataUrl } = await captureDashboardCharts({
       fft: request.fftRecord,
       selectedFaultType: request.selectedFaultType,
+      presentation: true,
     });
-    const payload = await fetchDiagnosticPpt(request.datasetId, {
+    const { blob, validation } = await fetchDiagnosticPpt(request.datasetId, {
       recordId: request.recordId,
       selectedFaultType: request.selectedFaultType,
       until: request.until,
       trendImageDataUrl,
       fftImageDataUrl,
     });
-    downloadPpt(payload, request.datasetId);
-    setStatus("진단 보고서를 다운로드했습니다.", "success");
+    downloadPpt(blob, request.datasetId);
+    if (validation.status === "passed") {
+      setStatus("UI 검증을 통과한 진단 보고서를 다운로드했습니다.", "success");
+    } else {
+      const summary = validation.issues.slice(0, 3).join(" / ");
+      const label = validation.status === "warning" ? "UI 검증 경고" : "UI 검증 미완료";
+      setStatus(`${label}: ${summary || "슬라이드 배치를 확인해 주세요."} 보고서는 다운로드했습니다.`, "warning");
+    }
   } catch (error) {
     console.error("Diagnostic PPT export failed", error);
     setStatus(

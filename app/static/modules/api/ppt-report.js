@@ -39,5 +39,19 @@ export async function fetchDiagnosticPpt(datasetId, request) {
   if (!payload.size) {
     throw new Error("생성된 진단 PPT 파일이 비어 있습니다.");
   }
-  return payload;
+  let validation = { status: "unverified", repairs: 0, issues: ["UI 검증 결과를 받지 못했습니다."] };
+  try {
+    const header = response.headers.get("X-PPT-Validation");
+    if (header) {
+      const parsed = JSON.parse(decodeURIComponent(header));
+      if (["passed", "warning", "unverified"].includes(parsed.status)
+          && Number.isInteger(parsed.repairs) && parsed.repairs >= 0 && parsed.repairs <= 2
+          && Array.isArray(parsed.issues) && parsed.issues.every((issue) => typeof issue === "string")) {
+        validation = parsed;
+      }
+    }
+  } catch {
+    // A metadata error must not prevent downloading a valid PPTX.
+  }
+  return { blob: payload, validation };
 }

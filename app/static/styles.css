@@ -2622,3 +2622,7 @@ body.graph-modal-open {
   .chat-backdrop.is-open { display: block; }
   .chat-context-banner small { display: none; }
 }
+
+.report-action-status[data-state="warning"] {
+  color: var(--warning, #a56a00);
+}

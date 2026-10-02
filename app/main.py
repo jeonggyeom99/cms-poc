@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -38,7 +39,9 @@ from app.reporting.contracts import DiagnosticPptRequest, ReportRequest, decode_
 from app.reporting.email_ai import EMAIL_DRAFT_REPORT_KIND, generate_email_draft
 from app.reporting.email_draft import EmailDraftResponse, present_email_draft
 from app.reporting.ppt_ai import PPT_REPORT_KIND, generate_ppt_diagnosis
-from app.reporting.ppt_report import build_diagnostic_ppt, diagnostic_ppt_filename_stem
+from app.reporting.ppt_report import diagnostic_ppt_filename_stem
+from app.reporting.ppt_pipeline import PptPipeline
+from app.reporting.ppt_validation import OpenAIPptGateway, render_ppt
 from app.services.analysis import (
     bearing_fft_tool,
     fft_tool,
@@ -61,6 +64,8 @@ def create_app(
     ai_gateway: AiAnalysisGateway | None = None,
     report_gateway: ReportAiGateway | None = None,
     chat_gateway: DashboardChatGateway | None = None,
+    ppt_gateway: ReportAiGateway | None = None,
+    ppt_renderer: Callable[[bytes], Awaitable[bytes]] = render_ppt,
 ) -> FastAPI:
     load_project_environment(BASE_DIR.parent)
 
@@ -77,6 +82,10 @@ def create_app(
         )
         application.state.report_ai_service = ReportAiService(
             report_gateway or OpenAIReportGateway(settings), settings.model
+        )
+        application.state.ppt_pipeline = PptPipeline(
+            ReportAiService(ppt_gateway or OpenAIPptGateway(settings), settings.model),
+            ppt_renderer,
         )
         application.state.dashboard_chat_service = DashboardChatService(
             chat_gateway or OpenAIDashboardChatGateway(settings), settings.model
@@ -369,20 +378,24 @@ def create_app(
             raise_ai_error(error)
 
         try:
-            presentation = build_diagnostic_ppt(
+            result = await request.app.state.ppt_pipeline.build(
                 context,
                 diagnosis,
                 decode_png_data_url(report_request.trend_image_data_url),
                 decode_png_data_url(report_request.fft_image_data_url),
+                force=report_request.force,
             )
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
         filename = f"{diagnostic_ppt_filename_stem(context)}.pptx"
         return Response(
-            content=presentation,
+            content=result.presentation,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-PPT-Validation": result.validation.header(),
+            },
         )
 
     return application

@@ -20,7 +20,7 @@ import {
   bindPptExport,
   resetPptExport,
   setPptExportAvailable,
-} from "../report/ppt-export.js?v=equipment-ai-v1";
+} from "../report/ppt-export.js?v=ppt-ui-validation-v1";
 import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
 import {
   bindPeriodTabs,
