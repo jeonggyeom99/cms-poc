@@ -7,11 +7,9 @@ function element(tagName, className, text) {
 
 function elements() {
   return {
-    result: document.getElementById("ai-analysis-result"),
     description: document.getElementById("ai-analysis-description"),
     run: document.getElementById("ai-analysis-run"),
     details: document.getElementById("ai-analysis-details"),
-    reference: document.getElementById("ai-analysis-reference"),
   };
 }
 
@@ -40,16 +38,6 @@ function limitationSection(baseline) {
       ? "베어링 모델 정보가 없어 FFT 베어링 결함 판정을 수행할 수 없습니다."
       : "베어링 계수 마스터에 일치 항목이 없어 FFT 베어링 결함 판정을 수행할 수 없습니다.",
   }], findingItem);
-}
-
-function renderReference(reference, baseline) {
-  reference.textContent = baseline?.fft?.measuredAt
-    ? `진단 기준 측정일시 ${baseline.fft.measuredAt}`
-    : "진단 기준 측정일시 --";
-}
-
-function riskClass(riskLevel) {
-  return ["normal", "caution", "danger"].includes(riskLevel) ? riskLevel : "unknown";
 }
 
 function listSection(title, items, createItem) {
@@ -106,13 +94,10 @@ function priorityLabel(value) {
 }
 
 export function resetAiAnalysis({ available, heading, detail, baseline = null }) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "분석 대기";
+  const { description, run, details } = elements();
   description.textContent = available
     ? "AI 분석 결과를 기다리고 있습니다."
     : "주파수 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
-  renderReference(reference, baseline);
   setAction(run, "다시 분석", !available);
   if (baseline?.fft) {
     placeholder(
@@ -129,12 +114,9 @@ export function resetAiAnalysis({ available, heading, detail, baseline = null })
 }
 
 export function setAiAnalysisLoading(baseline) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "분석 중";
+  const { description, run, details } = elements();
   description.textContent = "AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요.";
   setAction(run, "인공지능 분석 중...", true);
-  renderReference(reference, baseline);
   placeholder(
     details,
     "AI 분석 중",
@@ -144,10 +126,8 @@ export function setAiAnalysisLoading(baseline) {
 }
 
 export function renderAiAnalysis(payload, baseline = null) {
-  const { result, description, run, details } = elements();
+  const { description, run, details } = elements();
   const analysis = payload.analysis;
-  result.className = `result-chip ${riskClass(analysis.riskLevel)}`;
-  result.textContent = analysis.riskLabel || "분석 완료";
   description.textContent = analysis.headline;
   setAction(run, "다시 분석", false, true);
 
@@ -171,11 +151,8 @@ export function renderAiAnalysis(payload, baseline = null) {
 }
 
 export function renderAiAnalysisError(message, baseline) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "AI 진단 실패";
+  const { description, run, details } = elements();
   description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";
-  renderReference(reference, baseline);
   setAction(run, "다시 시도", false);
   placeholder(details, "AI 진단 실패", message);
 }
