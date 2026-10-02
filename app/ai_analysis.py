@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import tempfile
 import math
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
@@ -889,41 +891,158 @@ class OpenAIAnalysisGateway:
             await client.close()
 
 
-class AiAnalysisService:
-    """Deduplicate concurrent calls and cache responses by compact input context."""
+DEFAULT_CACHE_TTL_SECONDS = 86400
+CACHE_FORMAT_VERSION = 1
+logger = logging.getLogger(__name__)
 
-    def __init__(self, gateway: AiAnalysisGateway, model: str) -> None:
+
+def analysis_cache_ttl_seconds(value: str | None) -> int:
+    try:
+        seconds = int(value) if value else DEFAULT_CACHE_TTL_SECONDS
+        return seconds if seconds > 0 else DEFAULT_CACHE_TTL_SECONDS
+    except ValueError:
+        return DEFAULT_CACHE_TTL_SECONDS
+
+
+class _AnalysisCacheEntry(_ApiModel):
+    format_version: Literal[1] = CACHE_FORMAT_VERSION
+    cache_key: str
+    expires_at: datetime
+    response: AiAnalysisResponse
+    markdown: str
+
+
+def analysis_markdown(analysis: AiDiagnosis) -> str:
+    lines = ["# AI 분석", "", analysis.headline, "", f"위험도: {analysis.risk_label}"]
+    for heading, findings in (
+        ("Trend 분석", analysis.trend_findings),
+        ("FFT 분석", analysis.fft_findings),
+        ("과거 이력", analysis.history_findings),
+    ):
+        lines.extend(["", f"## {heading}", ""])
+        lines.extend(f"- {item.heading}: {item.detail}" for item in findings)
+    lines.extend(["", "## 예상 원인", ""])
+    confidence = {"low": "낮음", "medium": "보통", "high": "높음"}
+    lines.extend(
+        f"- {item.cause} (신뢰도: {confidence[item.confidence]}): {item.rationale}"
+        for item in analysis.likely_causes
+    )
+    lines.extend(["", "## 반대 근거", ""])
+    lines.extend(f"- {item}" for item in analysis.counter_evidence)
+    lines.extend(["", "## 권장 조치", ""])
+    priority = {"immediate": "즉시", "high": "우선", "planned": "계획"}
+    lines.extend(
+        f"- [{priority[item.priority]}] {item.action}: {item.rationale}"
+        for item in analysis.recommended_actions
+    )
+    return "\n".join(lines) + "\n"
+
+
+class AiAnalysisService:
+    """Deduplicate calls and reuse time-limited analysis from memory or JSON."""
+
+    def __init__(
+        self,
+        gateway: AiAnalysisGateway,
+        model: str,
+        *,
+        cache_dir: Path | None = None,
+        ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self._gateway = gateway
         self._model = model
-        self._cache: dict[str, AiAnalysisResponse] = {}
+        self._cache_dir = cache_dir
+        self._ttl_seconds = ttl_seconds if ttl_seconds > 0 else DEFAULT_CACHE_TTL_SECONDS
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._cache: dict[str, _AnalysisCacheEntry] = {}
         self._in_flight: dict[str, asyncio.Task[AiAnalysisResponse]] = {}
 
+    def _read_cache(self, cache_key: str) -> _AnalysisCacheEntry | None:
+        entry = self._cache.get(cache_key)
+        if entry is None and self._cache_dir is not None:
+            try:
+                entry = _AnalysisCacheEntry.model_validate_json(
+                    (self._cache_dir / f"{cache_key}.json").read_text(encoding="utf-8")
+                )
+                if (
+                    entry.cache_key != cache_key
+                    or entry.response.model != self._model
+                    or entry.expires_at.tzinfo is None
+                    or entry.response.generated_at.tzinfo is None
+                    or entry.expires_at <= entry.response.generated_at
+                ):
+                    return None
+            except (OSError, ValueError):
+                return None
+        if entry is None:
+            return None
+        if self._clock() >= entry.expires_at:
+            self._cache.pop(cache_key, None)
+            return None
+        self._cache[cache_key] = entry
+        return entry
+
+    def _write_cache(self, entry: _AnalysisCacheEntry) -> None:
+        if self._cache_dir is None:
+            return
+        temporary: Path | None = None
+        try:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=self._cache_dir,
+                prefix=".analysis-", suffix=".tmp", delete=False,
+            ) as output:
+                temporary = Path(output.name)
+                output.write(entry.model_dump_json(by_alias=True, indent=2))
+            temporary.replace(self._cache_dir / f"{entry.cache_key}.json")
+        except OSError:
+            logger.warning("Failed to persist AI analysis cache", exc_info=True)
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    logger.warning("Failed to remove AI analysis temporary file", exc_info=True)
+
     async def analyze(
-        self, context: dict[str, Any], force: bool = False
+        self,
+        context: dict[str, Any],
+        force: bool = False,
+        *,
+        dataset_id: str | None = None,
     ) -> AiAnalysisResponse:
         cache_key = sha256(
-            json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            json.dumps(
+                {"datasetId": dataset_id, "model": self._model, "context": context},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            ).encode()
         ).hexdigest()
-        if not force and (cached := self._cache.get(cache_key)) is not None:
-            return cached.model_copy(update={"cached": True})
+        if not force and (entry := self._read_cache(cache_key)) is not None:
+            return entry.response.model_copy(update={"cached": True})
 
         task = self._in_flight.get(cache_key)
         if task is None:
             task = asyncio.create_task(self._run(cache_key, context))
             self._in_flight[cache_key] = task
-        try:
-            return await task
-        finally:
-            if task.done() and self._in_flight.get(cache_key) is task:
-                self._in_flight.pop(cache_key, None)
+        return await asyncio.shield(task)
 
     async def _run(self, cache_key: str, context: dict[str, Any]) -> AiAnalysisResponse:
-        diagnosis = await self._gateway.analyze(context)
-        response = AiAnalysisResponse(
-            cached=False,
-            model=self._model,
-            generated_at=datetime.now(timezone.utc),
-            analysis=diagnosis,
-        )
-        self._cache[cache_key] = response
-        return response
+        try:
+            diagnosis = await self._gateway.analyze(context)
+            response = AiAnalysisResponse(
+                cached=False, model=self._model,
+                generated_at=self._clock(), analysis=diagnosis,
+            )
+            entry = _AnalysisCacheEntry(
+                cache_key=cache_key,
+                expires_at=response.generated_at + timedelta(seconds=self._ttl_seconds),
+                response=response, markdown=analysis_markdown(diagnosis),
+            )
+            self._cache[cache_key] = entry
+            if self._cache_dir is not None:
+                await asyncio.to_thread(self._write_cache, entry)
+            return response
+        finally:
+            if self._in_flight.get(cache_key) is asyncio.current_task():
+                self._in_flight.pop(cache_key, None)

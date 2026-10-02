@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from app.ai_analysis import (
     AiAnalysisService,
     OpenAIAnalysisGateway,
     OpenAISettings,
+    analysis_cache_ttl_seconds,
     build_ai_context,
     load_project_environment,
 )
@@ -66,6 +68,7 @@ def create_app(
     chat_gateway: DashboardChatGateway | None = None,
     ppt_gateway: ReportAiGateway | None = None,
     ppt_renderer: Callable[[bytes], Awaitable[bytes]] = render_ppt,
+    ai_cache_dir: Path | None = None,
 ) -> FastAPI:
     load_project_environment(BASE_DIR.parent)
 
@@ -78,7 +81,15 @@ def create_app(
             application.state.history = {"items": []}
         settings = OpenAISettings.from_environment()
         application.state.ai_analysis_service = AiAnalysisService(
-            ai_gateway or OpenAIAnalysisGateway(settings), settings.model
+            ai_gateway or OpenAIAnalysisGateway(settings),
+            settings.model,
+            cache_dir=(
+                ai_cache_dir if ai_cache_dir is not None
+                else data_dir.parent / ".cache" / "ai-analysis"
+            ),
+            ttl_seconds=analysis_cache_ttl_seconds(
+                os.environ.get("AI_ANALYSIS_CACHE_TTL_SECONDS")
+            ),
         )
         application.state.report_ai_service = ReportAiService(
             report_gateway or OpenAIReportGateway(settings), settings.model
@@ -288,7 +299,9 @@ def create_app(
             analysis_request.until,
         )
         try:
-            return await ai_service_from(request).analyze(context, analysis_request.force)
+            return await ai_service_from(request).analyze(
+                context, analysis_request.force, dataset_id=dataset_id
+            )
         except AiAnalysisError as error:
             raise_ai_error(error)
 

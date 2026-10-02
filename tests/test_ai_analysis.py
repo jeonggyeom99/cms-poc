@@ -3,7 +3,7 @@ from copy import deepcopy
 import json
 import sys
 import types
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from pydantic import BaseModel
 
@@ -17,6 +17,7 @@ from app.ai_analysis import (
     OpenAIAnalysisGateway,
     OpenAISettings,
     build_ai_context,
+    analysis_cache_ttl_seconds,
     diagnosis_quality_issues,
 )
 from app.analysis.fft import analyze_acceleration_bearing_fft
@@ -448,3 +449,214 @@ def test_ai_analysis_service_caches_and_refreshes_on_force() -> None:
         return first.cached, cached.cached, refreshed.cached, gateway.calls
 
     assert asyncio.run(run()) == (False, True, False, 2)
+
+
+@pytest.mark.parametrize("value,expected", [(None, 86400), ("", 86400), ("3600", 3600), ("0", 86400), ("-1", 86400), ("bad", 86400), ("1.5", 86400)])
+def test_cache_ttl_configuration(value, expected) -> None:
+    assert analysis_cache_ttl_seconds(value) == expected
+
+
+def test_analysis_cache_persists_markdown_and_expires(tmp_path: Path) -> None:
+    async def run() -> None:
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        gateway = CountingGateway()
+        context = {"promptVersion": "v1", "value": 1}
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        first = await service.analyze(context, dataset_id="1")
+        path = next(tmp_path.glob("*.json"))
+        stored = json.loads(path.read_text())
+        assert stored["formatVersion"] == 1
+        assert stored["response"]["analysis"] == first.analysis.model_dump(by_alias=True)
+        assert datetime.fromisoformat(stored["expiresAt"]) - first.generated_at == timedelta(days=1)
+        markdown = stored["markdown"]
+        for text in (first.analysis.headline, "위험도: 주의", "완만한 상승", "1X Peak", "Unbalance", "현장 운전 조건", "체결 상태", "반복 측정"):
+            assert text in markdown
+        assert not list(tmp_path.glob("*.tmp"))
+
+        now += timedelta(days=1, microseconds=-1)
+        assert (await service.analyze(context, dataset_id="1")).cached
+        restarted = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        cached = await restarted.analyze(context, dataset_id="1")
+        assert cached.cached and cached.generated_at == first.generated_at
+        assert gateway.calls == 1
+        now += timedelta(microseconds=1)
+        assert not (await restarted.analyze(context, dataset_id="1")).cached
+        assert gateway.calls == 2
+        # A fresh service must also reject an expired file.
+        now += timedelta(days=1)
+        assert not (await AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now).analyze(context, dataset_id="1")).cached
+        assert gateway.calls == 3
+        now += timedelta(seconds=1)
+        forced = await restarted.analyze(context, force=True, dataset_id="1")
+        assert not forced.cached and gateway.calls == 4
+        final = await AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now).analyze(context, dataset_id="1")
+        assert final.cached and final.generated_at == forced.generated_at
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("change", ["context", "dataset", "model", "version"])
+def test_analysis_cache_separates_inputs(tmp_path: Path, change: str) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        context = {"value": 1, "promptVersion": "v1"}
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        await service.analyze(context, dataset_id="1")
+        if change == "context":
+            context["value"] = 2
+        elif change == "version":
+            context["promptVersion"] = "v2"
+        if change == "model":
+            service = AiAnalysisService(gateway, "other", cache_dir=tmp_path)
+        result = await service.analyze(context, dataset_id="2" if change == "dataset" else "1")
+        assert not result.cached and gateway.calls == 2
+        assert len(list(tmp_path.glob("*.json"))) == 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("damage", ["json", "version", "key", "naive_date", "response"])
+def test_invalid_cache_is_regenerated(tmp_path: Path, damage: str) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        await AiAnalysisService(gateway, "test", cache_dir=tmp_path).analyze({})
+        path = next(tmp_path.glob("*.json"))
+        payload = json.loads(path.read_text())
+        if damage == "version":
+            payload["formatVersion"] = 999
+        elif damage == "key":
+            payload["cacheKey"] = "wrong"
+        elif damage == "naive_date":
+            payload["expiresAt"] = "2099-01-01T00:00:00"
+        elif damage == "response":
+            payload["response"]["analysis"] = {}
+        path.write_text("{broken" if damage == "json" else json.dumps(payload))
+        assert not (await AiAnalysisService(gateway, "test", cache_dir=tmp_path).analyze({})).cached
+        assert gateway.calls == 2
+        assert json.loads(path.read_text())["formatVersion"] == 1
+
+    asyncio.run(run())
+
+
+def test_cache_save_failure_returns_result_and_keeps_memory(tmp_path: Path, caplog) -> None:
+    async def run() -> None:
+        blocked = tmp_path / "file"
+        blocked.write_text("not a directory")
+        gateway = CountingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=blocked)
+        assert not (await service.analyze({})).cached
+        assert (await service.analyze({})).cached
+        assert gateway.calls == 1
+        assert "Failed to persist AI analysis cache" in caplog.text
+
+    asyncio.run(run())
+
+
+def test_failed_analysis_preserves_cache_and_allows_retry(tmp_path: Path) -> None:
+    class FailingGateway(CountingGateway):
+        fail = False
+
+        async def analyze(self, context):
+            if self.fail:
+                raise AiEvidenceError()
+            return await super().analyze(context)
+
+    async def run() -> None:
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        gateway = FailingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        await service.analyze({})
+        path = next(tmp_path.glob("*.json"))
+        original = path.read_bytes()
+        gateway.fail = True
+        with pytest.raises(AiEvidenceError):
+            await service.analyze({}, force=True)
+        assert path.read_bytes() == original
+        assert (await service.analyze({})).cached
+        now += timedelta(days=1)
+        with pytest.raises(AiEvidenceError):
+            await service.analyze({})
+        assert path.read_bytes() == original
+        gateway.fail = False
+        assert not (await service.analyze({})).cached
+        assert gateway.calls == 2
+
+    asyncio.run(run())
+
+
+def test_concurrent_analysis_and_force_share_one_call(tmp_path: Path) -> None:
+    async def run() -> None:
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        class SlowGateway(CountingGateway):
+            async def analyze(self, context):
+                entered.set()
+                await release.wait()
+                return await super().analyze(context)
+
+        gateway = SlowGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        first = asyncio.create_task(service.analyze({}))
+        await entered.wait()
+        second = asyncio.create_task(service.analyze({}))
+        forced = asyncio.create_task(service.analyze({}, force=True))
+        await asyncio.sleep(0)
+        release.set()
+        results = await asyncio.gather(first, second, forced)
+        assert gateway.calls == 1
+        assert all(not result.cached for result in results)
+        assert (await service.analyze({})).cached
+
+    asyncio.run(run())
+
+
+def test_atomic_replace_failure_preserves_file(tmp_path: Path, monkeypatch, caplog) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        await service.analyze({})
+        path = next(tmp_path.glob("*.json"))
+        original = path.read_bytes()
+
+        def failed_replace(self, target):
+            raise OSError("simulated replacement failure")
+
+        monkeypatch.setattr(Path, "replace", failed_replace)
+        assert not (await service.analyze({}, force=True)).cached
+        assert path.read_bytes() == original
+        assert not list(tmp_path.glob("*.tmp"))
+        assert (await service.analyze({})).cached
+        assert gateway.calls == 2
+        assert "Failed to persist AI analysis cache" in caplog.text
+
+    asyncio.run(run())
+
+
+def test_cancelled_caller_does_not_cancel_shared_analysis(tmp_path: Path) -> None:
+    async def run() -> None:
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        class SlowGateway(CountingGateway):
+            async def analyze(self, context):
+                entered.set()
+                await release.wait()
+                return await super().analyze(context)
+
+        gateway = SlowGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        first = asyncio.create_task(service.analyze({}))
+        await entered.wait()
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        second = asyncio.create_task(service.analyze({}))
+        await asyncio.sleep(0)
+        release.set()
+        assert not (await second).cached
+        assert gateway.calls == 1
+        assert not service._in_flight
+        assert (await service.analyze({})).cached
+
+    asyncio.run(run())

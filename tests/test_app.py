@@ -1,5 +1,7 @@
 import asyncio
 import csv
+import json
+from datetime import datetime, timedelta
 import struct
 from pathlib import Path
 
@@ -998,7 +1000,7 @@ def test_empty_data_directory_returns_empty_list_and_no_default(tmp_path: Path) 
 def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -> None:
     gateway = FakeAiGateway()
     response = post(
-        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway, ai_cache_dir=tmp_path / "cache"),
         "/api/dashboard/1/ai-analysis",
         {"recordId": 2},
     )
@@ -1022,7 +1024,7 @@ def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -
     assert "amplitudes" not in context["fft"]
 
     missing_record = post(
-        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway, ai_cache_dir=tmp_path / "cache"),
         "/api/dashboard/1/ai-analysis",
         {"recordId": 999},
     )
@@ -1034,7 +1036,7 @@ def test_ai_analysis_api_reports_missing_openai_key(tmp_path: Path) -> None:
         OpenAISettings(api_key=None, model="test-model", timeout_seconds=1.0)
     )
     response = post(
-        create_app(make_data_dir(tmp_path), ai_gateway=gateway),
+        create_app(make_data_dir(tmp_path), ai_gateway=gateway, ai_cache_dir=tmp_path / "cache"),
         "/api/dashboard/1/ai-analysis",
         {"recordId": 2},
     )
@@ -1114,3 +1116,22 @@ def test_dashboard_chat_does_not_require_openai_for_tool_answers(tmp_path: Path)
 
     assert response.status_code == 200
     assert response.json()["model"] == "deterministic-tool-template"
+
+
+def test_ai_analysis_api_reuses_json_after_restart_and_forces_refresh(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("AI_ANALYSIS_CACHE_TTL_SECONDS", "3600")
+    gateway = FakeAiGateway()
+    data_dir = make_data_dir(tmp_path)
+    cache_dir = tmp_path / "cache"
+    url = "/api/dashboard/1/ai-analysis"
+    first = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2})
+    cached = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2})
+    assert first.status_code == cached.status_code == 200
+    assert not first.json()["cached"] and cached.json()["cached"]
+    assert first.json()["generatedAt"] == cached.json()["generatedAt"]
+    assert len(gateway.contexts) == 1
+    refreshed = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2, "force": True})
+    assert refreshed.status_code == 200 and not refreshed.json()["cached"]
+    assert len(gateway.contexts) == 2
+    stored = json.loads(next(cache_dir.glob("*.json")).read_text())
+    assert datetime.fromisoformat(stored["expiresAt"]) - datetime.fromisoformat(stored["response"]["generatedAt"]) == timedelta(hours=1)
