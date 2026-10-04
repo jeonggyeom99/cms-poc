@@ -54,9 +54,20 @@ def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
 
     async def create(**kwargs):
         calls.append(kwargs)
-        content = diagnosis().model_dump_json()
+        if kwargs.get("tool_choice") == "required":
+            calls_for_tools = [
+                types.SimpleNamespace(
+                    id=f"call-{name}", type="function",
+                    function=types.SimpleNamespace(name=name, arguments="{}"),
+                )
+                for name in ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            ]
+            message = types.SimpleNamespace(content=None, refusal=None, tool_calls=calls_for_tools)
+        else:
+            content = diagnosis().model_dump_json() if "tools" in kwargs else '{"headline":"ok"}'
+            message = types.SimpleNamespace(content=content, refusal=None, tool_calls=None)
         return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content, refusal=None))]
+            choices=[types.SimpleNamespace(message=message)]
         )
 
     class FakeAsyncOpenAI:
@@ -75,14 +86,19 @@ def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
         headline: str
 
     async def run() -> None:
-        await OpenAIAnalysisGateway(settings).analyze({"datasetId": "1"})
+        context = {
+            "equipment": {"id": "V001"}, "fft": {"recordId": 1},
+            "trend": {}, "levelAnalysis": {}, "relatedHistory": {},
+            "dataQuality": {"notes": []}, "analysisTools": {"trend": "ready", "fft": "ready"},
+        }
+        await OpenAIAnalysisGateway(settings).analyze(context)
         await OpenAIReportGateway(settings).generate(
             "email-draft", "instructions", {}, SampleReport
         )
 
     asyncio.run(run())
 
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert all("temperature" not in call for call in calls)
     analysis_instructions = calls[0]["messages"][0]["content"]
     assert "thresholdState" in analysis_instructions
@@ -90,6 +106,10 @@ def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
     assert "BPFI means" in analysis_instructions
     assert "NOT the shaft rotation's 1X" in analysis_instructions
     assert "counterEvidence" in analysis_instructions
+    assert calls[0]["tool_choice"] == "required"
+    assert {tool["function"]["name"] for tool in calls[0]["tools"]} == {
+        "get_trend_evidence", "get_fft_evidence", "get_related_history"
+    }
 
 
 def sample_dataset() -> dict:
@@ -298,6 +318,11 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
     })
     bearing_context = inner_race_context()
     assert diagnosis_quality_issues(bearing_context, expected) == []
+    korean_order = expected.model_copy(update={
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1차 고조파 147 Hz에서 0.7 g 피크가 확인됩니다.")],
+        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1차 147 Hz에서 0.7 g입니다.")],
+    })
+    assert diagnosis_quality_issues(bearing_context, korean_order) == []
     assert diagnosis_quality_issues(bearing_context, diagnosis())
     rounded_context = deepcopy(bearing_context)
     rounded_harmonic = rounded_context["fft"]["diagnosis"]["faults"][0]["harmonics"][0]
@@ -326,6 +351,13 @@ def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_beari
         "fft_findings": [AiFinding(heading="1X", detail="속도 FFT 1X 30 Hz에서 1.2 mm/s 피크가 확인됩니다.")],
     })
     assert diagnosis_quality_issues(velocity_context, velocity_expected) == []
+    stable_context = deepcopy(velocity_context)
+    stable_context["trend"]["analysis"]["status"] = "stable"
+    false_rising = velocity_expected.model_copy(update={
+        "headline": "속도 진동이 최근 상승해 주의 수준입니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
+        "trend_findings": [AiFinding(heading="속도 진동 상승", detail="최근 상승 상태입니다.")],
+    })
+    assert any("상승이 아니" in issue for issue in diagnosis_quality_issues(stable_context, false_rising))
     assert diagnosis_quality_issues(velocity_context, diagnosis())
 
     unavailable = deepcopy(bearing_context)
@@ -344,9 +376,18 @@ def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
 
     async def create(**kwargs):
         calls.append(kwargs)
-        content = diagnosis().model_dump_json() if len(calls) == 1 else expected.model_dump_json()
+        if kwargs.get("tool_choice") == "required":
+            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            message = types.SimpleNamespace(
+                content=None,
+                refusal=None,
+                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
+            )
+        else:
+            content = diagnosis().model_dump_json() if len(calls) == 2 else expected.model_dump_json()
+            message = types.SimpleNamespace(content=content, refusal=None, tool_calls=None)
         return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content, refusal=None))]
+            choices=[types.SimpleNamespace(message=message)]
         )
 
     class FakeAsyncOpenAI:
@@ -362,9 +403,8 @@ def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
     result = asyncio.run(gateway.analyze(inner_race_context()))
 
     assert result.headline == expected.headline
-    assert len(calls) == 2
-    assert len(calls[1]["messages"]) == 4
-    assert "진단 근거 검사" in calls[1]["messages"][-1]["content"]
+    assert len(calls) == 3
+    assert "진단 근거 검사" in calls[2]["messages"][-1]["content"]
 
 
 def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeypatch) -> None:
@@ -373,8 +413,14 @@ def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeyp
     async def create(**kwargs):
         nonlocal calls
         calls += 1
+        if kwargs.get("tool_choice") == "required":
+            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(
+                content=None, refusal=None,
+                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
+            ))])
         return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=diagnosis().model_dump_json(), refusal=None))]
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=diagnosis().model_dump_json(), refusal=None, tool_calls=None))]
         )
 
     class FakeAsyncOpenAI:
@@ -389,7 +435,7 @@ def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeyp
 
     with pytest.raises(AiEvidenceError):
         asyncio.run(gateway.analyze(inner_race_context()))
-    assert calls == 2
+    assert calls == 3
 
 
 def test_repository_datasets_have_compact_ai_context_contract() -> None:
@@ -427,6 +473,20 @@ def test_repository_datasets_have_compact_ai_context_contract() -> None:
         )
         compact = json.dumps(context)
         assert "frequencies" not in compact and "amplitudes" not in compact
+
+
+def test_ai_context_corrects_bearing_summary_to_significant_harmonics() -> None:
+    data_dir = Path(__file__).resolve().parents[1] / "data"
+    dataset = load_datasets(data_dir)["8"]
+    history = load_history(data_dir)["items"]
+    record = next(item for item in dataset["fft"]["records"] if item["id"] == 2)
+
+    context = build_ai_context("8", dataset, record, history, until=date(2026, 9, 7))
+    diagnosis = context["fft"]["diagnosis"]
+    bpfi = next(item for item in diagnosis["faults"] if item["type"] == "BPFI")
+
+    assert [item["significant"] for item in bpfi["harmonics"]] == [True, True, False]
+    assert diagnosis["message"] == "BPFI의 유의 고조파는 1, 2X입니다."
 
 
 class CountingGateway:

@@ -857,10 +857,10 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'id="fft-related-history-count"' in response.text
     assert 'id="fft-related-history-list"' in response.text
     assert '<h2 id="ai-analysis-title">AI 분석</h2>' in response.text
-    assert 'id="ai-analysis-result"' in response.text
+    assert 'id="ai-analysis-description"' in response.text
     assert 'id="ai-analysis-run"' in response.text
     assert 'id="ai-analysis-details"' in response.text
-    assert 'id="ai-analysis-reference"' in response.text
+    assert 'id="ai-analysis-reference"' not in response.text
     assert 'id="ai-analysis-details-title"' in response.text
     assert 'id="chat-panel"' in response.text
     assert 'id="chat-open"' in response.text
@@ -1102,7 +1102,7 @@ def test_dashboard_chat_rejects_unknown_record_and_excess_history(tmp_path: Path
     assert excessive_history.status_code == 422
 
 
-def test_dashboard_chat_does_not_require_openai_for_tool_answers(tmp_path: Path) -> None:
+def test_dashboard_chat_reports_missing_openai_key_for_model_tool_selection(tmp_path: Path) -> None:
     response = post(
         create_app(
             make_data_dir(tmp_path),
@@ -1114,8 +1114,8 @@ def test_dashboard_chat_does_not_require_openai_for_tool_answers(tmp_path: Path)
         {"recordId": 2, "message": "질문"},
     )
 
-    assert response.status_code == 200
-    assert response.json()["model"] == "deterministic-tool-template"
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "missing_api_key"
 
 
 def test_ai_analysis_api_reuses_json_after_restart_and_forces_refresh(tmp_path: Path, monkeypatch) -> None:
@@ -1135,3 +1135,39 @@ def test_ai_analysis_api_reuses_json_after_restart_and_forces_refresh(tmp_path: 
     assert len(gateway.contexts) == 2
     stored = json.loads(next(cache_dir.glob("*.json")).read_text())
     assert datetime.fromisoformat(stored["expiresAt"]) - datetime.fromisoformat(stored["response"]["generatedAt"]) == timedelta(hours=1)
+
+
+def test_ai_analysis_tool_execution_preserves_persistent_cache(tmp_path: Path) -> None:
+    class ToolGateway(OpenAIAnalysisGateway):
+        def __init__(self):
+            super().__init__(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
+            self.fake = FakeAiGateway()
+            self.evidence = []
+
+        async def analyze(self, context, execute=None):
+            assert execute is not None
+            results = {}
+            for name in ("get_trend_evidence", "get_fft_evidence", "get_related_history"):
+                results[name] = await execute(name, {})
+            assert results["get_trend_evidence"]["trend"] == context["trend"]
+            assert results["get_fft_evidence"]["fft"] == context["fft"]
+            assert results["get_related_history"]["relatedHistory"] == context["relatedHistory"]
+            self.evidence.append(results)
+            return await self.fake.analyze(context)
+
+    gateway = ToolGateway()
+    data_dir = make_data_dir(tmp_path)
+    cache_dir = tmp_path / "tool-cache"
+    url = "/api/dashboard/1/ai-analysis"
+    first = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2})
+    assert first.status_code == 200 and not first.json()["cached"]
+    assert len(gateway.evidence) == 1
+    cached = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2})
+    assert cached.status_code == 200 and cached.json()["cached"]
+    assert cached.json()["analysis"] == first.json()["analysis"]
+    assert len(gateway.evidence) == 1
+    refreshed = post(create_app(data_dir, ai_gateway=gateway, ai_cache_dir=cache_dir), url, {"recordId": 2, "force": True})
+    assert refreshed.status_code == 200 and not refreshed.json()["cached"]
+    assert len(gateway.evidence) == 2
+    stored = json.loads(next(cache_dir.glob("*.json")).read_text())
+    assert stored["response"]["analysis"] == refreshed.json()["analysis"]

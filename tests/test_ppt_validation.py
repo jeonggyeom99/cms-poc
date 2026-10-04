@@ -221,7 +221,11 @@ def test_unexpected_geometry_blocks_visual_agent_pass():
     assert len(renderer.presentations) == 3
 
 
-def test_same_artifact_reuses_visual_review_but_force_bypasses_cache():
+def test_same_artifact_reuses_visual_review_but_force_bypasses_cache(monkeypatch):
+    # PPTX ZIP timestamps vary between builds; this test needs identical bytes.
+    artifact = build_diagnostic_ppt(compact_context(), diagnosis(), tiny_png(), tiny_png())
+    monkeypatch.setattr("app.reporting.ppt_pipeline.build_diagnostic_ppt", lambda *args: artifact)
+
     async def run():
         gateway = ScriptedGateway([PptReview(issues=[]), PptReview(issues=[])])
         pipeline = PptPipeline(ReportAiService(gateway, "test"), Renderer())

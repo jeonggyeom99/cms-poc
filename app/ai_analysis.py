@@ -26,7 +26,8 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v5"
+PROMPT_VERSION = "cms-dashboard-analysis-v6"
+ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
 def _camel_case(name: str) -> str:
@@ -625,6 +626,7 @@ def build_ai_context(
 
     trend = _trend_summary(trend_dataset)
     fft_summary = _fft_summary(analyzed_fft)
+    _correct_bearing_message(fft_summary)
     fft_summary["diagnosticLimitation"] = _diagnostic_limitation(fft_summary)
     related_history = _related_history_summary(
         dataset_id, trend_dataset, analyzed_fft, history_items, selected_fault_type, until
@@ -646,8 +648,28 @@ def build_ai_context(
     }
 
 
+def _correct_bearing_message(fft: dict[str, Any]) -> None:
+    """Make the display message agree with the individual harmonic flags."""
+    diagnosis = fft.get("diagnosis") or {}
+    faults = diagnosis.get("faults") or []
+    for fault in faults:
+        if not isinstance(fault, dict):
+            continue
+        significant = [
+            str(harmonic.get("order"))
+            for harmonic in fault.get("harmonics", [])
+            if isinstance(harmonic, dict) and harmonic.get("significant") is True
+        ]
+        if significant:
+            fault["message"] = f"{fault.get('type')}의 유의 고조파는 {', '.join(significant)}X입니다."
+    selected_type = diagnosis.get("defaultFaultType")
+    selected = next((item for item in faults if item.get("type") == selected_type), None)
+    if selected and selected.get("message"):
+        diagnosis["message"] = selected["message"]
+
+
 class AiAnalysisGateway(Protocol):
-    async def analyze(self, context: dict[str, Any]) -> AiDiagnosis:
+    async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
         """Return a validated diagnosis for an already-sanitized context."""
 
 
@@ -679,6 +701,13 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
         word in headline for word in ("상승", "증가", "우상향", "올라", "높아", "커져")
     ):
         issues.append("headline에 상승 추세를 명시하세요.")
+    elif trend.get("analysis", {}).get("status") != "rising":
+        trend_text = " ".join(
+            [headline, *[f"{finding.heading} {finding.detail}" for finding in result.trend_findings]]
+        )
+        rising_claims = ("상승 추세", "추세 상승", "우상향", "최근 상승", "최근 올라", "상승 상태", "진동 상승")
+        if any(phrase in trend_text for phrase in rising_claims):
+            issues.append("Trend 분석 상태가 상승이 아니므로 상승 추세라고 표현하지 마세요.")
 
     fft = context.get("fft") or {}
     diagnosis = fft.get("diagnosis") or {}
@@ -708,7 +737,7 @@ def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> li
                 issues.append("첫 번째 likelyCause를 유의한 베어링 결함 유형과 일치시키세요.")
             frequency = harmonic.get("detectedFrequency")
             amplitude = harmonic.get("amplitude")
-            if order is not None and f"{order}x" not in evidence_text:
+            if order is not None and not re.search(rf"(?<!\d){order}\s*(?:x|차)", evidence_text):
                 issues.append("fftFindings에 결함 고조파 순서를 명시하세요.")
             if frequency is not None and not _mentions_measurement(evidence_text, frequency, "Hz"):
                 issues.append("fftFindings에 실제 결함 주파수(Hz)를 포함하세요.")
@@ -830,7 +859,7 @@ class OpenAIAnalysisGateway:
     def __init__(self, settings: OpenAISettings) -> None:
         self._settings = settings
 
-    async def analyze(self, context: dict[str, Any]) -> AiDiagnosis:
+    async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
         if not self._settings.api_key:
             raise AiConfigurationError()
 
@@ -841,30 +870,39 @@ class OpenAIAnalysisGateway:
             timeout=self._settings.timeout_seconds,
             max_retries=0,
         )
+        if execute is None:
+            async def execute(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+                if name == "get_trend_evidence":
+                    return {"equipment": context["equipment"], "trend": context["trend"], "levelAnalysis": context["levelAnalysis"]}
+                if name == "get_fft_evidence":
+                    return {"fft": context["fft"]}
+                if name == "get_related_history":
+                    return {"relatedHistory": context["relatedHistory"]}
+                raise AiResponseError()
+
+        tools = [
+            {"type": "function", "function": {"name": "get_trend_evidence", "description": "Retrieve the deterministic Trend, equipment, and configured level evidence for the selected equipment.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "get_fft_evidence", "description": "Retrieve compact deterministic evidence for the selected FFT record, including measured peaks and diagnostic harmonics.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "get_related_history", "description": "Retrieve prior same-equipment cases matching the selected FFT fault, strictly before its measurement date.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+        ]
         messages = [
-            {"role": "system", "content": SYSTEM_INSTRUCTIONS},
-            {"role": "user", "content": json.dumps(context, ensure_ascii=False, separators=(",", ":"))},
+            {"role": "system", "content": SYSTEM_INSTRUCTIONS + "\nYou must call all three evidence tools before writing the diagnosis. Cite only values returned by those tools."},
+            {"role": "user", "content": json.dumps({"equipmentId": context["equipment"].get("id"), "recordId": context["fft"].get("recordId"), "scope": "선택된 FFT 레코드의 CMS 보조 분석"}, ensure_ascii=False)},
         ]
         try:
-            async with asyncio.timeout(self._settings.timeout_seconds):
+            from app.tool_calling import complete_with_tools, workflow_timeout_seconds
+
+            async with asyncio.timeout(workflow_timeout_seconds(self._settings.timeout_seconds)):
+
+                response_format = {"type": "json_schema", "json_schema": {"name": "cms_dashboard_ai_diagnosis", "strict": True, "schema": AiDiagnosis.model_json_schema()}}
+                content, _ = await complete_with_tools(
+                    client, self._settings.model, messages, tools, execute,
+                    required_tools=ANALYSIS_TOOL_NAMES,
+                    allow_additional_tools=False,
+                    response_format=response_format,
+                    max_completion_tokens=1600,
+                )
                 for attempt in range(2):
-                    response = await client.chat.completions.create(
-                        model=self._settings.model,
-                        max_completion_tokens=1600,
-                        response_format={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": "cms_dashboard_ai_diagnosis",
-                                "strict": True,
-                                "schema": AiDiagnosis.model_json_schema(),
-                            },
-                        },
-                        messages=messages,
-                    )
-                    message = response.choices[0].message if response.choices else None
-                    content = message.content if message is not None else None
-                    if not content or getattr(message, "refusal", None):
-                        raise AiResponseError()
                     try:
                         result = AiDiagnosis.model_validate_json(content)
                     except ValidationError as error:
@@ -873,11 +911,17 @@ class OpenAIAnalysisGateway:
                     if not issues:
                         return result
                     if attempt == 0:
-                        messages = [
-                            *messages,
+                        messages.extend([
                             {"role": "assistant", "content": content},
-                            {"role": "user", "content": "진단 근거 검사에서 다음 문제가 발견되었습니다. 제공된 데이터만 사용해 JSON 전체를 다시 작성하세요: " + " ".join(issues)},
-                        ]
+                            {"role": "user", "content": "진단 근거 검사에서 다음 문제가 발견되었습니다. 조회된 도구 결과만 사용해 JSON 전체를 다시 작성하세요: " + " ".join(issues)},
+                        ])
+                        retry, _ = await complete_with_tools(
+                            client, self._settings.model, messages, tools, execute,
+                            allow_additional_tools=False,
+                            response_format=response_format,
+                            max_completion_tokens=1600,
+                        )
+                        content = retry
                 raise AiEvidenceError()
         except asyncio.TimeoutError as error:
             raise AiTimeoutError() from error
@@ -1009,6 +1053,7 @@ class AiAnalysisService:
         self,
         context: dict[str, Any],
         force: bool = False,
+        execute: Any = None,
         *,
         dataset_id: str | None = None,
     ) -> AiAnalysisResponse:
@@ -1023,13 +1068,16 @@ class AiAnalysisService:
 
         task = self._in_flight.get(cache_key)
         if task is None:
-            task = asyncio.create_task(self._run(cache_key, context))
+            task = asyncio.create_task(self._run(cache_key, context, execute))
             self._in_flight[cache_key] = task
         return await asyncio.shield(task)
 
-    async def _run(self, cache_key: str, context: dict[str, Any]) -> AiAnalysisResponse:
+    async def _run(self, cache_key: str, context: dict[str, Any], execute: Any = None) -> AiAnalysisResponse:
         try:
-            diagnosis = await self._gateway.analyze(context)
+            if execute is not None and isinstance(self._gateway, OpenAIAnalysisGateway):
+                diagnosis = await self._gateway.analyze(context, execute)
+            else:
+                diagnosis = await self._gateway.analyze(context)
             response = AiAnalysisResponse(
                 cached=False, model=self._model,
                 generated_at=self._clock(), analysis=diagnosis,

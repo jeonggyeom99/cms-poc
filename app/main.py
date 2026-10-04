@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.agent_tools import build_dashboard_tool_executor
 from app.ai_analysis import (
     AiAnalysisError,
     AiAnalysisGateway,
@@ -298,9 +299,27 @@ def create_app(
             analysis_request.selected_fault_type,
             analysis_request.until,
         )
+
+        async def execute_analysis_tool(name: str, arguments: dict) -> dict:
+            if arguments:
+                return {"status": "unavailable", "reason": "invalid_tool_arguments"}
+            if name == "get_trend_evidence":
+                return {
+                    "status": context["analysisTools"]["trend"],
+                    "equipment": context["equipment"],
+                    "trend": context["trend"],
+                    "levelAnalysis": context["levelAnalysis"],
+                    "dataQuality": {"notes": [note for note in context["dataQuality"]["notes"] if "Trend" in note]},
+                }
+            if name == "get_fft_evidence":
+                return {"status": context["analysisTools"]["fft"], "fft": context["fft"]}
+            if name == "get_related_history":
+                return {"status": "ready", "relatedHistory": context["relatedHistory"]}
+            return {"status": "unavailable", "reason": "unknown_tool"}
+
         try:
             return await ai_service_from(request).analyze(
-                context, analysis_request.force, dataset_id=dataset_id
+                context, analysis_request.force, execute_analysis_tool, dataset_id=dataset_id
             )
         except AiAnalysisError as error:
             raise_ai_error(error)
@@ -318,6 +337,34 @@ def create_app(
         dataset = available_datasets.get(dataset_id)
         if dataset is None:
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
+        chat_service = chat_service_from(request)
+        if chat_service.uses_model_tools:
+            reference_end = chat_request.until
+            if reference_end is None:
+                latest = dataset.get("equipment", {}).get("lastMeasuredAt")
+                reference_end = date.fromisoformat(str(latest).split(" ")[0]) if latest else None
+            executor = build_dashboard_tool_executor(
+                available_datasets,
+                dataset_id,
+                chat_request.record_id,
+                history_from(request),
+                chat_request.selected_fault_type,
+                reference_end,
+            )
+            try:
+                return await chat_service.respond_with_tools(
+                    {
+                        "selectedEquipment": dataset.get("equipment", {}).get("id"),
+                        "selectedRecordId": chat_request.record_id,
+                        "until": chat_request.until.isoformat() if chat_request.until else None,
+                    },
+                    chat_request.history,
+                    chat_request.message,
+                    executor,
+                )
+            except AiAnalysisError as error:
+                raise_ai_error(error)
+
         reference_end = chat_request.until
         if reference_end is None:
             latest = dataset.get("equipment", {}).get("lastMeasuredAt")

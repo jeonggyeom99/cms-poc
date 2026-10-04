@@ -48,7 +48,7 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
         html.index('<section class="chart-grid"')
     ]
     assert 'class="equipment-ai-diagnosis"' in equipment
-    assert 'id="ai-analysis-reference"' in equipment
+    assert 'id="ai-analysis-description"' in equipment
     assert 'id="ai-analysis-details"' not in equipment
     assert 'class="card ai-analysis-card"' in html
     assert 'id="ai-analysis-details-title"' in html
@@ -108,7 +108,7 @@ def test_ai_analysis_shows_generated_diagnosis_in_overview() -> None:
 
     assert "description.textContent = analysis.headline;" in ready
     assert "conciseSummary" not in analysis
-    assert 'result.textContent = "AI 진단 실패";' in error
+    assert 'placeholder(details, "AI 진단 실패", message);' in error
     assert 'description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";' in error
 
 
