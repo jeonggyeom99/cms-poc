@@ -7,11 +7,9 @@ function element(tagName, className, text) {
 
 function elements() {
   return {
-    result: document.getElementById("ai-analysis-result"),
     description: document.getElementById("ai-analysis-description"),
     run: document.getElementById("ai-analysis-run"),
     details: document.getElementById("ai-analysis-details"),
-    reference: document.getElementById("ai-analysis-reference"),
   };
 }
 
@@ -30,86 +28,6 @@ function placeholder(details, heading, detail) {
   );
 }
 
-function value(value, fallback = "확인 불가") {
-  return value === null || value === undefined || value === "" ? fallback : value;
-}
-
-function currentStateSentence(baseline) {
-  const metrics = baseline?.dashboard?.trend?.metrics ?? [];
-  const velocity = metrics.find((metric) => metric.key === "velocity") ?? metrics[0];
-  if (!velocity?.available || velocity.latestValue === null || velocity.latestValue === undefined) return "현재 진동 상태를 확인할 수 없습니다.";
-  const warning = velocity.warningThreshold;
-  const danger = velocity.dangerThreshold;
-  if (danger !== null && danger !== undefined && velocity.latestValue >= danger) return "속도 진동은 위험 구간입니다.";
-  if (warning !== null && warning !== undefined && velocity.latestValue >= warning) return "속도 진동은 주의 구간입니다.";
-  if (warning !== null || danger !== null) return "속도 진동은 기준 범위입니다.";
-  return "속도 진동 기준값이 설정되지 않았습니다.";
-}
-
-function trendSentence(baseline) {
-  const status = baseline?.dashboard?.trend?.analysis?.status;
-  return status === "rising" ? "최근 추세는 상승 중입니다."
-    : status === "stable" ? "최근 추세는 안정적입니다."
-      : "최근 추세는 판단할 데이터가 부족합니다.";
-}
-
-function fftSentence(baseline) {
-  const diagnosis = baseline?.fft?.analysis?.diagnosis ?? {};
-  const reason = diagnosis.bearing?.reason;
-  if (reason === "bearing_not_configured") return "베어링 모델 정보가 없어 FFT 결함 판정은 제한됩니다.";
-  if (reason === "bearing_not_found") return "베어링 계수 마스터 미등록 또는 불일치로 FFT 결함 판정은 제한됩니다.";
-  const spectrum = baseline?.fft?.analysis ?? {};
-  const peaks = spectrum.peaks ?? spectrum.spectrum?.peaks ?? [];
-  if (peaks.length) return `FFT에서 유의 피크 ${peaks.length}건이 확인되었습니다.`;
-  return "FFT에서 유의 피크가 확인되지 않았습니다.";
-}
-
-function conciseSummary(baseline) {
-  return [currentStateSentence(baseline), trendSentence(baseline), fftSentence(baseline)].join(" ");
-}
-
-function baselineSections(baseline) {
-  if (!baseline?.fft) return [];
-  const dashboard = baseline.dashboard ?? {};
-  const trend = dashboard.trend ?? {};
-  const trendAnalysis = trend.analysis ?? {};
-  const velocity = (trend.metrics ?? []).find((metric) => metric.key === "velocity") ?? trend.metrics?.[0];
-  const level = dashboard.levelAnalysis ?? {};
-  const diagnosis = baseline.fft.analysis?.diagnosis ?? {};
-  const spectrum = baseline.fft.analysis?.spectrum ?? {};
-  const selectedFault = diagnosis.faults?.find((fault) => fault.type === baseline.selectedFaultType)
-    ?? diagnosis.faults?.find((fault) => fault.type === diagnosis.defaultFaultType);
-
-  const findings = [
-    {
-      heading: "추세 분석",
-      detail: `상태 ${value(trendAnalysis.status)} · 최신 ${value(velocity?.latestValue)} ${velocity?.unit ?? ""} · 표본 ${value(trendAnalysis.usedPoints, trend.points?.length ?? 0)}건`,
-    },
-    {
-      heading: "기준값 분석",
-      detail: level.status === "unavailable"
-        ? "최근 추세 데이터가 부족해 권고 기준값을 산출하지 못했습니다."
-        : `${level.status === "compared" ? "설정 기준값과 비교 완료" : "권고 기준값만 산출"} · 권고 주의 ${value(level.recommended?.warningThreshold)} mm/s · 권고 위험 ${value(level.recommended?.dangerThreshold)} mm/s`,
-    },
-    {
-      heading: "주파수 분석",
-      detail: selectedFault
-        ? `${selectedFault.type} ${selectedFault.label ?? ""} · 이상 ${selectedFault.hasAnomaly ? "감지" : "미감지"}`
-        : `${value(diagnosis.label, diagnosis.message)} · 유의 피크 ${spectrum.peaks?.length ?? 0}개`,
-    },
-  ];
-  const reason = diagnosis.bearing?.reason;
-  if (reason === "bearing_not_configured" || reason === "bearing_not_found") {
-    findings.push({
-      heading: "데이터 제한",
-      detail: reason === "bearing_not_configured"
-        ? "베어링 모델 정보가 없어 FFT 베어링 결함 판정을 수행할 수 없습니다."
-        : "베어링 계수 마스터에 일치 항목이 없어 FFT 베어링 결함 판정을 수행할 수 없습니다.",
-    });
-  }
-  return [listSection("규칙 기반 분석 근거", findings, findingItem)];
-}
-
 function limitationSection(baseline) {
   const diagnosis = baseline?.fft?.analysis?.diagnosis ?? {};
   const reason = diagnosis.bearing?.reason;
@@ -120,28 +38,6 @@ function limitationSection(baseline) {
       ? "베어링 모델 정보가 없어 FFT 베어링 결함 판정을 수행할 수 없습니다."
       : "베어링 계수 마스터에 일치 항목이 없어 FFT 베어링 결함 판정을 수행할 수 없습니다.",
   }], findingItem);
-}
-
-function renderBaseline(details, baseline, notice = null) {
-  const content = element("div", "ai-analysis-details");
-  baselineSections(baseline).filter(Boolean).forEach((section) => content.append(section));
-  if (notice) {
-    const section = element("section", "ai-analysis-section ai-analysis-notice");
-    section.append(element("h3", null, notice.heading), element("p", null, notice.detail));
-    content.append(section);
-  }
-  details.className = "ai-analysis-details";
-  details.replaceChildren(content);
-}
-
-function renderReference(reference, baseline) {
-  reference.textContent = baseline?.fft?.measuredAt
-    ? `진단 기준 측정일시 ${baseline.fft.measuredAt}`
-    : "진단 기준 측정일시 --";
-}
-
-function riskClass(riskLevel) {
-  return ["normal", "caution", "danger"].includes(riskLevel) ? riskLevel : "unknown";
 }
 
 function listSection(title, items, createItem) {
@@ -198,15 +94,18 @@ function priorityLabel(value) {
 }
 
 export function resetAiAnalysis({ available, heading, detail, baseline = null }) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "분석 대기";
+  const { description, run, details } = elements();
   description.textContent = available
-    ? conciseSummary(baseline)
+    ? "AI 분석 결과를 기다리고 있습니다."
     : "주파수 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
-  renderReference(reference, baseline);
   setAction(run, "다시 분석", !available);
-  if (baseline?.fft) renderBaseline(details, baseline);
+  if (baseline?.fft) {
+    placeholder(
+      details,
+      "AI 분석 대기",
+      "선택한 주파수 기록을 바탕으로 AI 분석 결과를 준비하고 있습니다.",
+    );
+  }
   else placeholder(
       details,
       heading || "인공지능 분석에 사용할 주파수 기록이 없습니다.",
@@ -215,25 +114,21 @@ export function resetAiAnalysis({ available, heading, detail, baseline = null })
 }
 
 export function setAiAnalysisLoading(baseline) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "분석 중";
-  description.textContent = conciseSummary(baseline);
+  const { description, run, details } = elements();
+  description.textContent = "AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요.";
   setAction(run, "인공지능 분석 중...", true);
-  renderReference(reference, baseline);
-  renderBaseline(details, baseline, {
-    heading: "AI 분석 중",
-    detail: "규칙 기반 근거를 유지한 상태로 인공지능 보강 결과를 기다리고 있습니다.",
-  });
+  placeholder(
+    details,
+    "AI 분석 중",
+    "선택한 주파수 기록을 바탕으로 AI 분석 결과를 생성하고 있습니다.",
+  );
   details.setAttribute("aria-busy", "true");
 }
 
 export function renderAiAnalysis(payload, baseline = null) {
-  const { result, description, run, details } = elements();
+  const { description, run, details } = elements();
   const analysis = payload.analysis;
-  result.className = `result-chip ${riskClass(analysis.riskLevel)}`;
-  result.textContent = analysis.riskLabel || "분석 완료";
-  description.textContent = conciseSummary(baseline);
+  description.textContent = analysis.headline;
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");
@@ -256,13 +151,10 @@ export function renderAiAnalysis(payload, baseline = null) {
 }
 
 export function renderAiAnalysisError(message, baseline) {
-  const { result, description, run, details, reference } = elements();
-  result.className = "result-chip unknown";
-  result.textContent = "규칙 진단";
-  description.textContent = conciseSummary(baseline);
-  renderReference(reference, baseline);
+  const { description, run, details } = elements();
+  description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";
   setAction(run, "다시 시도", false);
-  renderBaseline(details, baseline, { heading: "AI 보강 실패", detail: message });
+  placeholder(details, "AI 진단 실패", message);
 }
 
 export function bindAiAnalysis(onRun) {

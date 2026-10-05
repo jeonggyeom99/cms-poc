@@ -269,13 +269,6 @@ h1 {
   font-size: 20px;
 }
 
-.ai-analysis-reference {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
-}
-
 .ai-analysis-summary {
   display: -webkit-box;
   max-width: 880px;
@@ -2621,4 +2614,8 @@ body.graph-modal-open {
   .chat-panel { width: min(390px, calc(100vw - 20px)); }
   .chat-backdrop.is-open { display: block; }
   .chat-context-banner small { display: none; }
+}
+
+.report-action-status[data-state="warning"] {
+  color: var(--warning, #a56a00);
 }

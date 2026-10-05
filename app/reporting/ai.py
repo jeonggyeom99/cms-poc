@@ -40,8 +40,13 @@ class ReportAiGateway(Protocol):
 class OpenAIReportGateway:
     """OpenAI implementation for bounded report-specific JSON responses."""
 
+    _max_completion_tokens = 1400
+
     def __init__(self, settings: OpenAISettings) -> None:
         self._settings = settings
+
+    def _user_content(self, context: dict[str, Any]) -> Any:
+        return json.dumps(context, ensure_ascii=False, separators=(",", ":"))
 
     async def generate(
         self,
@@ -64,7 +69,7 @@ class OpenAIReportGateway:
             async with asyncio.timeout(self._settings.timeout_seconds):
                 response = await client.chat.completions.create(
                     model=self._settings.model,
-                    max_completion_tokens=1400,
+                    max_completion_tokens=self._max_completion_tokens,
                     response_format={
                         "type": "json_schema",
                         "json_schema": {
@@ -77,9 +82,7 @@ class OpenAIReportGateway:
                         {"role": "system", "content": instructions},
                         {
                             "role": "user",
-                            "content": json.dumps(
-                                context, ensure_ascii=False, separators=(",", ":")
-                            ),
+                            "content": self._user_content(context),
                         },
                     ],
                 )

@@ -1,4 +1,6 @@
+import os
 from collections.abc import AsyncIterator
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -7,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.agent_tools import build_dashboard_tool_executor
 from app.ai_analysis import (
     AiAnalysisError,
     AiAnalysisGateway,
@@ -15,6 +18,7 @@ from app.ai_analysis import (
     AiAnalysisService,
     OpenAIAnalysisGateway,
     OpenAISettings,
+    analysis_cache_ttl_seconds,
     build_ai_context,
     load_project_environment,
 )
@@ -38,7 +42,9 @@ from app.reporting.contracts import DiagnosticPptRequest, ReportRequest, decode_
 from app.reporting.email_ai import EMAIL_DRAFT_REPORT_KIND, generate_email_draft
 from app.reporting.email_draft import EmailDraftResponse, present_email_draft
 from app.reporting.ppt_ai import PPT_REPORT_KIND, generate_ppt_diagnosis
-from app.reporting.ppt_report import build_diagnostic_ppt, diagnostic_ppt_filename_stem
+from app.reporting.ppt_report import diagnostic_ppt_filename_stem
+from app.reporting.ppt_pipeline import PptPipeline
+from app.reporting.ppt_validation import OpenAIPptGateway, render_ppt
 from app.services.analysis import (
     bearing_fft_tool,
     fft_tool,
@@ -61,6 +67,9 @@ def create_app(
     ai_gateway: AiAnalysisGateway | None = None,
     report_gateway: ReportAiGateway | None = None,
     chat_gateway: DashboardChatGateway | None = None,
+    ppt_gateway: ReportAiGateway | None = None,
+    ppt_renderer: Callable[[bytes], Awaitable[bytes]] = render_ppt,
+    ai_cache_dir: Path | None = None,
 ) -> FastAPI:
     load_project_environment(BASE_DIR.parent)
 
@@ -73,10 +82,22 @@ def create_app(
             application.state.history = {"items": []}
         settings = OpenAISettings.from_environment()
         application.state.ai_analysis_service = AiAnalysisService(
-            ai_gateway or OpenAIAnalysisGateway(settings), settings.model
+            ai_gateway or OpenAIAnalysisGateway(settings),
+            settings.model,
+            cache_dir=(
+                ai_cache_dir if ai_cache_dir is not None
+                else data_dir.parent / ".cache" / "ai-analysis"
+            ),
+            ttl_seconds=analysis_cache_ttl_seconds(
+                os.environ.get("AI_ANALYSIS_CACHE_TTL_SECONDS")
+            ),
         )
         application.state.report_ai_service = ReportAiService(
             report_gateway or OpenAIReportGateway(settings), settings.model
+        )
+        application.state.ppt_pipeline = PptPipeline(
+            ReportAiService(ppt_gateway or OpenAIPptGateway(settings), settings.model),
+            ppt_renderer,
         )
         application.state.dashboard_chat_service = DashboardChatService(
             chat_gateway or OpenAIDashboardChatGateway(settings), settings.model
@@ -367,8 +388,28 @@ def create_app(
             analysis_request.selected_fault_type,
             analysis_request.until,
         )
+
+        async def execute_analysis_tool(name: str, arguments: dict) -> dict:
+            if arguments:
+                return {"status": "unavailable", "reason": "invalid_tool_arguments"}
+            if name == "get_trend_evidence":
+                return {
+                    "status": context["analysisTools"]["trend"],
+                    "equipment": context["equipment"],
+                    "trend": context["trend"],
+                    "levelAnalysis": context["levelAnalysis"],
+                    "dataQuality": {"notes": [note for note in context["dataQuality"]["notes"] if "Trend" in note]},
+                }
+            if name == "get_fft_evidence":
+                return {"status": context["analysisTools"]["fft"], "fft": context["fft"]}
+            if name == "get_related_history":
+                return {"status": "ready", "relatedHistory": context["relatedHistory"]}
+            return {"status": "unavailable", "reason": "unknown_tool"}
+
         try:
-            return await ai_service_from(request).analyze(context, analysis_request.force)
+            return await ai_service_from(request).analyze(
+                context, analysis_request.force, execute_analysis_tool, dataset_id=dataset_id
+            )
         except AiAnalysisError as error:
             raise_ai_error(error)
 
@@ -385,6 +426,34 @@ def create_app(
         dataset = available_datasets.get(dataset_id)
         if dataset is None:
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
+        chat_service = chat_service_from(request)
+        if chat_service.uses_model_tools:
+            reference_end = chat_request.until
+            if reference_end is None:
+                latest = dataset.get("equipment", {}).get("lastMeasuredAt")
+                reference_end = date.fromisoformat(str(latest).split(" ")[0]) if latest else None
+            executor = build_dashboard_tool_executor(
+                available_datasets,
+                dataset_id,
+                chat_request.record_id,
+                history_from(request),
+                chat_request.selected_fault_type,
+                reference_end,
+            )
+            try:
+                return await chat_service.respond_with_tools(
+                    {
+                        "selectedEquipment": dataset.get("equipment", {}).get("id"),
+                        "selectedRecordId": chat_request.record_id,
+                        "until": chat_request.until.isoformat() if chat_request.until else None,
+                    },
+                    chat_request.history,
+                    chat_request.message,
+                    executor,
+                )
+            except AiAnalysisError as error:
+                raise_ai_error(error)
+
         reference_end = chat_request.until
         if reference_end is None:
             latest = dataset.get("equipment", {}).get("lastMeasuredAt")
@@ -458,20 +527,24 @@ def create_app(
             raise_ai_error(error)
 
         try:
-            presentation = build_diagnostic_ppt(
+            result = await request.app.state.ppt_pipeline.build(
                 context,
                 diagnosis,
                 decode_png_data_url(report_request.trend_image_data_url),
                 decode_png_data_url(report_request.fft_image_data_url),
+                force=report_request.force,
             )
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
         filename = f"{diagnostic_ppt_filename_stem(context)}.pptx"
         return Response(
-            content=presentation,
+            content=result.presentation,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-PPT-Validation": result.validation.header(),
+            },
         )
 
     return application

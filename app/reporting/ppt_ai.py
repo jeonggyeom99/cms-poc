@@ -12,7 +12,7 @@ from app.reporting.ai import ReportAiService
 
 
 PPT_REPORT_KIND = "diagnostic-ppt"
-PPT_PROMPT_VERSION = "cms-diagnostic-ppt-v1"
+PPT_PROMPT_VERSION = "cms-diagnostic-ppt-v2"
 
 _HTML_TAG = re.compile(r"</?[a-z][^>]*>", re.IGNORECASE)
 _RAW_SPECTRUM_KEYS = frozenset({"frequencies", "amplitudes"})
@@ -60,6 +60,8 @@ HTML, Markdown, 표, 코드 블록, 태그를 작성하지 마십시오.
 
 headline과 conclusion은 한 장의 진단 결과 영역에 들어갈 만큼 짧고 명확하게 작성하십시오.
 trend_finding과 fft_finding은 각각 관측 근거와 해석을 한두 문장으로 요약하십시오.
+headline은 가능하면 60자 이내, trend_finding과 fft_finding은 각각 140자 이내로 작성하십시오.
+표와 그래프 설명에 들어가므로 불필요한 반복은 줄이고 수치·단위·조건·불확실성은 보존하십시오.
 recommended_actions는 0~3개의 확인, 재측정 또는 현장 점검 행동만 제시하십시오. 각 행동은
 조건부이고 실행 가능한 문장으로 작성하며, 근거 없는 교체 또는 정지 지시를 하지 마십시오.
 limitations에는 데이터 누락, 운전 조건 부재, 표본 부족 등 해석의 불확실성을 1~3개 적으십시오.

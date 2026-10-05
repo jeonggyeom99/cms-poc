@@ -15,9 +15,11 @@ from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
-from pptx.util import Pt
+from pptx.util import Inches, Pt
+from pptx.oxml.xmlchemy import OxmlElement
 
 from app.reporting.ppt_ai import PptDiagnosis
+from app.reporting.ppt_layout import PptLayout, PptRegion, default_ppt_layout
 
 
 TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "docs" / "ppt_result_sample.pptx"
@@ -32,6 +34,7 @@ def build_diagnostic_ppt(
     diagnosis: PptDiagnosis,
     trend_png: bytes | None,
     fft_png: bytes | None,
+    layout: PptLayout | None = None,
 ) -> bytes:
     """Fill the supplied single-slide template with current diagnostic evidence."""
     if not TEMPLATE_PATH.is_file():
@@ -53,21 +56,55 @@ def build_diagnostic_ppt(
     if len(tables) < 2:
         raise ValueError("진단 보고서 PPT 템플릿의 표 구성을 확인할 수 없습니다.")
     _, metadata_table = tables[:2]
+    layout = layout or default_ppt_layout()
     title = _find_title_shape(slide)
     trend_text, fft_text = _find_analysis_text_shapes(slide)
     picture_frames = _picture_frames(slide)
     if len(picture_frames) < 2:
         raise ValueError("진단 보고서 PPT 템플릿의 그래프 영역을 확인할 수 없습니다.")
 
-    plant = _plain_text(equipment.get("plant"), 45)
+    table_shapes = [shape for shape in slide.shapes if getattr(shape, "has_table", False)]
+    table_shapes[0].name = "panel_background"
+    table_shapes[1].name = "metadata"
+    _apply_region(table_shapes[1], layout.metadata)
+    panel = table_shapes[0]
+    regions = (layout.trend_text, layout.fft_text, layout.trend_chart, layout.fft_chart)
+    left = min(region.x for region in regions) - 0.1
+    top = min(region.y for region in regions) - 0.4
+    right = max(region.x + region.width for region in regions) + 0.1
+    bottom = max(region.y + region.height for region in regions) + 0.1
+    panel.left, panel.top = Inches(left), Inches(top)
+    panel.width, panel.height = Inches(right - left), Inches(bottom - top)
+    for column in panel.table.columns:
+        column.width = Inches((right - left) / 2)
+    panel.table.rows[0].height = Inches(0.32)
+    panel.table.rows[1].height = Inches(bottom - top - 0.32)
+    for row in panel.table.rows:
+        for cell in row.cells:
+            for paragraph in cell.text_frame.paragraphs:
+                for run in paragraph.runs:
+                    run.font.name = FONT_NAME
+                    run.font.size = Pt(12)
+    for name, shape, region in (
+        ("title", title, layout.title),
+        ("trend_text", trend_text, layout.trend_text),
+        ("fft_text", fft_text, layout.fft_text),
+    ):
+        shape.name = name
+        _apply_region(shape, region)
+
+    plant = _plain_text(equipment.get("plant"), 500)
     title_text = f"[{plant}] CMS Data 모니터링 및 진단결과" if plant else "CMS Data 모니터링 및 진단결과"
-    _set_text(title, title_text, 27, TITLE_COLOR, bold=True)
-    _fill_metadata_table(metadata_table, equipment, metrics, fft, diagnosis)
-    _set_text(trend_text, _plain_text(diagnosis.trend_finding, 120), 12, BODY_COLOR, bold=True)
-    _set_fft_panel_text(fft_text, diagnosis)
+    _set_text(title, title_text, layout.title.font_size, TITLE_COLOR, bold=True)
+    _fill_metadata_table(metadata_table, equipment, metrics, fft, diagnosis, layout.metadata.font_size)
+    _set_text(trend_text, diagnosis.trend_finding, layout.trend_text.font_size, BODY_COLOR, bold=True)
+    _set_fft_panel_text(fft_text, diagnosis, layout.fft_text.font_size)
 
     _clear_template_annotations(slide, (title, trend_text, fft_text))
-    _replace_chart_images(slide, picture_frames, trend_png, fft_png)
+    _replace_chart_images(slide, [
+        tuple(Inches(value) for value in (region.x, region.y, region.width, region.height))
+        for region in (layout.trend_chart, layout.fft_chart)
+    ], trend_png, fft_png)
 
     output = BytesIO()
     presentation.save(output)
@@ -185,26 +222,26 @@ def _fill_metadata_table(
     metrics: Mapping[str, Mapping[str, Any]],
     fft: Mapping[str, Any],
     diagnosis: PptDiagnosis,
+    font_size: float = 11,
 ) -> None:
     velocity = metrics.get("velocity", {})
     acceleration = metrics.get("accelerationAll", {})
     values = {
-        (0, 1): _plain_text(equipment.get("plant"), 45),
+        (0, 1): _plain_text(equipment.get("plant"), 500),
         (0, 5): "",
         (0, 8): _format_report_timestamp(fft.get("measuredAt")),
         (0, 11): "",
-        (1, 1): _plain_text(equipment.get("name") or equipment.get("displayName"), 80),
+        (1, 1): _plain_text(equipment.get("name") or equipment.get("displayName"), 500),
         (1, 8): "",
-        (1, 11): _plain_text(equipment.get("sensorNumber") or equipment.get("sensor_number"), 24),
+        (1, 11): _plain_text(equipment.get("sensorNumber") or equipment.get("sensor_number"), 500),
         (2, 2): _format_with_unit(equipment.get("rpm"), "RPM", 0),
-        (2, 6): _plain_text(equipment.get("bearing"), 32),
+        (2, 6): _plain_text(equipment.get("bearing"), 500),
         (2, 9): _format_thresholds(velocity),
         (2, 12): _format_thresholds(acceleration),
         (3, 1): _phenomenon_text(velocity, acceleration, diagnosis.trend_finding),
-        (4, 1): _plain_text(diagnosis.headline, 150),
+        (4, 1): _plain_text(diagnosis.headline, 90),
     }
     for (row, column), value in values.items():
-        font_size = 10 if row == 4 else 11
         _set_table_cell_text(table.cell(row, column), value, font_size)
 
 
@@ -230,27 +267,27 @@ def _phenomenon_text(
     current = ", ".join(
         f"{label} {reading}" for label, reading in zip(labels, readings, strict=True) if reading
     )
-    return ". ".join(part for part in (current, _plain_text(finding, 150)) if part)
+    return ". ".join(part for part in (current, _plain_text(finding, 280)) if part)
 
 
-def _set_fft_panel_text(shape: Any, diagnosis: PptDiagnosis) -> None:
+def _set_fft_panel_text(shape: Any, diagnosis: PptDiagnosis, size: float = 12) -> None:
     text_frame = shape.text_frame
     text_frame.clear()
     text_frame.word_wrap = True
-    text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
-    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-    _add_paragraph(text_frame.paragraphs[0], _plain_text(diagnosis.fft_finding, 150), 12, BODY_COLOR, bold=True)
+    text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    text_frame.vertical_anchor = MSO_ANCHOR.TOP
+    _add_paragraph(text_frame.paragraphs[0], diagnosis.fft_finding, size, BODY_COLOR, bold=True)
     action = next((item.action for item in diagnosis.recommended_actions if item.action), "")
     if action:
-        _add_paragraph(text_frame.add_paragraph(), _plain_text(action, 100), 12, ACTION_COLOR)
+        _add_paragraph(text_frame.add_paragraph(), action, size, ACTION_COLOR)
 
 
 def _set_text(shape: Any, value: str, size: float, color: tuple[int, int, int], bold: bool = False) -> None:
     text_frame = shape.text_frame
     text_frame.clear()
     text_frame.word_wrap = True
-    text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
-    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    text_frame.vertical_anchor = MSO_ANCHOR.TOP
     _add_paragraph(text_frame.paragraphs[0], value, size, color, bold)
 
 
@@ -258,13 +295,20 @@ def _set_table_cell_text(cell: Any, value: str, font_size: float) -> None:
     text_frame = cell.text_frame
     text_frame.clear()
     text_frame.word_wrap = True
-    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    text_frame.vertical_anchor = MSO_ANCHOR.TOP
     _add_paragraph(text_frame.paragraphs[0], value, font_size, BODY_COLOR)
 
 
 def _add_paragraph(paragraph: Any, value: str, size: float, color: tuple[int, int, int], bold: bool = False) -> None:
     paragraph.alignment = PP_ALIGN.LEFT
     paragraph.space_after = Pt(0)
+    properties = paragraph._p.get_or_add_pPr()
+    properties.set("marL", "0")
+    properties.set("indent", "0")
+    for tag in ("buChar", "buAutoNum", "buNone"):
+        for element in list(properties.findall(f"{{http://schemas.openxmlformats.org/drawingml/2006/main}}{tag}")):
+            properties.remove(element)
+    properties.append(OxmlElement("a:buNone"))
     run = paragraph.add_run()
     run.text = value
     run.font.name = FONT_NAME
@@ -288,26 +332,42 @@ def _replace_chart_images(
     trend_png: bytes | None,
     fft_png: bytes | None,
 ) -> None:
-    for frame, image in zip(frames[:2], (trend_png, fft_png), strict=True):
+    for name, frame, image in zip(("trend_chart", "fft_chart"), frames[:2], (trend_png, fft_png), strict=True):
         if image:
-            slide.shapes.add_picture(_fit_png_to_frame(image, frame[2], frame[3]), *frame)
+            picture = slide.shapes.add_picture(_fit_png_to_frame(image, frame[2], frame[3]), *frame)
+            picture.name = name
 
 
 def _fit_png_to_frame(image: bytes, width: int, height: int) -> BytesIO:
-    """Center-crop a PNG to the template's fixed chart frame without distortion."""
+    """Letterbox the complete graph so axes and legends are never cropped."""
     with Image.open(BytesIO(image)) as source:
         source = source.convert("RGB")
-        source_ratio = source.width / source.height
-        target_ratio = width / height
-        if source_ratio > target_ratio:
-            cropped_width = round(source.height * target_ratio)
-            left = (source.width - cropped_width) // 2
-            source = source.crop((left, 0, left + cropped_width, source.height))
-        elif source_ratio < target_ratio:
-            cropped_height = round(source.width / target_ratio)
-            top = (source.height - cropped_height) // 2
-            source = source.crop((0, top, source.width, top + cropped_height))
+        target_width = 1600
+        target_height = max(1, round(target_width * height / width))
+        scale = min(target_width / source.width, target_height / source.height)
+        source = source.resize((max(1, round(source.width * scale)), max(1, round(source.height * scale))), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", (target_width, target_height), "white")
+        canvas.paste(source, ((target_width - source.width) // 2, (target_height - source.height) // 2))
         output = BytesIO()
-        source.save(output, format="PNG")
+        canvas.save(output, format="PNG")
         output.seek(0)
         return output
+
+
+def _apply_region(shape: Any, region: PptRegion) -> None:
+    if getattr(shape, "has_table", False):
+        table = shape.table
+        old_width = sum(column.width for column in table.columns)
+        for column in table.columns:
+            column.width = round(column.width * Inches(region.width) / old_width)
+        weights = (0.50, 0.55, 0.40, 0.40, 0.30)
+        for row, weight in zip(table.rows, weights, strict=True):
+            row.height = Inches(region.height * weight / sum(weights))
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.name = FONT_NAME
+                        run.font.size = Pt(region.font_size)
+    shape.left, shape.top = Inches(region.x), Inches(region.y)
+    shape.width, shape.height = Inches(region.width), Inches(region.height)

@@ -1,21 +1,26 @@
 import asyncio
+from copy import deepcopy
 import json
 import sys
 import types
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from pydantic import BaseModel
 
 from app.ai_analysis import (
     AiAnalysisService,
     AiDiagnosis,
+    AiEvidenceError,
     AiFinding,
     AiLikelyCause,
     AiRecommendedAction,
     OpenAIAnalysisGateway,
     OpenAISettings,
     build_ai_context,
+    analysis_cache_ttl_seconds,
+    diagnosis_quality_issues,
 )
+from app.analysis.fft import analyze_acceleration_bearing_fft
 from app.reporting.ai import OpenAIReportGateway
 from app.data_loader import load_datasets, load_history
 from pathlib import Path
@@ -49,9 +54,20 @@ def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
 
     async def create(**kwargs):
         calls.append(kwargs)
-        content = diagnosis().model_dump_json()
+        if kwargs.get("tool_choice") == "required":
+            calls_for_tools = [
+                types.SimpleNamespace(
+                    id=f"call-{name}", type="function",
+                    function=types.SimpleNamespace(name=name, arguments="{}"),
+                )
+                for name in ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            ]
+            message = types.SimpleNamespace(content=None, refusal=None, tool_calls=calls_for_tools)
+        else:
+            content = diagnosis().model_dump_json() if "tools" in kwargs else '{"headline":"ok"}'
+            message = types.SimpleNamespace(content=content, refusal=None, tool_calls=None)
         return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content, refusal=None))]
+            choices=[types.SimpleNamespace(message=message)]
         )
 
     class FakeAsyncOpenAI:
@@ -70,15 +86,30 @@ def test_openai_gateways_omit_temperature_parameter(monkeypatch) -> None:
         headline: str
 
     async def run() -> None:
-        await OpenAIAnalysisGateway(settings).analyze({"datasetId": "1"})
+        context = {
+            "equipment": {"id": "V001"}, "fft": {"recordId": 1},
+            "trend": {}, "levelAnalysis": {}, "relatedHistory": {},
+            "dataQuality": {"notes": []}, "analysisTools": {"trend": "ready", "fft": "ready"},
+        }
+        await OpenAIAnalysisGateway(settings).analyze(context)
         await OpenAIReportGateway(settings).generate(
             "email-draft", "instructions", {}, SampleReport
         )
 
     asyncio.run(run())
 
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert all("temperature" not in call for call in calls)
+    analysis_instructions = calls[0]["messages"][0]["content"]
+    assert "thresholdState" in analysis_instructions
+    assert "detectedFrequency" in analysis_instructions
+    assert "BPFI means" in analysis_instructions
+    assert "NOT the shaft rotation's 1X" in analysis_instructions
+    assert "counterEvidence" in analysis_instructions
+    assert calls[0]["tool_choice"] == "required"
+    assert {tool["function"]["name"] for tool in calls[0]["tools"]} == {
+        "get_trend_evidence", "get_fft_evidence", "get_related_history"
+    }
 
 
 def sample_dataset() -> dict:
@@ -245,6 +276,168 @@ def test_build_ai_context_summarizes_signals_and_excludes_future_history() -> No
     assert "2026-02-01" not in compact_context
 
 
+def inner_race_context() -> dict:
+    fft = deepcopy(sample_fft())
+    fft["metadata"]["measureMode"] = {"code": "2", "label": "가속도 ENV"}
+    fft["amplitudeUnit"] = "g"
+    fft["analysis"]["diagnosis"] = analyze_acceleration_bearing_fft(
+        [30.0, 147.0],
+        [0.1, 0.7],
+        1800,
+        {"maker": "NSK", "number": "6318"},
+        {"available": True, "coefficients": {"BPFI": 4.9}},
+    )
+
+    return build_ai_context("1", sample_dataset(), fft, [])
+
+
+def test_ai_context_exposes_inner_race_harmonic_separately_from_shaft_1x() -> None:
+    context = inner_race_context()
+
+    assert context["trend"]["analysis"]["status"] == "rising"
+    assert context["trend"]["metrics"][0]["thresholdState"] == "caution"
+    assert context["fft"]["measurement"]["measureMode"]["code"] == "2"
+    assert context["fft"]["diagnosis"]["shaftFrequency"] == 30.0
+    assert context["fft"]["diagnosis"]["diagnosis"] == "bearing_inner_race"
+    bpfi = next(fault for fault in context["fft"]["diagnosis"]["faults"] if fault["type"] == "BPFI")
+    assert bpfi["harmonics"][0] == {
+        "order": 1,
+        "targetFrequency": 147.0,
+        "detectedFrequency": 147.0,
+        "amplitude": 0.7,
+        "detected": True,
+        "significant": True,
+    }
+
+
+def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_bearing_cause() -> None:
+    expected = diagnosis().model_copy(update={
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
+        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
+    })
+    bearing_context = inner_race_context()
+    assert diagnosis_quality_issues(bearing_context, expected) == []
+    korean_order = expected.model_copy(update={
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1차 고조파 147 Hz에서 0.7 g 피크가 확인됩니다.")],
+        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1차 147 Hz에서 0.7 g입니다.")],
+    })
+    assert diagnosis_quality_issues(bearing_context, korean_order) == []
+    assert diagnosis_quality_issues(bearing_context, diagnosis())
+    rounded_context = deepcopy(bearing_context)
+    rounded_harmonic = rounded_context["fft"]["diagnosis"]["faults"][0]["harmonics"][0]
+    rounded_harmonic["detectedFrequency"] = 141.25
+    rounded_harmonic["amplitude"] = 2.509788
+    rounded = expected.model_copy(update={
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 141.25 Hz에서 2.51 g 피크")],
+        "likely_causes": [AiLikelyCause(cause="내륜 결함 후보", confidence="medium", rationale="BPFI 1X 141.25 Hz의 2.51 g 피크")],
+    })
+    assert diagnosis_quality_issues(rounded_context, rounded) == []
+    wrong_frequency = rounded.model_copy(update={"fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 120 Hz에서 2.51 g 피크")]})
+    assert any("주파수" in issue for issue in diagnosis_quality_issues(rounded_context, wrong_frequency))
+    verbose = expected.model_copy(update={"headline": expected.headline + " 추가 설명" * 30})
+    assert any("140자" in issue for issue in diagnosis_quality_issues(bearing_context, verbose))
+    keyword_only = expected.model_copy(update={
+        "headline": "주의 상승 BPFI 147 0.7 가능성",
+        "fft_findings": [AiFinding(heading="FFT", detail="피크가 있습니다.")],
+        "likely_causes": [AiLikelyCause(cause="BPFI", confidence="medium", rationale="추가 검토가 필요합니다.")],
+    })
+    assert diagnosis_quality_issues(bearing_context, keyword_only)
+
+    velocity_context = build_ai_context("1", sample_dataset(), sample_fft(), [])
+    assert any("베어링" in issue for issue in diagnosis_quality_issues(velocity_context, expected))
+    velocity_expected = diagnosis().model_copy(update={
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
+        "fft_findings": [AiFinding(heading="1X", detail="속도 FFT 1X 30 Hz에서 1.2 mm/s 피크가 확인됩니다.")],
+    })
+    assert diagnosis_quality_issues(velocity_context, velocity_expected) == []
+    stable_context = deepcopy(velocity_context)
+    stable_context["trend"]["analysis"]["status"] = "stable"
+    false_rising = velocity_expected.model_copy(update={
+        "headline": "속도 진동이 최근 상승해 주의 수준입니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
+        "trend_findings": [AiFinding(heading="속도 진동 상승", detail="최근 상승 상태입니다.")],
+    })
+    assert any("상승이 아니" in issue for issue in diagnosis_quality_issues(stable_context, false_rising))
+    assert diagnosis_quality_issues(velocity_context, diagnosis())
+
+    unavailable = deepcopy(bearing_context)
+    unavailable["fft"]["diagnosis"]["status"] = "unavailable"
+    unsupported = expected.model_copy(update={"counter_evidence": ["베어링"]})
+    assert any("counterEvidence" in issue for issue in diagnosis_quality_issues(unavailable, unsupported))
+
+
+def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
+    calls: list[dict] = []
+    expected = diagnosis().model_copy(update={
+        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
+        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
+        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
+    })
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("tool_choice") == "required":
+            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            message = types.SimpleNamespace(
+                content=None,
+                refusal=None,
+                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
+            )
+        else:
+            content = diagnosis().model_dump_json() if len(calls) == 2 else expected.model_dump_json()
+            message = types.SimpleNamespace(content=content, refusal=None, tool_calls=None)
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=message)]
+        )
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs) -> None:
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=create))
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
+    gateway = OpenAIAnalysisGateway(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
+
+    result = asyncio.run(gateway.analyze(inner_race_context()))
+
+    assert result.headline == expected.headline
+    assert len(calls) == 3
+    assert "진단 근거 검사" in calls[2]["messages"][-1]["content"]
+
+
+def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeypatch) -> None:
+    calls = 0
+
+    async def create(**kwargs):
+        nonlocal calls
+        calls += 1
+        if kwargs.get("tool_choice") == "required":
+            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(
+                content=None, refusal=None,
+                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
+            ))])
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=diagnosis().model_dump_json(), refusal=None, tool_calls=None))]
+        )
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs) -> None:
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=create))
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
+    gateway = OpenAIAnalysisGateway(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
+
+    with pytest.raises(AiEvidenceError):
+        asyncio.run(gateway.analyze(inner_race_context()))
+    assert calls == 3
+
+
 def test_repository_datasets_have_compact_ai_context_contract() -> None:
     data_dir = Path(__file__).resolve().parents[1] / "data"
     datasets, history = load_datasets(data_dir), load_history(data_dir)["items"]
@@ -282,6 +475,20 @@ def test_repository_datasets_have_compact_ai_context_contract() -> None:
         assert "frequencies" not in compact and "amplitudes" not in compact
 
 
+def test_ai_context_corrects_bearing_summary_to_significant_harmonics() -> None:
+    data_dir = Path(__file__).resolve().parents[1] / "data"
+    dataset = load_datasets(data_dir)["8"]
+    history = load_history(data_dir)["items"]
+    record = next(item for item in dataset["fft"]["records"] if item["id"] == 2)
+
+    context = build_ai_context("8", dataset, record, history, until=date(2026, 9, 7))
+    diagnosis = context["fft"]["diagnosis"]
+    bpfi = next(item for item in diagnosis["faults"] if item["type"] == "BPFI")
+
+    assert [item["significant"] for item in bpfi["harmonics"]] == [True, True, False]
+    assert diagnosis["message"] == "BPFI의 유의 고조파는 1, 2X입니다."
+
+
 class CountingGateway:
     def __init__(self) -> None:
         self.calls = 0
@@ -302,3 +509,214 @@ def test_ai_analysis_service_caches_and_refreshes_on_force() -> None:
         return first.cached, cached.cached, refreshed.cached, gateway.calls
 
     assert asyncio.run(run()) == (False, True, False, 2)
+
+
+@pytest.mark.parametrize("value,expected", [(None, 86400), ("", 86400), ("3600", 3600), ("0", 86400), ("-1", 86400), ("bad", 86400), ("1.5", 86400)])
+def test_cache_ttl_configuration(value, expected) -> None:
+    assert analysis_cache_ttl_seconds(value) == expected
+
+
+def test_analysis_cache_persists_markdown_and_expires(tmp_path: Path) -> None:
+    async def run() -> None:
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        gateway = CountingGateway()
+        context = {"promptVersion": "v1", "value": 1}
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        first = await service.analyze(context, dataset_id="1")
+        path = next(tmp_path.glob("*.json"))
+        stored = json.loads(path.read_text())
+        assert stored["formatVersion"] == 1
+        assert stored["response"]["analysis"] == first.analysis.model_dump(by_alias=True)
+        assert datetime.fromisoformat(stored["expiresAt"]) - first.generated_at == timedelta(days=1)
+        markdown = stored["markdown"]
+        for text in (first.analysis.headline, "위험도: 주의", "완만한 상승", "1X Peak", "Unbalance", "현장 운전 조건", "체결 상태", "반복 측정"):
+            assert text in markdown
+        assert not list(tmp_path.glob("*.tmp"))
+
+        now += timedelta(days=1, microseconds=-1)
+        assert (await service.analyze(context, dataset_id="1")).cached
+        restarted = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        cached = await restarted.analyze(context, dataset_id="1")
+        assert cached.cached and cached.generated_at == first.generated_at
+        assert gateway.calls == 1
+        now += timedelta(microseconds=1)
+        assert not (await restarted.analyze(context, dataset_id="1")).cached
+        assert gateway.calls == 2
+        # A fresh service must also reject an expired file.
+        now += timedelta(days=1)
+        assert not (await AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now).analyze(context, dataset_id="1")).cached
+        assert gateway.calls == 3
+        now += timedelta(seconds=1)
+        forced = await restarted.analyze(context, force=True, dataset_id="1")
+        assert not forced.cached and gateway.calls == 4
+        final = await AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now).analyze(context, dataset_id="1")
+        assert final.cached and final.generated_at == forced.generated_at
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("change", ["context", "dataset", "model", "version"])
+def test_analysis_cache_separates_inputs(tmp_path: Path, change: str) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        context = {"value": 1, "promptVersion": "v1"}
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        await service.analyze(context, dataset_id="1")
+        if change == "context":
+            context["value"] = 2
+        elif change == "version":
+            context["promptVersion"] = "v2"
+        if change == "model":
+            service = AiAnalysisService(gateway, "other", cache_dir=tmp_path)
+        result = await service.analyze(context, dataset_id="2" if change == "dataset" else "1")
+        assert not result.cached and gateway.calls == 2
+        assert len(list(tmp_path.glob("*.json"))) == 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("damage", ["json", "version", "key", "naive_date", "response"])
+def test_invalid_cache_is_regenerated(tmp_path: Path, damage: str) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        await AiAnalysisService(gateway, "test", cache_dir=tmp_path).analyze({})
+        path = next(tmp_path.glob("*.json"))
+        payload = json.loads(path.read_text())
+        if damage == "version":
+            payload["formatVersion"] = 999
+        elif damage == "key":
+            payload["cacheKey"] = "wrong"
+        elif damage == "naive_date":
+            payload["expiresAt"] = "2099-01-01T00:00:00"
+        elif damage == "response":
+            payload["response"]["analysis"] = {}
+        path.write_text("{broken" if damage == "json" else json.dumps(payload))
+        assert not (await AiAnalysisService(gateway, "test", cache_dir=tmp_path).analyze({})).cached
+        assert gateway.calls == 2
+        assert json.loads(path.read_text())["formatVersion"] == 1
+
+    asyncio.run(run())
+
+
+def test_cache_save_failure_returns_result_and_keeps_memory(tmp_path: Path, caplog) -> None:
+    async def run() -> None:
+        blocked = tmp_path / "file"
+        blocked.write_text("not a directory")
+        gateway = CountingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=blocked)
+        assert not (await service.analyze({})).cached
+        assert (await service.analyze({})).cached
+        assert gateway.calls == 1
+        assert "Failed to persist AI analysis cache" in caplog.text
+
+    asyncio.run(run())
+
+
+def test_failed_analysis_preserves_cache_and_allows_retry(tmp_path: Path) -> None:
+    class FailingGateway(CountingGateway):
+        fail = False
+
+        async def analyze(self, context):
+            if self.fail:
+                raise AiEvidenceError()
+            return await super().analyze(context)
+
+    async def run() -> None:
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        gateway = FailingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path, clock=lambda: now)
+        await service.analyze({})
+        path = next(tmp_path.glob("*.json"))
+        original = path.read_bytes()
+        gateway.fail = True
+        with pytest.raises(AiEvidenceError):
+            await service.analyze({}, force=True)
+        assert path.read_bytes() == original
+        assert (await service.analyze({})).cached
+        now += timedelta(days=1)
+        with pytest.raises(AiEvidenceError):
+            await service.analyze({})
+        assert path.read_bytes() == original
+        gateway.fail = False
+        assert not (await service.analyze({})).cached
+        assert gateway.calls == 2
+
+    asyncio.run(run())
+
+
+def test_concurrent_analysis_and_force_share_one_call(tmp_path: Path) -> None:
+    async def run() -> None:
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        class SlowGateway(CountingGateway):
+            async def analyze(self, context):
+                entered.set()
+                await release.wait()
+                return await super().analyze(context)
+
+        gateway = SlowGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        first = asyncio.create_task(service.analyze({}))
+        await entered.wait()
+        second = asyncio.create_task(service.analyze({}))
+        forced = asyncio.create_task(service.analyze({}, force=True))
+        await asyncio.sleep(0)
+        release.set()
+        results = await asyncio.gather(first, second, forced)
+        assert gateway.calls == 1
+        assert all(not result.cached for result in results)
+        assert (await service.analyze({})).cached
+
+    asyncio.run(run())
+
+
+def test_atomic_replace_failure_preserves_file(tmp_path: Path, monkeypatch, caplog) -> None:
+    async def run() -> None:
+        gateway = CountingGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        await service.analyze({})
+        path = next(tmp_path.glob("*.json"))
+        original = path.read_bytes()
+
+        def failed_replace(self, target):
+            raise OSError("simulated replacement failure")
+
+        monkeypatch.setattr(Path, "replace", failed_replace)
+        assert not (await service.analyze({}, force=True)).cached
+        assert path.read_bytes() == original
+        assert not list(tmp_path.glob("*.tmp"))
+        assert (await service.analyze({})).cached
+        assert gateway.calls == 2
+        assert "Failed to persist AI analysis cache" in caplog.text
+
+    asyncio.run(run())
+
+
+def test_cancelled_caller_does_not_cancel_shared_analysis(tmp_path: Path) -> None:
+    async def run() -> None:
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        class SlowGateway(CountingGateway):
+            async def analyze(self, context):
+                entered.set()
+                await release.wait()
+                return await super().analyze(context)
+
+        gateway = SlowGateway()
+        service = AiAnalysisService(gateway, "test", cache_dir=tmp_path)
+        first = asyncio.create_task(service.analyze({}))
+        await entered.wait()
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        second = asyncio.create_task(service.analyze({}))
+        await asyncio.sleep(0)
+        release.set()
+        assert not (await second).cached
+        assert gateway.calls == 1
+        assert not service._in_flight
+        assert (await service.analyze({})).cached
+
+    asyncio.run(run())

@@ -48,7 +48,7 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
         html.index('<section class="chart-grid"')
     ]
     assert 'class="equipment-ai-diagnosis"' in equipment
-    assert 'id="ai-analysis-reference"' in equipment
+    assert 'id="ai-analysis-description"' in equipment
     assert 'id="ai-analysis-details"' not in equipment
     assert 'class="card ai-analysis-card"' in html
     assert 'id="ai-analysis-details-title"' in html
@@ -69,6 +69,47 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
     assert "setAiDiagnosisReference(getSelectedFftRecord(), getSelectedBearingFaultType())" in controller
     assert "fftRecord: reference.record" in controller
     assert "captureReferenceFft" in capture
+
+
+def test_ai_analysis_hides_rule_based_findings_until_ai_result_arrives() -> None:
+    analysis = (ROOT / "app/static/modules/analysis/ai.js").read_text(
+        encoding="utf-8"
+    )
+
+    reset = analysis[
+        analysis.index("export function resetAiAnalysis"):
+        analysis.index("export function setAiAnalysisLoading")
+    ]
+    loading = analysis[
+        analysis.index("export function setAiAnalysisLoading"):
+        analysis.index("export function renderAiAnalysis")
+    ]
+
+    assert '"AI 분석 결과를 기다리고 있습니다."' in reset
+    assert '"AI 분석 대기"' in reset
+    assert "renderBaseline(details, baseline)" not in reset
+    assert '"AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요."' in loading
+    assert '"AI 분석 중"' in loading
+    assert "renderBaseline(details, baseline" not in loading
+
+
+def test_ai_analysis_shows_generated_diagnosis_in_overview() -> None:
+    analysis = (ROOT / "app/static/modules/analysis/ai.js").read_text(
+        encoding="utf-8"
+    )
+    ready = analysis[
+        analysis.index("export function renderAiAnalysis("):
+        analysis.index("export function renderAiAnalysisError(")
+    ]
+    error = analysis[
+        analysis.index("export function renderAiAnalysisError("):
+        analysis.index("export function bindAiAnalysis(")
+    ]
+
+    assert "description.textContent = analysis.headline;" in ready
+    assert "conciseSummary" not in analysis
+    assert 'placeholder(details, "AI 진단 실패", message);' in error
+    assert 'description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";' in error
 
 
 def test_fft_charts_use_one_and_a_half_times_the_maximum_amplitude_for_y_axis() -> None:

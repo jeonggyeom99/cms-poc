@@ -12,6 +12,7 @@ from app.main import create_app
 from app.reporting.ai import OpenAIReportGateway
 from app.reporting.email_ai import EMAIL_DRAFT_REPORT_KIND, EmailDraft
 from app.reporting.ppt_ai import PPT_REPORT_KIND, PptDiagnosis
+from app.reporting.ppt_validation import PptReview
 from tests.test_app import make_data_dir, post
 
 
@@ -85,8 +86,17 @@ def test_email_draft_endpoint_uses_email_specific_compact_context(tmp_path) -> N
 
 def test_diagnostic_ppt_endpoint_returns_one_slide_download(tmp_path) -> None:
     gateway = FakeReportGateway()
+
+    class PassingPptGateway:
+        async def generate(self, report_kind, instructions, context, response_model):
+            return PptReview(issues=[])
+
+    async def render(presentation):
+        return tiny_png()
+
     response = post(
-        create_app(make_data_dir(tmp_path), report_gateway=gateway),
+        create_app(make_data_dir(tmp_path), report_gateway=gateway,
+                   ppt_gateway=PassingPptGateway(), ppt_renderer=render),
         "/api/dashboard/1/diagnostic-ppt",
         {
             "recordId": 2,

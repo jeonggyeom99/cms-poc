@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import tempfile
 import math
 import os
-from collections.abc import Mapping
+import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
@@ -23,7 +26,8 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v1"
+PROMPT_VERSION = "cms-dashboard-analysis-v6"
+ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
 def _camel_case(name: str) -> str:
@@ -115,6 +119,11 @@ class AiProviderError(AiAnalysisError):
 class AiResponseError(AiAnalysisError):
     def __init__(self) -> None:
         super().__init__("invalid_response", "AI 분석 결과 형식을 확인하지 못했습니다. 다시 시도해 주세요.")
+
+
+class AiEvidenceError(AiAnalysisError):
+    def __init__(self) -> None:
+        super().__init__("invalid_response", "AI 진단의 측정 근거를 확인하지 못했습니다. 다시 시도해 주세요.")
 
 
 @dataclass(frozen=True)
@@ -617,6 +626,7 @@ def build_ai_context(
 
     trend = _trend_summary(trend_dataset)
     fft_summary = _fft_summary(analyzed_fft)
+    _correct_bearing_message(fft_summary)
     fft_summary["diagnosticLimitation"] = _diagnostic_limitation(fft_summary)
     related_history = _related_history_summary(
         dataset_id, trend_dataset, analyzed_fft, history_items, selected_fault_type, until
@@ -638,9 +648,165 @@ def build_ai_context(
     }
 
 
+def _correct_bearing_message(fft: dict[str, Any]) -> None:
+    """Make the display message agree with the individual harmonic flags."""
+    diagnosis = fft.get("diagnosis") or {}
+    faults = diagnosis.get("faults") or []
+    for fault in faults:
+        if not isinstance(fault, dict):
+            continue
+        significant = [
+            str(harmonic.get("order"))
+            for harmonic in fault.get("harmonics", [])
+            if isinstance(harmonic, dict) and harmonic.get("significant") is True
+        ]
+        if significant:
+            fault["message"] = f"{fault.get('type')}의 유의 고조파는 {', '.join(significant)}X입니다."
+    selected_type = diagnosis.get("defaultFaultType")
+    selected = next((item for item in faults if item.get("type") == selected_type), None)
+    if selected and selected.get("message"):
+        diagnosis["message"] = selected["message"]
+
+
 class AiAnalysisGateway(Protocol):
-    async def analyze(self, context: dict[str, Any]) -> AiDiagnosis:
+    async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
         """Return a validated diagnosis for an already-sanitized context."""
+
+
+def _mentions_measurement(text: str, value: float | None, unit: str) -> bool:
+    if value is None:
+        return False
+    pattern = rf"(?<!\w)(\d+(?:\.\d+)?)\s*{re.escape(unit)}(?![A-Za-z])"
+    tolerance = max(0.05 if unit == "g" else 0.5, abs(value) * 0.01)
+    return any(
+        abs(float(match.group(1)) - value) <= tolerance
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE)
+    )
+
+
+def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> list[str]:
+    """Reject generic or unsupported conclusions for the selected FFT record."""
+    issues: list[str] = []
+    headline = result.headline.lower()
+    if len(result.headline) > 140:
+        issues.append("headline은 핵심 진단과 확인 조치만 담아 140자 이내로 작성하세요.")
+    if not any(word in headline for word in ("확인", "점검", "재측정", "검토")):
+        issues.append("headline에 구체적인 확인 또는 재측정 조치를 연결하세요.")
+    trend = context.get("trend") or {}
+    metrics = trend.get("metrics") or []
+    velocity = next((item for item in metrics if item.get("key") == "velocity"), None)
+    if velocity and velocity.get("thresholdState") == "caution" and "주의" not in headline:
+        issues.append("headline에 속도 진동의 주의 구간을 명시하세요.")
+    if trend.get("analysis", {}).get("status") == "rising" and not any(
+        word in headline for word in ("상승", "증가", "우상향", "올라", "높아", "커져")
+    ):
+        issues.append("headline에 상승 추세를 명시하세요.")
+    elif trend.get("analysis", {}).get("status") != "rising":
+        trend_text = " ".join(
+            [headline, *[f"{finding.heading} {finding.detail}" for finding in result.trend_findings]]
+        )
+        rising_claims = ("상승 추세", "추세 상승", "우상향", "최근 상승", "최근 올라", "상승 상태", "진동 상승")
+        if any(phrase in trend_text for phrase in rising_claims):
+            issues.append("Trend 분석 상태가 상승이 아니므로 상승 추세라고 표현하지 마세요.")
+
+    fft = context.get("fft") or {}
+    diagnosis = fft.get("diagnosis") or {}
+    mode = (fft.get("measurement") or {}).get("measureMode") or {}
+    mode_code = mode.get("code") if isinstance(mode, dict) else mode
+    cause_text = " ".join([result.headline, *[cause.cause for cause in result.likely_causes]]).lower()
+    race_words = ("내륜", "외륜", "inner race", "outer race", "bpfi", "bpfo")
+    if mode_code in {"0", "2"} and not all(word in headline for word in ("가속도", "fft")):
+        issues.append("headline에 선택 가속도 FFT 측정 모드를 명시하세요.")
+    if mode_code == "3" and not all(word in headline for word in ("속도", "fft")):
+        issues.append("headline에 선택 속도 FFT 측정 모드를 명시하세요.")
+
+    if mode_code in {"0", "2"} and diagnosis.get("status") == "analyzed":
+        fault_type = diagnosis.get("defaultFaultType")
+        fault = next((item for item in diagnosis.get("faults", []) if item.get("type") == fault_type), None)
+        harmonic = next((item for item in (fault or {}).get("harmonics", []) if item.get("significant")), None)
+        race_names = {"BPFI": "내륜", "BPFO": "외륜", "BSF": "볼", "FTF": "케이지"}
+        if harmonic and fault_type in race_names:
+            cause_names = (fault_type.lower(), race_names[fault_type])
+            order = harmonic.get("order")
+            evidence_text = " ".join(finding.detail.lower() for finding in result.fft_findings)
+            leading_cause = result.likely_causes[0] if result.likely_causes else None
+            rationale = leading_cause.rationale.lower() if leading_cause else ""
+            if not any(word in headline for word in cause_names):
+                issues.append("headline에 유의한 베어링 결함 유형을 연결하세요.")
+            if not leading_cause or not any(word in leading_cause.cause.lower() for word in cause_names):
+                issues.append("첫 번째 likelyCause를 유의한 베어링 결함 유형과 일치시키세요.")
+            frequency = harmonic.get("detectedFrequency")
+            amplitude = harmonic.get("amplitude")
+            if order is not None and not re.search(rf"(?<!\d){order}\s*(?:x|차)", evidence_text):
+                issues.append("fftFindings에 결함 고조파 순서를 명시하세요.")
+            if frequency is not None and not _mentions_measurement(evidence_text, frequency, "Hz"):
+                issues.append("fftFindings에 실제 결함 주파수(Hz)를 포함하세요.")
+            if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "g"):
+                issues.append("fftFindings에 실제 피크 진폭(g)을 포함하세요.")
+            if not any(word in evidence_text for word in cause_names):
+                issues.append("fftFindings에 해당 베어링 결함 유형을 명시하세요.")
+            if not any(word in rationale for word in cause_names):
+                issues.append("첫 번째 likelyCause의 설명에 결함 유형을 연결하세요.")
+            if not any(
+                _mentions_measurement(part, value, unit)
+                for part in (evidence_text, rationale)
+                for value, unit in ((frequency, "Hz"), (amplitude, "g"))
+            ):
+                issues.append("FFT 근거나 원인 설명에 실제 측정값을 제시하세요.")
+            if not any(word in headline for word in ("후보", "가능성", "추정", "의심")):
+                issues.append("headline에 결함 가설의 불확실성을 표시하세요.")
+            unsupported_races = {
+                "BPFI": ("bpfo", "외륜", "outer race"),
+                "BPFO": ("bpfi", "내륜", "inner race"),
+                "BSF": race_words,
+                "FTF": race_words,
+            }[fault_type]
+            if any(word in cause_text for word in unsupported_races):
+                issues.append("선택 결함 유형과 다른 베어링 원인을 주장하지 마세요.")
+        elif any(word in cause_text for word in race_words):
+            issues.append("유의한 결함 고조파 근거 없이 내륜·외륜 결함을 추정하지 마세요.")
+    elif any(word in cause_text for word in race_words):
+        issues.append("유의한 베어링 결함 주파수 근거 없이 내륜·외륜 결함을 추정하지 마세요.")
+
+    if mode_code == "3" and diagnosis.get("status") == "analyzed":
+        cause_names = {
+            "unbalance": ("unbalance", "불평형", "언밸런스"),
+            "misalignment": ("misalignment", "축정렬", "정렬 불량", "미스얼라인"),
+        }.get(diagnosis.get("diagnosis"))
+        if cause_names:
+            if not any(word in headline for word in cause_names):
+                issues.append("headline에 속도 FFT의 규칙 기반 원인 후보를 연결하세요.")
+            one_x = next((item for item in diagnosis.get("harmonics", []) if item.get("order") == 1), None)
+            if one_x and one_x.get("detectedFrequency") is not None:
+                frequency = one_x["detectedFrequency"]
+                amplitude = one_x.get("amplitude")
+                evidence_text = " ".join(finding.detail.lower() for finding in result.fft_findings)
+                if "1x" not in evidence_text or not _mentions_measurement(evidence_text, frequency, "Hz"):
+                    issues.append("fftFindings에 속도 FFT의 1X 주파수(Hz)를 포함하세요.")
+                if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "mm/s"):
+                    issues.append("fftFindings에 속도 FFT의 1X 진폭(mm/s)을 포함하세요.")
+
+    if mode_code in {"0", "2"} and diagnosis.get("status") != "analyzed":
+        limitations = " ".join(result.counter_evidence).lower()
+        reason = ((fft.get("diagnosticLimitation") or {}).get("code") or "")
+        required_terms = {
+            "bearing_not_configured": ("모델", "제조사", "형번"),
+            "bearing_not_found": ("마스터", "계수"),
+            "bearing_master_ambiguous": ("중복", "계수"),
+            "bearing_coefficients_invalid": ("계수",),
+            "bearing_master_unavailable": ("마스터",),
+        }.get(reason)
+        if required_terms is None:
+            message = diagnosis.get("message") or ""
+            required_terms = ("rpm", "회전수") if "RPM" in message else ("피크", "주파수", "판정")
+        if not any(word in limitations for word in required_terms):
+            issues.append("베어링 진단 불가 사유를 counterEvidence에 기록하세요.")
+    if fft.get("available") and not any(
+        word in " ".join(action.action for action in result.recommended_actions)
+        for word in ("확인", "점검", "재측정", "측정", "검사")
+    ):
+        issues.append("권장 점검에 실행 가능한 확인 또는 재측정 조치를 포함하세요.")
+    return issues
 
 
 SYSTEM_INSTRUCTIONS = """You are a condition-monitoring analyst assisting a Korean CMS dashboard.
@@ -655,6 +821,37 @@ not averages or rates. thresholdState is a deterministic comparison with the
 configured thresholds. Include counter-evidence whenever the supplied evidence
 is incomplete or does not support the leading cause. Keep each list concise and
 practical.
+
+headline은 현장 담당자가 바로 읽을 수 있는 자연스러운 한국어 1~2문장으로 작성한다.
+140자를 넘기지 말고, 가능하면 100자 안팎으로 쓴다. 속도 진동의 현재 수준과
+최근 변화, 선택한 FFT가 시사하는 원인 후보, 확인할 행동을 흐름 있게 연결한다.
+측정값을 나열하거나 입력 필드명·영문 상태값을 그대로 옮기지 않는다.
+"후보를 지지합니다" 같은 번역투 대신 "의심됩니다", "가능성이 있어 확인이
+필요합니다"처럼 자연스럽게 쓴다. 고장 확정 표현은 피한다.
+1X, Hz, g 등 상세 측정값은 headline에 억지로 넣지 말고 fftFindings에 적는다.
+첫 likelyCause.rationale은 같은 결함 근거를 설명하고, recommendedActions에는
+재측정 또는 현장 점검처럼 실행할 수 있는 조치를 제시한다.
+Trend 분석 상태가 rising일 때만 상승이라고 쓰고, 진단 FFT 근거가 없으면
+원인을 만들어 내지 말고 판단의 제한을 알린다.
+
+For acceleration FFT (measureMode 0 or 2), a bearing cause requires diagnosis.status
+analyzed and a significant harmonic in the corresponding fault entry. BPFI means
+inner race, BPFO outer race, BSF rolling element, and FTF cage. State the fault
+type, harmonic order, detectedFrequency in Hz and amplitude in g when available.
+Round displayed frequencies and amplitudes to one or two decimal places; keep
+their units and underlying evidence consistent.
+The bearing defect's 1X harmonic is NOT the shaft rotation's 1X. A generic
+spectrum peak or a velocity FFT 1X alone cannot establish an inner/outer race
+cause. For velocity FFT (measureMode 3), use its shaft harmonics and supported
+diagnosis such as unbalance or misalignment; do not infer a bearing race fault.
+If RPM, bearing coefficients, a significant diagnostic peak, or diagnosis are
+unavailable, describe that limitation in counterEvidence and avoid a specific
+bearing cause. When the Trend rises and the FFT diagnosis supports a cause,
+describe them as jointly warranting inspection, not proof of causation.
+
+근거가 일치할 때 headline 예시: "속도 진동이 최근 올라 주의 수준에 이르렀습니다.
+가속도 FFT에서 베어링 내륜 결함이 의심돼 같은 조건에서 재측정이 필요합니다."
+이 경우 BPFI 1X의 실제 주파수(Hz)와 진폭(g)은 fftFindings에 기록한다.
 """
 
 
@@ -662,7 +859,7 @@ class OpenAIAnalysisGateway:
     def __init__(self, settings: OpenAISettings) -> None:
         self._settings = settings
 
-    async def analyze(self, context: dict[str, Any]) -> AiDiagnosis:
+    async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
         if not self._settings.api_key:
             raise AiConfigurationError()
 
@@ -673,29 +870,63 @@ class OpenAIAnalysisGateway:
             timeout=self._settings.timeout_seconds,
             max_retries=0,
         )
+        if execute is None:
+            async def execute(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+                if name == "get_trend_evidence":
+                    return {"equipment": context["equipment"], "trend": context["trend"], "levelAnalysis": context["levelAnalysis"]}
+                if name == "get_fft_evidence":
+                    return {"fft": context["fft"]}
+                if name == "get_related_history":
+                    return {"relatedHistory": context["relatedHistory"]}
+                raise AiResponseError()
+
+        tools = [
+            {"type": "function", "function": {"name": "get_trend_evidence", "description": "Retrieve the deterministic Trend, equipment, and configured level evidence for the selected equipment.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "get_fft_evidence", "description": "Retrieve compact deterministic evidence for the selected FFT record, including measured peaks and diagnostic harmonics.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "get_related_history", "description": "Retrieve prior same-equipment cases matching the selected FFT fault, strictly before its measurement date.", "strict": True, "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+        ]
+        messages = [
+            {"role": "system", "content": SYSTEM_INSTRUCTIONS + "\nYou must call all three evidence tools before writing the diagnosis. Cite only values returned by those tools."},
+            {"role": "user", "content": json.dumps({"equipmentId": context["equipment"].get("id"), "recordId": context["fft"].get("recordId"), "scope": "선택된 FFT 레코드의 CMS 보조 분석"}, ensure_ascii=False)},
+        ]
         try:
-            async with asyncio.timeout(self._settings.timeout_seconds):
-                response = await client.chat.completions.create(
-                    model=self._settings.model,
+            from app.tool_calling import complete_with_tools, workflow_timeout_seconds
+
+            async with asyncio.timeout(workflow_timeout_seconds(self._settings.timeout_seconds)):
+
+                response_format = {"type": "json_schema", "json_schema": {"name": "cms_dashboard_ai_diagnosis", "strict": True, "schema": AiDiagnosis.model_json_schema()}}
+                content, _ = await complete_with_tools(
+                    client, self._settings.model, messages, tools, execute,
+                    required_tools=ANALYSIS_TOOL_NAMES,
+                    allow_additional_tools=False,
+                    response_format=response_format,
                     max_completion_tokens=1600,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "cms_dashboard_ai_diagnosis",
-                            "strict": True,
-                            "schema": AiDiagnosis.model_json_schema(),
-                        },
-                    },
-                    messages=[
-                        {"role": "system", "content": SYSTEM_INSTRUCTIONS},
-                        {
-                            "role": "user",
-                            "content": json.dumps(context, ensure_ascii=False, separators=(",", ":")),
-                        },
-                    ],
                 )
+                for attempt in range(2):
+                    try:
+                        result = AiDiagnosis.model_validate_json(content)
+                    except ValidationError as error:
+                        raise AiResponseError() from error
+                    issues = diagnosis_quality_issues(context, result)
+                    if not issues:
+                        return result
+                    if attempt == 0:
+                        messages.extend([
+                            {"role": "assistant", "content": content},
+                            {"role": "user", "content": "진단 근거 검사에서 다음 문제가 발견되었습니다. 조회된 도구 결과만 사용해 JSON 전체를 다시 작성하세요: " + " ".join(issues)},
+                        ])
+                        retry, _ = await complete_with_tools(
+                            client, self._settings.model, messages, tools, execute,
+                            allow_additional_tools=False,
+                            response_format=response_format,
+                            max_completion_tokens=1600,
+                        )
+                        content = retry
+                raise AiEvidenceError()
         except asyncio.TimeoutError as error:
             raise AiTimeoutError() from error
+        except AiAnalysisError:
+            raise
         except Exception as error:
             if type(error).__name__ == "RateLimitError":
                 raise AiRateLimitError() from error
@@ -703,51 +934,163 @@ class OpenAIAnalysisGateway:
         finally:
             await client.close()
 
-        message = response.choices[0].message if response.choices else None
-        content = message.content if message is not None else None
-        if not content or getattr(message, "refusal", None):
-            raise AiResponseError()
-        try:
-            return AiDiagnosis.model_validate_json(content)
-        except ValidationError as error:
-            raise AiResponseError() from error
+
+DEFAULT_CACHE_TTL_SECONDS = 86400
+CACHE_FORMAT_VERSION = 1
+logger = logging.getLogger(__name__)
+
+
+def analysis_cache_ttl_seconds(value: str | None) -> int:
+    try:
+        seconds = int(value) if value else DEFAULT_CACHE_TTL_SECONDS
+        return seconds if seconds > 0 else DEFAULT_CACHE_TTL_SECONDS
+    except ValueError:
+        return DEFAULT_CACHE_TTL_SECONDS
+
+
+class _AnalysisCacheEntry(_ApiModel):
+    format_version: Literal[1] = CACHE_FORMAT_VERSION
+    cache_key: str
+    expires_at: datetime
+    response: AiAnalysisResponse
+    markdown: str
+
+
+def analysis_markdown(analysis: AiDiagnosis) -> str:
+    lines = ["# AI 분석", "", analysis.headline, "", f"위험도: {analysis.risk_label}"]
+    for heading, findings in (
+        ("Trend 분석", analysis.trend_findings),
+        ("FFT 분석", analysis.fft_findings),
+        ("과거 이력", analysis.history_findings),
+    ):
+        lines.extend(["", f"## {heading}", ""])
+        lines.extend(f"- {item.heading}: {item.detail}" for item in findings)
+    lines.extend(["", "## 예상 원인", ""])
+    confidence = {"low": "낮음", "medium": "보통", "high": "높음"}
+    lines.extend(
+        f"- {item.cause} (신뢰도: {confidence[item.confidence]}): {item.rationale}"
+        for item in analysis.likely_causes
+    )
+    lines.extend(["", "## 반대 근거", ""])
+    lines.extend(f"- {item}" for item in analysis.counter_evidence)
+    lines.extend(["", "## 권장 조치", ""])
+    priority = {"immediate": "즉시", "high": "우선", "planned": "계획"}
+    lines.extend(
+        f"- [{priority[item.priority]}] {item.action}: {item.rationale}"
+        for item in analysis.recommended_actions
+    )
+    return "\n".join(lines) + "\n"
 
 
 class AiAnalysisService:
-    """Deduplicate concurrent calls and cache responses by compact input context."""
+    """Deduplicate calls and reuse time-limited analysis from memory or JSON."""
 
-    def __init__(self, gateway: AiAnalysisGateway, model: str) -> None:
+    def __init__(
+        self,
+        gateway: AiAnalysisGateway,
+        model: str,
+        *,
+        cache_dir: Path | None = None,
+        ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self._gateway = gateway
         self._model = model
-        self._cache: dict[str, AiAnalysisResponse] = {}
+        self._cache_dir = cache_dir
+        self._ttl_seconds = ttl_seconds if ttl_seconds > 0 else DEFAULT_CACHE_TTL_SECONDS
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._cache: dict[str, _AnalysisCacheEntry] = {}
         self._in_flight: dict[str, asyncio.Task[AiAnalysisResponse]] = {}
 
+    def _read_cache(self, cache_key: str) -> _AnalysisCacheEntry | None:
+        entry = self._cache.get(cache_key)
+        if entry is None and self._cache_dir is not None:
+            try:
+                entry = _AnalysisCacheEntry.model_validate_json(
+                    (self._cache_dir / f"{cache_key}.json").read_text(encoding="utf-8")
+                )
+                if (
+                    entry.cache_key != cache_key
+                    or entry.response.model != self._model
+                    or entry.expires_at.tzinfo is None
+                    or entry.response.generated_at.tzinfo is None
+                    or entry.expires_at <= entry.response.generated_at
+                ):
+                    return None
+            except (OSError, ValueError):
+                return None
+        if entry is None:
+            return None
+        if self._clock() >= entry.expires_at:
+            self._cache.pop(cache_key, None)
+            return None
+        self._cache[cache_key] = entry
+        return entry
+
+    def _write_cache(self, entry: _AnalysisCacheEntry) -> None:
+        if self._cache_dir is None:
+            return
+        temporary: Path | None = None
+        try:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=self._cache_dir,
+                prefix=".analysis-", suffix=".tmp", delete=False,
+            ) as output:
+                temporary = Path(output.name)
+                output.write(entry.model_dump_json(by_alias=True, indent=2))
+            temporary.replace(self._cache_dir / f"{entry.cache_key}.json")
+        except OSError:
+            logger.warning("Failed to persist AI analysis cache", exc_info=True)
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    logger.warning("Failed to remove AI analysis temporary file", exc_info=True)
+
     async def analyze(
-        self, context: dict[str, Any], force: bool = False
+        self,
+        context: dict[str, Any],
+        force: bool = False,
+        execute: Any = None,
+        *,
+        dataset_id: str | None = None,
     ) -> AiAnalysisResponse:
         cache_key = sha256(
-            json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            json.dumps(
+                {"datasetId": dataset_id, "model": self._model, "context": context},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            ).encode()
         ).hexdigest()
-        if not force and (cached := self._cache.get(cache_key)) is not None:
-            return cached.model_copy(update={"cached": True})
+        if not force and (entry := self._read_cache(cache_key)) is not None:
+            return entry.response.model_copy(update={"cached": True})
 
         task = self._in_flight.get(cache_key)
         if task is None:
-            task = asyncio.create_task(self._run(cache_key, context))
+            task = asyncio.create_task(self._run(cache_key, context, execute))
             self._in_flight[cache_key] = task
-        try:
-            return await task
-        finally:
-            if task.done() and self._in_flight.get(cache_key) is task:
-                self._in_flight.pop(cache_key, None)
+        return await asyncio.shield(task)
 
-    async def _run(self, cache_key: str, context: dict[str, Any]) -> AiAnalysisResponse:
-        diagnosis = await self._gateway.analyze(context)
-        response = AiAnalysisResponse(
-            cached=False,
-            model=self._model,
-            generated_at=datetime.now(timezone.utc),
-            analysis=diagnosis,
-        )
-        self._cache[cache_key] = response
-        return response
+    async def _run(self, cache_key: str, context: dict[str, Any], execute: Any = None) -> AiAnalysisResponse:
+        try:
+            if execute is not None and isinstance(self._gateway, OpenAIAnalysisGateway):
+                diagnosis = await self._gateway.analyze(context, execute)
+            else:
+                diagnosis = await self._gateway.analyze(context)
+            response = AiAnalysisResponse(
+                cached=False, model=self._model,
+                generated_at=self._clock(), analysis=diagnosis,
+            )
+            entry = _AnalysisCacheEntry(
+                cache_key=cache_key,
+                expires_at=response.generated_at + timedelta(seconds=self._ttl_seconds),
+                response=response, markdown=analysis_markdown(diagnosis),
+            )
+            self._cache[cache_key] = entry
+            if self._cache_dir is not None:
+                await asyncio.to_thread(self._write_cache, entry)
+            return response
+        finally:
+            if self._in_flight.get(cache_key) is asyncio.current_task():
+                self._in_flight.pop(cache_key, None)
