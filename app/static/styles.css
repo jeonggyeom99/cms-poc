@@ -653,9 +653,6 @@ h1 {
   height: 320px;
 }
 
-.fft-card .plot {
-  height: 320px;
-}
 
 .plot-empty {
   display: grid;
@@ -2337,9 +2334,6 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .fft-card .plot {
-    height: 300px;
-  }
 
   .fft-analysis-workspace {
     grid-template-columns: 235px minmax(0, 1fr);
@@ -2402,8 +2396,7 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .plot,
-  .fft-card .plot {
+  .plot {
     height: 280px;
   }
 
@@ -2520,8 +2513,7 @@ body.graph-modal-open {
     padding: 17px;
   }
 
-  .plot,
-  .fft-card .plot {
+  .plot {
     height: 250px;
   }
 

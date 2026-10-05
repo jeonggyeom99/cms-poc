@@ -1,6 +1,5 @@
 import { palette } from "../core/constants.js";
-import { baseLayout, renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
-import { setExpandButtonEnabled } from "../controls/controls.js?v=korean-ui-v1";
+import { baseLayout } from "../core/plot.js?v=plot-zoom-bounds";
 
 function selectedBearingFault(fft, selectedFaultType) {
   const diagnosis = fft.analysis?.diagnosis;
@@ -112,17 +111,4 @@ export function buildFftDiagnosisFigure(fft, selectedFaultType = null) {
   const bearingFault = selectedBearingFault(fft, selectedFaultType);
   if (bearingFault) return buildFftFigure(fft, bearingFault.type);
   return buildFftFigure(fft);
-}
-
-export function renderFftChart(
-  fft, selectedFaultType = null, emptyMessage = "이 설비에는 주파수 데이터가 없습니다."
-) {
-  if (!fft) {
-    setExpandButtonEnabled("fft", false);
-    setPlotEmpty("fft-chart", emptyMessage);
-    return;
-  }
-
-  setExpandButtonEnabled("fft", true);
-  renderPlot("fft-chart", buildFftFigure(fft, selectedFaultType));
 }

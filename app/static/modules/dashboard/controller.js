@@ -49,7 +49,7 @@ import {
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
 import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=fft-layout-restore-v1";
-import { buildFftFigure, renderFftChart } from "../fft/chart.js?v=korean-ui-v2";
+import { buildFftFigure } from "../fft/chart.js?v=fft-unified-history-v1";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
   renderFftMetadata,
@@ -145,7 +145,7 @@ function renderFft() {
   const selectedBearingFaultType = getSelectedBearingFaultType();
   renderOverviewFftResult(currentFft);
   renderFftRecordList(currentFft, selectedFft?.recordId);
-  renderFftChart(selectedFft, selectedBearingFaultType);
+  setExpandButtonEnabled("fft", Boolean(selectedFft));
   renderTimeWaveChart(selectedFft);
   if (selectedFft) {
     renderFftMetadata(selectedFft);
@@ -333,7 +333,6 @@ export async function loadDashboard(datasetId) {
     setExpandButtonEnabled("fft", false);
     setExpandButtonEnabled("timewave", false);
     setPlotEmpty("trend-chart", "설비 데이터를 불러오지 못했습니다.", true);
-    setPlotEmpty("fft-chart", "설비 데이터를 불러오지 못했습니다.", true);
     setPlotEmpty("timewave-chart", "설비 데이터를 불러오지 못했습니다.", true);
     renderOverviewFftResult(null);
     renderFftRecordList(null);
@@ -364,7 +363,7 @@ async function initializeDashboard() {
     if (!items.length) {
       select.innerHTML = '<option value="">사용 가능한 CSV 데이터가 없습니다.</option>';
       setPlotEmpty("trend-chart", "데이터 폴더에서 추세 파일을 찾지 못했습니다.");
-      setPlotEmpty("fft-chart", "데이터 폴더에서 주파수 파일을 찾지 못했습니다.");
+      renderFftAnalysis(null, null, { heading: "주파수 데이터가 없습니다.", detail: "데이터 폴더에서 주파수 파일을 찾지 못했습니다." });
       setPlotEmpty("timewave-chart", "데이터 폴더에서 주파수 파일을 찾지 못했습니다.");
       setExpandButtonEnabled("trend", false);
       setExpandButtonEnabled("fft", false);
@@ -392,7 +391,7 @@ async function initializeDashboard() {
     console.error("Dataset list loading failed", error);
     select.innerHTML = '<option value="">CSV 목록을 불러오지 못했습니다.</option>';
     setPlotEmpty("trend-chart", "CSV 목록을 불러오지 못했습니다.", true);
-    setPlotEmpty("fft-chart", "CSV 목록을 불러오지 못했습니다.", true);
+    renderFftAnalysis(null, null, { heading: "주파수 분석을 표시할 수 없습니다.", detail: "CSV 목록을 불러오지 못했습니다." });
     setPlotEmpty("timewave-chart", "CSV 목록을 불러오지 못했습니다.", true);
     setExpandButtonEnabled("trend", false);
     setExpandButtonEnabled("fft", false);
