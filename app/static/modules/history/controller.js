@@ -216,7 +216,7 @@ function bindControls() {
     const graphButton = event.target.closest("[data-dashboard-dataset]");
     if (graphButton && !graphButton.disabled) {
       const item = historyItems.find((entry) => entry.id === graphButton.dataset.historyId);
-      if (item) window.location.href = `/dashboard?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
+      if (item) window.location.href = `/dashboard2?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
       return;
     }
     const button = event.target.closest("[data-history-id]");
