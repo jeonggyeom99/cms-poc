@@ -930,8 +930,12 @@ class OpenAIAnalysisGateway:
                     except ValidationError as error:
                         raise AiResponseError() from error
                     if equipment_analysis:
-                        from app.equipment_analysis import equipment_quality_issues
+                        from app.equipment_analysis import equipment_quality_issues, normalize_equipment_period_timezone
+                        result = normalize_equipment_period_timezone(result, trace)
                         issues = equipment_quality_issues(context, result, trace)
+                        if issues:
+                            # Validation messages are fixed policy text; never log measurements or model output.
+                            logger.warning("Equipment AI evidence validation rejected response (%d issue(s))", len(issues))
                     else:
                         issues = diagnosis_quality_issues(context, result)
                     if not issues:
@@ -1094,7 +1098,18 @@ class AiAnalysisService:
             ).encode()
         ).hexdigest()
         if not force and (entry := self._read_cache(cache_key)) is not None:
-            return entry.response.model_copy(update={"cached": True})
+            cached_response = entry.response.model_copy(deep=True)
+            if isinstance(context.get("fftInventory"), dict):
+                from app.equipment_analysis import _timestamp
+                inventory = context["fftInventory"]
+                source_stamps = [_timestamp(inventory.get(key)) for key in ("start", "end")]
+                if source_stamps and all(stamp is not None and stamp.tzinfo is None for stamp in source_stamps):
+                    period = cached_response.analysis.fft_analysis_period
+                    cached_response.analysis.fft_analysis_period = AiAnalysisPeriod(
+                        start=period.start.replace(tzinfo=None) if period.start else None,
+                        end=period.end.replace(tzinfo=None) if period.end else None,
+                    )
+            return cached_response.model_copy(update={"cached": True})
 
         task = self._in_flight.get(cache_key)
         if task is None:

@@ -11,7 +11,7 @@ from app.ai_analysis import AiAnalysisPeriod, OpenAIAnalysisGateway, OpenAISetti
 from app.data_loader import load_datasets
 from app.equipment_analysis import (
     build_equipment_context, build_equipment_tool_executor, equipment_quality_issues,
-    recent_trend_evidence,
+    normalize_equipment_period_timezone, recent_trend_evidence,
 )
 from app.main import create_app
 from tests.test_ai_analysis import diagnosis
@@ -220,3 +220,44 @@ def test_missing_trend_rejects_unsupported_persistent_rising_claim(trend):
         "trend_summary": "추세 비교 표본이 부족해 지속적인 상승 여부를 판단할 수 없습니다.",
     })
     assert equipment_quality_issues({"trend": trend}, limited, []) == []
+
+
+def test_equipment_period_does_not_invent_timezone_missing_from_measurements():
+    result = diagnosis().model_copy(update={
+        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01T00:00:00Z", end="2026-01-02T00:00:00Z"),
+    })
+    trace = [{"name": "get_fft_evidence", "result": {"fft": {
+        "recordId": 1, "measuredAt": "2026-01-01 00:00:00",
+    }}}, {"name": "get_fft_history_evidence", "result": {"records": [{
+        "recordId": 2, "measuredAt": "2026-01-02 00:00:00",
+    }]}}]
+    normalized = normalize_equipment_period_timezone(result, trace)
+    assert normalized.fft_analysis_period.start.tzinfo is None
+    assert normalized.fft_analysis_period.end.tzinfo is None
+
+
+def test_invalid_equipment_period_reports_observed_dates_without_crashing():
+    result = diagnosis().model_copy(update={
+        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-03T00:00:00", end="2026-01-03T00:00:00"),
+        "fft_reference_record_ids": [2],
+        "likely_causes": [],
+    })
+    trace = [{"name": "get_fft_history_evidence", "result": {"records": [
+        {"recordId": 1, "measuredAt": "2026-01-01 09:15:00", "fft": {"recordId": 1, "measuredAt": "2026-01-01 09:15:00"}},
+        {"recordId": 2, "measuredAt": "2026-01-02 10:30:00", "fft": {"recordId": 2, "measuredAt": "2026-01-02 10:30:00"}},
+    ]}}]
+    issues = equipment_quality_issues({"trend": {"metrics": []}}, result, trace)
+    assert any("2026-01-01, 2026-01-02" in issue for issue in issues)
+
+
+def test_equipment_period_uses_actual_observation_times():
+    result = diagnosis().model_copy(update={
+        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01T00:00:00Z", end="2026-01-02T00:00:00Z"),
+    })
+    trace = [{"name": "get_fft_history_evidence", "result": {"records": [
+        {"recordId": 1, "measuredAt": "2026-01-01 09:15:00", "fft": {"recordId": 1, "measuredAt": "2026-01-01 09:15:00"}},
+        {"recordId": 2, "measuredAt": "2026-01-02 10:30:00", "fft": {"recordId": 2, "measuredAt": "2026-01-02 10:30:00"}},
+    ]}}]
+    normalized = normalize_equipment_period_timezone(result, trace)
+    assert normalized.fft_analysis_period.start.isoformat(sep=" ") == "2026-01-01 09:15:00"
+    assert normalized.fft_analysis_period.end.isoformat(sep=" ") == "2026-01-02 10:30:00"
