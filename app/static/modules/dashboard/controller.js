@@ -66,7 +66,7 @@ import {
   bindRelatedHistory,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=korean-ui-v1";
+} from "../fft/related-history.js?v=related-history-always-visible-v1";
 import { fetchRelatedHistory } from "../api/history.js?v=cms-history-v1";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
@@ -121,8 +121,8 @@ function resetAiAnalysisForEquipment() {
 
 async function loadRelatedHistoryFor(fft, selectedBearingFaultType) {
   const dashboard = getDashboardData();
-  if (!dashboard?.meta?.datasetId || !fft?.recordId) return renderRelatedHistory(null, []);
   const requestId = ++relatedHistoryRequest;
+  if (!dashboard?.meta?.datasetId || !fft?.recordId) return renderRelatedHistory(null, []);
   try {
     const payload = await fetchRelatedHistory(
       dashboard.meta.datasetId, fft.recordId, selectedBearingFaultType, requestedUntil(),
@@ -160,7 +160,7 @@ function renderFft() {
     heading: "선택한 주파수 기록이 없습니다.",
     detail: "좌측 목록에서 날짜별 주파수 기록을 선택해 주세요.",
   } : {});
-  renderRelatedHistory(null, []);
+  loadRelatedHistoryFor(null, null);
 }
 
 function renderExpandedGraph() {

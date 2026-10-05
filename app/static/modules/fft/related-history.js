@@ -115,12 +115,14 @@ export function renderRelatedHistory(tag, items) {
   const key = tag ? `${tag.fault}:${tag.faultType}` : null;
   if (key !== relatedHistoryKey) expandedHistoryId = null;
   relatedHistoryKey = key;
-  relatedHistory = items;
-  section.hidden = !tag || !items.length;
-  if (section.hidden) return;
-
-  count.textContent = `${items.length.toLocaleString("ko-KR")}건`;
-  list.replaceChildren(...items.map(relatedHistoryCard));
+  relatedHistory = Array.isArray(items) ? items : [];
+  section.hidden = false;
+  count.textContent = `${relatedHistory.length.toLocaleString("ko-KR")}건`;
+  if (!relatedHistory.length) {
+    list.replaceChildren(element("p", "related-history-empty", "일치하는 과거 이력이 없습니다."));
+    return;
+  }
+  list.replaceChildren(...relatedHistory.map(relatedHistoryCard));
 }
 
 export function bindRelatedHistory() {

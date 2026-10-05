@@ -1452,6 +1452,15 @@ body.graph-modal-open {
   gap: 8px;
 }
 
+.related-history-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .related-history-card {
   min-width: 0;
   overflow: hidden;
