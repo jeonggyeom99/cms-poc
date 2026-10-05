@@ -117,6 +117,13 @@ def create_app(
     )
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+    @application.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> Response:
+        return Response(
+            content=(STATIC_DIR / "favicon.ico").read_bytes(),
+            media_type="image/x-icon",
+        )
+
     def datasets_from(request: Request) -> dict:
         return request.app.state.datasets
 

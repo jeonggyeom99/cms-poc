@@ -813,6 +813,14 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     assert 'id="equipment-status-list"' in response.text
 
 
+def test_favicon_is_served(tmp_path: Path) -> None:
+    response = get(create_app(make_data_dir(tmp_path)), "/favicon.ico")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/x-icon"
+    assert response.content.startswith(b"\x00\x00\x01\x00")
+
+
 def test_dashboard_page_is_served(tmp_path: Path) -> None:
     target_app = create_app(make_data_dir(tmp_path))
     response = get(target_app, "/dashboard")

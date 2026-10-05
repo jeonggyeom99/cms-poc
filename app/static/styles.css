@@ -1427,16 +1427,10 @@ body.graph-modal-open {
 }
 
 .related-history-section-heading h2 {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--navy);
   font-size: 20px;
   letter-spacing: -0.025em;
-}
-
-.related-history-section-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .related-history-section-heading > span {
