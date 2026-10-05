@@ -217,6 +217,12 @@ export async function initializeEquipmentStatusPage() {
     setNotice("CMS 상세 데이터를 불러오지 못해 설비 분류만 표시합니다.");
   }
   populateOptions();
+  const requestedFactory = new URLSearchParams(window.location.search).get("factory");
+  const normalizedRequestedFactory = requestedFactory?.replaceAll(" ", "");
+  const factoryOption = [...select("equipment-status-factory").options].find((option) => option.value.replaceAll(" ", "") === normalizedRequestedFactory);
+  if (factoryOption) {
+    select("equipment-status-factory").value = factoryOption.value;
+  }
   renderTree();
   renderEquipmentList();
 }
