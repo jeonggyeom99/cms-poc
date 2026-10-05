@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=equipment-ai-v2">
+    <link rel="stylesheet" href="/static/styles.css?v=equipment-ai-v4">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=equipment-ai-v3"></script>
+    <script type="module" src="/static/app.js?v=equipment-ai-v4"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -54,7 +54,7 @@
                 <h2 id="ai-analysis-title">AI 분석</h2>
               </div>
             </div>
-            <p class="ai-analysis-summary" id="ai-analysis-description" aria-live="polite">설비를 선택하면 기본 주파수 기록을 기준으로 자동 분석합니다.</p>
+            <p class="ai-analysis-summary" id="ai-analysis-description" aria-live="polite">설비를 선택하면 AI가 추세와 주파수 이력을 조회해 자동 분석합니다.</p>
           </section>
         </section>
 
@@ -65,11 +65,7 @@
                 <h2>추세 그래프</h2>
               </div>
               <div class="chart-header-actions">
-                <div class="period-tabs" role="group" aria-label="추세 기간 선택">
-                  <button type="button" data-period="30">1개월</button>
-                  <button type="button" data-period="90" class="active">3개월</button>
-                  <button type="button" data-period="all">전체</button>
-                </div>
+                <span class="chart-period-label">최근 3개월</span>
                 <button type="button" class="graph-expand-button" id="trend-expand" data-expand-graph="trend" aria-label="추세 그래프 크게 보기" title="추세 그래프 크게 보기" disabled>
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M9 3 3 9M15 3l6 6M9 21l-6-6M15 21l6-6" />
@@ -78,6 +74,10 @@
               </div>
             </div>
             <div id="trend-chart" class="plot plot-empty" role="img" aria-label="진동 속도 추세 그래프">설비 데이터를 선택하세요.</div>
+            <section class="graph-ai-analysis" aria-labelledby="trend-ai-title">
+              <h3 id="trend-ai-title">AI 추세 분석</h3>
+              <p id="trend-ai-summary" aria-live="polite">설비를 선택하면 최근 3개월 추세를 분석합니다.</p>
+            </section>
           </article>
 
           <article class="card chart-card fft-card">
@@ -104,11 +104,6 @@
                 <h2 id="graph-modal-title">추세 그래프</h2>
               </div>
               <div class="graph-modal-actions">
-                <div class="period-tabs" id="graph-modal-period-tabs" role="group" aria-label="확대 그래프 추세 기간 선택" hidden>
-                  <button type="button" data-period="30">1개월</button>
-                  <button type="button" data-period="90" class="active">3개월</button>
-                  <button type="button" data-period="all">전체</button>
-                </div>
                 <button type="button" class="graph-modal-close" id="graph-modal-close" aria-label="확대 그래프 닫기" title="닫기">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
                 </button>
@@ -213,6 +208,11 @@
                 </div>
               </section>
             </div>
+            <section class="graph-ai-analysis" aria-labelledby="fft-ai-title">
+              <h3 id="fft-ai-title">AI 주파수 분석</h3>
+              <p id="fft-ai-summary" aria-live="polite">설비를 선택하면 주파수 측정 이력을 분석합니다.</p>
+              <p class="graph-ai-period" id="fft-ai-period"></p>
+            </section>
           </article>
 
           <article class="card ai-analysis-card" aria-labelledby="ai-analysis-details-title">

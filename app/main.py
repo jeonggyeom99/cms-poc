@@ -19,9 +19,9 @@ from app.ai_analysis import (
     OpenAIAnalysisGateway,
     OpenAISettings,
     analysis_cache_ttl_seconds,
-    build_ai_context,
     load_project_environment,
 )
+from app.equipment_analysis import build_equipment_context, build_equipment_tool_executor
 from app.chat import (
     DashboardChatGateway,
     DashboardChatRequest,
@@ -390,41 +390,17 @@ def create_app(
             raise HTTPException(status_code=404, detail="설비 데이터를 찾을 수 없습니다.")
         try:
             filtered = snapshot(dataset, analysis_request.until)
-            filtered_fft = filtered.get("fft")
-            if filtered_fft is None:
-                raise KeyError(analysis_request.record_id)
-            selected_fft = load_fft_record(filtered_fft, analysis_request.record_id)
+            # Legacy record IDs are accepted but never determine equipment analysis scope.
+            if analysis_request.record_id is not None:
+                load_fft_record(filtered.get("fft") or {}, analysis_request.record_id)
+            context = build_equipment_context(dataset_id, filtered, history_from(request), analysis_request.until)
+            execute_analysis_tool = build_equipment_tool_executor(
+                dataset_id, filtered, history_from(request), analysis_request.until, context
+            )
         except KeyError as error:
             raise HTTPException(status_code=404, detail="FFT 레코드를 찾을 수 없습니다.") from error
         except (OSError, ValueError, SyntaxError) as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-
-        fft_for_analysis = {**filtered_fft, **selected_fft}
-        context = build_ai_context(
-            dataset_id,
-            filtered,
-            fft_for_analysis,
-            history_from(request),
-            analysis_request.selected_fault_type,
-            analysis_request.until,
-        )
-
-        async def execute_analysis_tool(name: str, arguments: dict) -> dict:
-            if arguments:
-                return {"status": "unavailable", "reason": "invalid_tool_arguments"}
-            if name == "get_trend_evidence":
-                return {
-                    "status": context["analysisTools"]["trend"],
-                    "equipment": context["equipment"],
-                    "trend": context["trend"],
-                    "levelAnalysis": context["levelAnalysis"],
-                    "dataQuality": {"notes": [note for note in context["dataQuality"]["notes"] if "Trend" in note]},
-                }
-            if name == "get_fft_evidence":
-                return {"status": context["analysisTools"]["fft"], "fft": context["fft"]}
-            if name == "get_related_history":
-                return {"status": "ready", "relatedHistory": context["relatedHistory"]}
-            return {"status": "unavailable", "reason": "unknown_tool"}
 
         try:
             return await ai_service_from(request).analyze(

@@ -26,7 +26,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v6"
+PROMPT_VERSION = "cms-dashboard-analysis-v7"
 ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
@@ -44,7 +44,7 @@ class _ApiModel(BaseModel):
 
 
 class AiAnalysisRequest(_ApiModel):
-    record_id: int = Field(gt=0)
+    record_id: int | None = Field(default=None, gt=0)
     selected_fault_type: str | None = Field(default=None, max_length=32)
     until: date | None = None
     force: bool = False
@@ -67,10 +67,19 @@ class AiRecommendedAction(_ApiModel):
     rationale: str = Field(min_length=1, max_length=700)
 
 
+class AiAnalysisPeriod(_ApiModel):
+    start: datetime | None
+    end: datetime | None
+
+
 class AiDiagnosis(_ApiModel):
     headline: str = Field(min_length=1, max_length=180)
     risk_level: Literal["normal", "caution", "danger", "unknown"]
     risk_label: str = Field(min_length=1, max_length=40)
+    trend_summary: str = Field(min_length=1, max_length=500)
+    fft_summary: str = Field(min_length=1, max_length=500)
+    fft_analysis_period: AiAnalysisPeriod
+    fft_reference_record_ids: list[int] = Field(max_length=50)
     trend_findings: list[AiFinding] = Field(max_length=4)
     fft_findings: list[AiFinding] = Field(max_length=4)
     history_findings: list[AiFinding] = Field(max_length=3)
@@ -889,25 +898,42 @@ class OpenAIAnalysisGateway:
             {"role": "system", "content": SYSTEM_INSTRUCTIONS + "\nYou must call all three evidence tools before writing the diagnosis. Cite only values returned by those tools."},
             {"role": "user", "content": json.dumps({"equipmentId": context["equipment"].get("id"), "recordId": context["fft"].get("recordId"), "scope": "선택된 FFT 레코드의 CMS 보조 분석"}, ensure_ascii=False)},
         ]
+        equipment_analysis = bool(context.get("equipmentAnalysis"))
+        if equipment_analysis:
+            from app.equipment_analysis import EQUIPMENT_INSTRUCTIONS, equipment_tool_definitions
+            tools = equipment_tool_definitions()
+            messages = [
+                {"role": "system", "content": SYSTEM_INSTRUCTIONS + EQUIPMENT_INSTRUCTIONS},
+                {"role": "user", "content": json.dumps({
+                    "equipment": context["equipment"], "fftInventory": context["fftInventory"],
+                    "scope": context["scope"],
+                }, ensure_ascii=False)},
+            ]
         try:
-            from app.tool_calling import complete_with_tools, workflow_timeout_seconds
+            from app.tool_calling import complete_with_tools
 
-            async with asyncio.timeout(workflow_timeout_seconds(self._settings.timeout_seconds)):
+            async with asyncio.timeout((10 if equipment_analysis else 6) * self._settings.timeout_seconds):
 
                 response_format = {"type": "json_schema", "json_schema": {"name": "cms_dashboard_ai_diagnosis", "strict": True, "schema": AiDiagnosis.model_json_schema()}}
-                content, _ = await complete_with_tools(
+                content, trace = await complete_with_tools(
                     client, self._settings.model, messages, tools, execute,
-                    required_tools=ANALYSIS_TOOL_NAMES,
-                    allow_additional_tools=False,
+                    required_tools=ANALYSIS_TOOL_NAMES | ({"get_fft_history_evidence"} if equipment_analysis else set()),
+                    allow_additional_tools=equipment_analysis,
                     response_format=response_format,
-                    max_completion_tokens=1600,
+                    max_completion_tokens=2400,
+                    max_tool_rounds=8 if equipment_analysis else 4,
+                    max_tool_calls=16 if equipment_analysis else 8,
                 )
                 for attempt in range(2):
                     try:
                         result = AiDiagnosis.model_validate_json(content)
                     except ValidationError as error:
                         raise AiResponseError() from error
-                    issues = diagnosis_quality_issues(context, result)
+                    if equipment_analysis:
+                        from app.equipment_analysis import equipment_quality_issues
+                        issues = equipment_quality_issues(context, result, trace)
+                    else:
+                        issues = diagnosis_quality_issues(context, result)
                     if not issues:
                         return result
                     if attempt == 0:
@@ -919,7 +945,7 @@ class OpenAIAnalysisGateway:
                             client, self._settings.model, messages, tools, execute,
                             allow_additional_tools=False,
                             response_format=response_format,
-                            max_completion_tokens=1600,
+                            max_completion_tokens=2400,
                         )
                         content = retry
                 raise AiEvidenceError()
@@ -958,6 +984,10 @@ class _AnalysisCacheEntry(_ApiModel):
 
 def analysis_markdown(analysis: AiDiagnosis) -> str:
     lines = ["# AI 분석", "", analysis.headline, "", f"위험도: {analysis.risk_label}"]
+    lines.extend(["", "## 추세 요약", "", analysis.trend_summary, "", "## 주파수 요약", "", analysis.fft_summary])
+    period = analysis.fft_analysis_period
+    lines.extend(["", f"주파수 비교 기간: {period.start} ~ {period.end}",
+                  f"대표 기록: {', '.join(map(str, analysis.fft_reference_record_ids)) or '없음'}"])
     for heading, findings in (
         ("Trend 분석", analysis.trend_findings),
         ("FFT 분석", analysis.fft_findings),
