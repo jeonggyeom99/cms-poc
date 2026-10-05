@@ -848,8 +848,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=fft-unified-history-v1"' in response.text
-    assert 'controller.js?v=fft-unified-history-v1' in app_module
+    assert 'type="module" src="/static/app.js?v=fft-unified-history-trend-v1"' in response.text
+    assert 'controller.js?v=fft-unified-history-trend-v1' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -872,6 +872,9 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
         response.text.index('<dialog class="graph-modal"')
     ]
     assert chart_grid.index("추세 그래프") < chart_grid.index("기준값 분석 결과")
+    assert chart_grid.index("기준값 분석 결과") < chart_grid.index("우상향 판정")
+    assert 'class="trend-analysis-column"' in chart_grid
+    assert 'id="trend-direction-details" aria-live="polite" aria-busy="true"' in chart_grid
     assert 'class="card level-card"' in chart_grid
     assert 'class="card diagnosis-card"' not in chart_grid
     diagnosis_card = response.text[

@@ -2313,6 +2313,47 @@ body.graph-modal-open {
 /* Shared spacing and interaction treatment for the existing analysis panels. */
 .analysis-grid { gap: 24px; }
 .level-card, .diagnosis-card, .ai-analysis-card { padding: 24px; }
+.trend-analysis-column {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.trend-analysis-column .level-card,
+.trend-direction-card {
+  padding: 18px 20px;
+}
+
+.trend-analysis-column .level-analysis-details { margin-top: 12px; }
+.trend-analysis-column .analysis-placeholder { margin-top: 12px; padding: 16px; }
+.trend-analysis-column .level-comparison-item { padding: 12px; }
+
+.trend-direction-details {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.trend-direction-details.is-caution {
+  border-color: var(--caution);
+  background: var(--caution-soft);
+}
+
+.trend-direction-details.is-normal {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+
+.trend-direction-details strong { font-size: 20px; color: var(--navy); }
+.trend-direction-details.is-caution strong { color: #946012; }
+.trend-direction-details.is-normal strong { color: var(--teal-dark); }
+.trend-direction-details p { margin: 0; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 .diagnosis-card > .card-header { margin-bottom: 16px; }
 .time-wave-card { margin-top: 24px; }
 .analysis-lead, .chart-interaction-hint { line-height: 1.6; }

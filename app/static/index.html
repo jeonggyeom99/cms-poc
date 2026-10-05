@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=fft-unified-history-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=fft-unified-history-trend-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=fft-unified-history-v1"></script>
+    <script type="module" src="/static/app.js?v=fft-unified-history-trend-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -80,17 +80,28 @@
             </section>
           </article>
 
-          <article class="card level-card">
-            <div class="card-header">
-              <div>
-                <h2>기준값 분석 결과</h2>
+          <div class="trend-analysis-column">
+            <article class="card level-card">
+              <div class="card-header">
+                <div>
+                  <h2>기준값 분석 결과</h2>
+                </div>
               </div>
-            </div>
-            <div class="analysis-placeholder" id="level-details">
-              <strong>기준값 분석을 준비하고 있습니다.</strong>
-              <p>추세와 최신 경보 설정값을 확인합니다.</p>
-            </div>
-          </article>
+              <div class="analysis-placeholder" id="level-details">
+                <strong>기준값 분석을 준비하고 있습니다.</strong>
+                <p>추세와 최신 경보 설정값을 확인합니다.</p>
+              </div>
+            </article>
+            <article class="card trend-direction-card" aria-labelledby="trend-direction-title">
+              <div class="card-header">
+                <h2 id="trend-direction-title">우상향 판정</h2>
+              </div>
+              <div class="trend-direction-details is-neutral" id="trend-direction-details" aria-live="polite" aria-busy="true">
+                <strong id="trend-direction-status">확인 중</strong>
+                <p id="trend-direction-description">진동 속도 추세를 확인하고 있습니다.</p>
+              </div>
+            </article>
+          </div>
         </section>
 
         <dialog class="graph-modal" id="graph-modal" aria-labelledby="graph-modal-title">
