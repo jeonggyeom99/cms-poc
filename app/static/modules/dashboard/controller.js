@@ -22,6 +22,7 @@ import {
   setPptExportAvailable,
 } from "../report/ppt-export.js?v=ppt-ui-validation-v1";
 import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
+import { renderTrendDirection } from "../analysis/trend-direction.js?v=trend-direction-v1";
 import {
   setExpandButtonEnabled,
 } from "../controls/controls.js?v=korean-ui-v1";
@@ -299,6 +300,7 @@ async function selectFftRecord(recordId) {
 
 export async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
+  renderTrendDirection(null, "loading");
   setDashboardData(null);
   resetFftRecordState();
   resetRelatedHistoryExpansion();
@@ -325,6 +327,7 @@ export async function loadDashboard(datasetId) {
     renderFft();
     syncDashboardChatContext();
     renderLevelAnalysis(dashboardData);
+    renderTrendDirection(dashboardData);
     resetAiAnalysisForEquipment();
     void runAiAnalysis(false);
   } catch (error) {
@@ -345,6 +348,7 @@ export async function loadDashboard(datasetId) {
     });
     renderRelatedHistory(null, []);
     renderLevelAnalysis({ levelAnalysis: null });
+    renderTrendDirection(null, "error");
     resetAiAnalysis({
       available: false,
       heading: "설비 데이터를 불러오지 못했습니다.",
@@ -361,6 +365,7 @@ async function initializeDashboard() {
   try {
     const items = await fetchDatasetSummaries();
     if (!items.length) {
+      renderTrendDirection(null);
       select.innerHTML = '<option value="">사용 가능한 CSV 데이터가 없습니다.</option>';
       setPlotEmpty("trend-chart", "데이터 폴더에서 추세 파일을 찾지 못했습니다.");
       renderFftAnalysis(null, null, { heading: "주파수 데이터가 없습니다.", detail: "데이터 폴더에서 주파수 파일을 찾지 못했습니다." });
@@ -389,6 +394,7 @@ async function initializeDashboard() {
     await loadDashboard(initialDatasetId);
   } catch (error) {
     console.error("Dataset list loading failed", error);
+    renderTrendDirection(null, "error");
     select.innerHTML = '<option value="">CSV 목록을 불러오지 못했습니다.</option>';
     setPlotEmpty("trend-chart", "CSV 목록을 불러오지 못했습니다.", true);
     renderFftAnalysis(null, null, { heading: "주파수 분석을 표시할 수 없습니다.", detail: "CSV 목록을 불러오지 못했습니다." });
