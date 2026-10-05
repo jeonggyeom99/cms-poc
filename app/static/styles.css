@@ -1195,8 +1195,13 @@ body.graph-modal-open {
 }
 
 .fft-analysis-details {
+  min-width: 0;
   display: grid;
   gap: 12px;
+}
+
+.fft-analysis-details > * {
+  min-width: 0;
 }
 
 .fft-analysis-grid {
@@ -1240,19 +1245,18 @@ body.graph-modal-open {
 }
 
 .bearing-analysis-summary {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--surface-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-width: 0;
+  margin-bottom: 12px;
 }
 
 .bearing-analysis-heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 16px;
+  flex: 1 1 180px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bearing-analysis-heading span,
@@ -1270,31 +1274,23 @@ body.graph-modal-open {
   font-size: 13px;
 }
 
-.bearing-analysis-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
-  text-align: right;
-}
-
 .bearing-fault-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  min-width: 0;
 }
 
-.bearing-coefficients {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  color: var(--muted);
-  font-size: 11px;
+.bearing-fault-selector button span,
+.bearing-fault-selector button small {
+  display: block;
+}
+
+.bearing-fault-selector button small {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-}
-
-.bearing-coefficients span.active {
-  color: var(--danger);
-  font-weight: 800;
 }
 
 .bearing-fault-selector button {
@@ -1328,6 +1324,7 @@ body.graph-modal-open {
 }
 
 .fft-analysis-chart-section {
+  min-width: 0;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
@@ -1353,11 +1350,15 @@ body.graph-modal-open {
   text-align: right;
 }
 
-.fft-analysis-chart {
+.fft-analysis-chart-section .plot {
+  width: 100%;
+  min-width: 0;
   height: 250px;
 }
 
 .fft-diagnosis-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 13px 15px;
   border: 1px solid var(--line);
   border-left: 4px solid #94a3aa;
@@ -2463,7 +2464,7 @@ body.graph-modal-open {
     text-align: left;
   }
 
-  .fft-analysis-chart {
+  .fft-analysis-chart-section .plot {
     height: 220px;
   }
 
