@@ -217,6 +217,10 @@ class FakeAiGateway:
             headline="선택 FFT에서 점검이 필요한 성분을 확인했습니다.",
             risk_level="caution",
             risk_label="주의",
+            trend_summary="측정 기간의 추세를 확인했습니다.",
+            fft_summary="주파수 측정 근거를 확인했습니다.",
+            fft_analysis_period={"start": None, "end": None},
+            fft_reference_record_ids=[],
             trend_findings=[AiFinding(heading="Trend", detail="속도값을 확인했습니다.")],
             fft_findings=[AiFinding(heading="FFT", detail="주요 Peak를 확인했습니다.")],
             history_findings=[],
@@ -829,8 +833,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=equipment-ai-v3"' in response.text
-    assert 'controller.js?v=equipment-ai-v3' in app_module
+    assert 'type="module" src="/static/app.js?v=equipment-ai-v4"' in response.text
+    assert 'controller.js?v=equipment-ai-v4' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -1012,7 +1016,7 @@ def test_empty_data_directory_returns_empty_list_and_no_default(tmp_path: Path) 
     assert get(target_app, "/api/dashboard").status_code == 404
 
 
-def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -> None:
+def test_ai_analysis_api_uses_equipment_scope_and_compact_context(tmp_path: Path) -> None:
     gateway = FakeAiGateway()
     response = post(
         create_app(make_data_dir(tmp_path), ai_gateway=gateway, ai_cache_dir=tmp_path / "cache"),
@@ -1026,13 +1030,13 @@ def test_ai_analysis_api_uses_selected_fft_and_compact_context(tmp_path: Path) -
     assert response.json()["analysis"]["riskLevel"] == "caution"
     assert len(gateway.contexts) == 1
     context = gateway.contexts[0]
+    assert context["equipmentAnalysis"] is True
     assert context["analysisTools"] == {
-        "trend": "ready",
-        "fft": "ready",
-        "bearingFft": "ready",
+        "trend": "ready", "fft": "ready", "bearingFft": "not_applicable",
     }
-    assert context["fft"]["recordId"] == 2
-    assert context["fft"]["measurement"]["measureMode"]["code"] == "2"
+    assert context["fft"]["recordId"] == 4
+    assert context["fft"]["measurement"]["measureMode"]["code"] == "3"
+    assert context["fftInventory"]["count"] == 3
     trend_metrics = {metric["key"]: metric for metric in context["trend"]["metrics"]}
     assert trend_metrics["velocity"]["latestValue"] == 2.0
     assert "frequencies" not in context["fft"]
@@ -1163,9 +1167,9 @@ def test_ai_analysis_tool_execution_preserves_persistent_cache(tmp_path: Path) -
             assert execute is not None
             results = {}
             for name in ("get_trend_evidence", "get_fft_evidence", "get_related_history"):
-                results[name] = await execute(name, {})
+                results[name] = await execute(name, {} if name == "get_trend_evidence" else {"record_id": None})
             assert results["get_trend_evidence"]["trend"] == context["trend"]
-            assert results["get_fft_evidence"]["fft"] == context["fft"]
+            assert results["get_fft_evidence"]["fft"]["recordId"] == context["fft"]["recordId"]
             assert results["get_related_history"]["relatedHistory"] == context["relatedHistory"]
             self.evidence.append(results)
             return await self.fake.analyze(context)

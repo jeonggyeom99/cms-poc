@@ -45,10 +45,8 @@ export function openExpandedGraph(graphType, trigger, renderExpandedGraph) {
         : "확대된 시간 파형 그래프",
   );
 
-  const periodTabs = document.getElementById("graph-modal-period-tabs");
   const trendMetricSelector = document.getElementById("trend-metric-selector");
   const fftHistoryBrowser = document.getElementById("fft-history-browser");
-  periodTabs.hidden = !isTrend;
   trendMetricSelector.hidden = !isTrend;
   fftHistoryBrowser.hidden = !isFftRecordGraph;
   modalBody.classList.toggle("fft-expanded", isFftRecordGraph);

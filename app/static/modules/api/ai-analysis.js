@@ -25,8 +25,6 @@ export async function fetchAiAnalysis(datasetId, request) {
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
       body: JSON.stringify({
-        recordId: request.recordId,
-        selectedFaultType: request.selectedFaultType ?? null,
         until: request.until ?? null,
         force: Boolean(request.force),
       }),

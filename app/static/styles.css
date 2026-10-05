@@ -283,6 +283,12 @@ h1 {
   -webkit-line-clamp: 3;
 }
 
+.chart-period-label { color: var(--muted); font-size: 13px; }
+.graph-ai-analysis { margin-top: 20px; padding: 16px 18px; border-radius: 12px; background: #f3f7f8; }
+.graph-ai-analysis h3 { margin: 0 0 8px; font-size: 15px; color: #233e48; }
+.graph-ai-analysis p { margin: 0; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.graph-ai-analysis .graph-ai-period { margin-top: 8px; font-size: 12px; color: #637a83; }
+
 .equipment-summary {
   min-width: 0;
 }
