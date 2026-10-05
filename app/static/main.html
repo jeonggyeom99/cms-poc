@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CMS 메인 대시보드</title>
+    <link rel="stylesheet" href="/static/main.css">
+    <script type="module" src="/static/modules/main/controller.js"></script>
+  </head>
+  <body>
+    <div class="main-page">
+      <header class="main-topbar">
+        <a class="main-brand" href="/">
+          <span class="main-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span><small>설비 진단 시스템</small><strong>CMS Dashboard</strong></span>
+        </a>
+        <nav aria-label="주요 메뉴">
+          <a class="is-active" href="/main">메인 대시보드</a>
+          <a href="/">설비 모니터링</a>
+          <a href="/history">과거 이력</a>
+        </nav>
+      </header>
+      <main class="main-content">
+        <section class="main-heading">
+          <div><span class="eyebrow">PLANT OVERVIEW</span><h1>공장별 설비 현황</h1><p>현재 진단 데이터를 기준으로 공장과 공정의 상태를 한눈에 확인합니다.</p></div>
+          <time id="main-updated">데이터를 불러오는 중...</time>
+        </section>
+        <section class="main-metrics" aria-label="전체 요약">
+          <article><span>전체 설비</span><strong id="metric-total">-</strong><small>등록된 설비 기준</small></article>
+          <article class="metric-normal"><span>정상</span><strong id="metric-normal">-</strong><small>안정적으로 운전 중</small></article>
+          <article class="metric-attention"><span>주의</span><strong id="metric-attention">-</strong><small>확인이 필요한 설비</small></article>
+          <article class="metric-critical"><span>심각</span><strong id="metric-critical">-</strong><small>우선 점검 대상</small></article>
+        </section>
+        <div class="main-grid">
+          <section class="main-section factory-section">
+            <div class="section-heading"><div><span class="eyebrow">FACTORY CONTROL BOARD</span><h2>공장별 운영 현황</h2></div><span id="main-count">-</span></div>
+            <div id="factory-list" class="factory-list" aria-live="polite"><p class="loading">설비 데이터를 불러오는 중입니다.</p></div>
+          </section>
+          <aside class="main-side-column">
+            <section class="main-section alert-section"><div class="section-heading"><div><span class="eyebrow">ATTENTION FEED</span><h2>이상 징후</h2></div><span class="live-dot">LIVE</span></div><div id="alert-list" class="alert-list"><p class="loading">확인 중...</p></div></section>
+            <section class="main-section history-section"><div class="section-heading"><div><span class="eyebrow">RECENT DIAGNOSIS</span><h2>최근 진단 이력</h2></div><a href="/history">전체 보기</a></div><div id="recent-history" class="recent-history"><p class="loading">이력을 불러오는 중...</p></div></section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

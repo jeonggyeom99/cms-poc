@@ -114,7 +114,7 @@ function groupedItems(items) {
 
 function createSensor(sensor) {
   const node = sensor.isLive ? element("a", "equipment-status-sensor") : element("div", "equipment-status-sensor");
-  if (sensor.isLive) node.href = `/dashboard?dataset=${encodeURIComponent(sensor.datasetId)}`;
+  if (sensor.isLive) node.href = `/dashboard2?dataset=${encodeURIComponent(sensor.datasetId)}`;
   node.append(
     element("i", `equipment-status-sensor__dot equipment-status-sensor__dot--${sensor.state}`),
     element("span", null, `${sensor.equipmentCode || "-"} · ${sensor.location || "측정위치 미상"}`),
@@ -217,6 +217,12 @@ export async function initializeEquipmentStatusPage() {
     setNotice("CMS 상세 데이터를 불러오지 못해 설비 분류만 표시합니다.");
   }
   populateOptions();
+  const requestedFactory = new URLSearchParams(window.location.search).get("factory");
+  const normalizedRequestedFactory = requestedFactory?.replaceAll(" ", "");
+  const factoryOption = [...select("equipment-status-factory").options].find((option) => option.value.replaceAll(" ", "") === normalizedRequestedFactory);
+  if (factoryOption) {
+    select("equipment-status-factory").value = factoryOption.value;
+  }
   renderTree();
   renderEquipmentList();
 }

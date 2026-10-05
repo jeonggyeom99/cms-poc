@@ -121,7 +121,11 @@ function renderRecordList(fft, records, { listId, countId, setStatus, statusText
   list.replaceChildren(...buttons);
   syncFftRecordSelection(fft, null, selectedRecordId);
   setStatus(statusText(records));
-  list.querySelector(".fft-record-item.active")?.scrollIntoView({ block: "nearest" });
+  // The legacy dashboard uses this to reveal the selected FFT record, but on
+  // dashboard2 it also moves the whole page to the middle of the dashboard.
+  if (!document.body.classList.contains("dashboard2")) {
+    list.querySelector(".fft-record-item.active")?.scrollIntoView({ block: "nearest" });
+  }
 }
 
 export function renderFftRecordList(fft, selectedRecordId) {

@@ -129,7 +129,7 @@ export function bindRelatedHistory() {
     if (graphButton && !graphButton.disabled) {
       const item = relatedHistory.find((entry) => entry.id === graphButton.dataset.relatedHistoryId);
       if (item?.datasetId) {
-        window.location.href = `/dashboard?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
+        window.location.href = `/dashboard2?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
       }
       return;
     }
