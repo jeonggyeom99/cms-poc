@@ -11,7 +11,7 @@ from hashlib import sha256
 from typing import Any
 
 from app.ai_analysis import (
-    AiDiagnosis, _fft_summary, _timestamp, _trend_summary, build_ai_context,
+    AiAnalysisPeriod, AiDiagnosis, _fft_summary, _timestamp, _trend_summary, build_ai_context,
     diagnosis_quality_issues,
 )
 from app.analysis.trend import analyze_velocity_trend
@@ -68,6 +68,11 @@ def build_equipment_context(dataset_id: str, dataset: dict[str, Any], history: l
         "count": len(records), "start": records[0]["measuredAt"] if records else None,
         "end": records[-1]["measuredAt"] if records else None,
         "measureModes": sorted({item["measureMode"]["code"] for item in records}),
+        "observationDatesByMode": {
+            mode: sorted({_timestamp(item["measuredAt"]).date().isoformat()
+                          for item in records if item["measureMode"]["code"] == mode})
+            for mode in sorted({item["measureMode"]["code"] for item in records})
+        },
         "pageSize": PAGE_SIZE,
     }
     # All source records participate in invalidation, including records not yet queried.
@@ -175,6 +180,7 @@ Analyze the equipment once using its available history, rather than the user's s
 Call get_trend_evidence, get_fft_evidence, get_related_history and get_fft_history_evidence
 before completing the diagnosis. Choose your own comparison dates, months and representative
 records from fftInventory. Use list_fft_records and additional FFT/history calls as needed.
+observationDatesByMode gives observed dates; choose comparison boundaries from dates with the selected measurement mode.
 When nextOffset is present, fetch subsequent pages or describe uninspected portions in
 counterEvidence. At most 8 tool rounds and 16 calls are allowed; prioritize useful comparisons.
 Compare only the same measurement mode, unit and measurement point. Changes in RPM or
@@ -226,15 +232,28 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
         if not refs:
             issues.append("조회한 대표 FFT 기록 ID를 지정하세요.")
         stamps = {_timestamp(item["measuredAt"]) for item in inspected.values()}
-        valid_period = period.start in stamps and period.end in stamps and period.start <= period.end
+        observed_dates = {stamp.date() for stamp in stamps if stamp is not None}
+        valid_period = bool(
+            period.start and period.end
+            and period.start.date() in observed_dates and period.end.date() in observed_dates
+            and period.start <= period.end
+        )
         if not valid_period:
-            issues.append("fftAnalysisPeriod는 조회한 FFT 기록의 실제 관측 시작·종료 일시로 지정하세요.")
+            allowed_dates = ", ".join(day.isoformat() for day in sorted(observed_dates))
+            issues.append(
+                "fftAnalysisPeriod는 조회한 FFT 기록의 실제 관측 날짜로 지정하세요. "
+                f"사용 가능한 관측 날짜: {allowed_dates or '없음'}. "
+                "start/end는 비교한 첫째/마지막 날짜로 지정하세요."
+            )
         if refs and refs[0] in inspected:
             representative = inspected[refs[0]]
             # Legacy checks enforce physical causes; trend persistence is assessed over the new monthly evidence.
             check_context = {**context, "fft": representative, "trend": {"metrics": [], "analysis": {"status": "rising"}}}
             legacy = diagnosis_quality_issues(check_context, result)
-            issues.extend(item for item in legacy if "상승 추세" not in item and "측정 모드" not in item)
+            issues.extend(item for item in legacy
+                          if "상승 추세" not in item
+                          and "측정 모드" not in item
+                          and "headline에 속도 FFT의 규칙 기반 원인 후보" not in item)
     elif refs or period.start is not None or period.end is not None:
         issues.append("FFT 근거가 없으면 기간은 null, 참조 ID는 빈 배열로 작성하세요.")
     supported_causes: set[str] = set()
@@ -306,13 +325,47 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
                 collect_fft(child, unit)
     for fft in inspected.values():
         collect_fft(fft, fft.get("amplitudeUnit"))
-    for summary, values_by_unit in ((result.trend_summary, trend_values), (result.fft_summary, fft_values)):
+    for label, summary, values_by_unit in (("추세", result.trend_summary, trend_values),
+                                           ("주파수", result.fft_summary, fft_values)):
         for match in re.finditer(r"(?<![\w.])(\d+(?:\.\d+)?)\s*(mm/s|Hz|g)(?![A-Za-z])", summary):
             value = float(match[1])
             if not any(abs(value - actual) <= max(0.055, abs(actual) * 0.01) for actual in values_by_unit.get(match[2], [])):
-                issues.append("요약의 측정값은 해당 그래프의 조회 근거 및 단위와 일치시켜 주세요.")
+                candidates = values_by_unit.get(match[2], [])
+                if candidates:
+                    nearest = min(candidates, key=lambda candidate: abs(candidate - value))
+                    issues.append(
+                        f"{label} 요약에 근거가 없는 {match[2]} 값이 있습니다. "
+                        f"{match[2]} 근거값 중 가장 가까운 값은 {nearest:.6g}입니다. "
+                        "맞는 값을 사용하거나 근거가 없음을 설명하세요."
+                    )
+                else:
+                    issues.append(f"{label} 요약에 근거가 없는 {match[2]} 값이 있습니다. 해당 단위 수치는 삭제하고 근거 한계를 설명하세요.")
     if valid_period:
         for record_id in refs:
-            if record_id in inspected and not period.start <= _timestamp(inspected[record_id]["measuredAt"]) <= period.end:
+            if record_id in inspected and not period.start.date() <= _timestamp(inspected[record_id]["measuredAt"]).date() <= period.end.date():
                 issues.append("대표 FFT 기록은 비교 기간 안에 있어야 합니다.")
     return issues
+
+
+def normalize_equipment_period_timezone(result: AiDiagnosis, trace: list[dict]) -> AiDiagnosis:
+    """Do not invent timezone information for source measurements stored as naive timestamps."""
+    observations = []
+    for call in trace:
+        payload = call["result"]
+        if call["name"] == "get_fft_evidence" and payload.get("fft"):
+            observations.append(payload["fft"].get("measuredAt"))
+        if call["name"] == "get_fft_history_evidence":
+            observations.extend(item.get("measuredAt") for item in payload.get("records", []))
+    timestamps = [_timestamp(stamp) for stamp in observations]
+    timestamps = [stamp for stamp in timestamps if stamp is not None]
+    period = result.fft_analysis_period
+    if timestamps and all(stamp.tzinfo is None for stamp in timestamps):
+        start_day = period.start.date() if period.start else None
+        end_day = period.end.date() if period.end else None
+        start_observations = [stamp for stamp in timestamps if stamp.date() == start_day]
+        end_observations = [stamp for stamp in timestamps if stamp.date() == end_day]
+        result.fft_analysis_period = AiAnalysisPeriod(
+            start=min(start_observations) if start_observations else period.start.replace(tzinfo=None) if period.start else None,
+            end=max(end_observations) if end_observations else period.end.replace(tzinfo=None) if period.end else None,
+        )
+    return result
