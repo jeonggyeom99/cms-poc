@@ -163,7 +163,8 @@ def create_app(
 
     @application.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def equipment_status() -> str:
-        return (STATIC_DIR / "equipment-status.html").read_text(encoding="utf-8")
+        # Keep the primary entry point on the CMS shell used by the dashboard.
+        return await equipment_status2()
 
     @application.get("/main", response_class=HTMLResponse, include_in_schema=False)
     async def main_dashboard() -> str:

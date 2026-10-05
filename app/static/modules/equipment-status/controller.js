@@ -7,7 +7,7 @@ const STATE_DETAILS = {
   unknown: { label: "판단 불가", description: "상태를 판단할 Trend 이력이 충분하지 않습니다." },
 };
 const LIVE_STATE_BY_DATASET_STATUS = { normal: "normal", caution: "attention", unknown: "unknown" };
-const CRITICAL_EQUIPMENT = new Set(["3전기강판|3DNL|V056", "1냉연|1CAL|V191"]);
+const CRITICAL_EQUIPMENT = new Set(["3전기강판|3DNL|V056"]);
 const FACTORY_GROUP_ORDER = ["냉연", "전강", "전기강판", "열연", "선재", "연주", "고로", "제강", "FINEX", "APL"];
 
 let equipmentItems = [];
