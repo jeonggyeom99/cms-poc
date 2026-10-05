@@ -75,7 +75,8 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     return;
   }
 
-  if (diagnosis.status === "unavailable") {
+  const isAccelerationEnv = fft.metadata?.measureMode?.code === "2";
+  if (diagnosis.status === "unavailable" && !(isAccelerationEnv && fft.frequencyUnit === "Hz")) {
     details.className = "analysis-placeholder";
     details.innerHTML = `<strong>주파수 진단 대상 아님</strong><p>${diagnosis.message ?? "선택한 측정모드는 회전·베어링 주파수 진단을 지원하지 않습니다."}</p>`;
     return;
@@ -83,38 +84,39 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
 
   const bearingFault = bearingFaultView(fft, selectedFaultType);
   const hasBearingDiagnosis = Array.isArray(diagnosis?.faults);
-  const hasVelocityDiagnosis = diagnosis.status === "analyzed" && !hasBearingDiagnosis;
-  const hasVelocityNormal = diagnosis.status === "no_anomaly" && !hasBearingDiagnosis;
+  const hasVelocityDiagnosis = !hasBearingDiagnosis;
 
   const frequencyUnit = fft.frequencyUnit === "Hz" ? "Hz" : "bin";
   const amplitudeUnit = fft.amplitudeUnit ?? "";
   const harmonicDetails = (bearingFault?.harmonics ?? diagnosis?.harmonics ?? []).filter(
     (harmonic) => harmonic.order >= 1 && harmonic.order <= 3,
   );
-  const isAccelerationEnv = fft.metadata?.measureMode?.code === "2";
   // 베어링 정보가 없어 고조파를 계산하지 못해도 ENV 스펙트럼 자체는 확인할 수 있다.
   const showDiagnosisChart = fft.frequencyUnit === "Hz"
     && (harmonicDetails.length > 0 || isAccelerationEnv);
   details.className = "fft-analysis-details";
   const bearingControls = hasBearingDiagnosis ? `
-    <section class="bearing-analysis-summary" aria-label="가속도 베어링 분석">
+    <div class="bearing-analysis-summary" aria-label="가속도 베어링 분석">
       <div class="bearing-analysis-heading">
-        <div><span>베어링</span><strong>${diagnosis.bearing?.maker ?? "--"} ${diagnosis.bearing?.number ?? "--"}</strong></div>
-        <p>${diagnosis.message}</p>
+        <span>베어링</span>
+        <strong>${diagnosis.bearing?.maker ?? "--"} ${diagnosis.bearing?.number ?? "--"}</strong>
       </div>
       ${diagnosis.bearing?.available ? `
-        <div class="bearing-coefficients" aria-label="베어링 마스터 결함계수">
-          ${diagnosis.faults.map((fault) => `<span class="${fault.type === bearingFault?.type ? "active" : ""}">${fault.type} ${formatNumber(fault.coefficient, 4)}</span>`).join("")}
-        </div>
         <div class="bearing-fault-selector" role="group" aria-label="베어링 결함 유형 선택">
-          ${diagnosis.faults.map((fault) => `<button type="button" data-bearing-fault="${fault.type}" class="${fault.type === bearingFault?.type ? "active" : ""}" aria-pressed="${fault.type === bearingFault?.type}">${fault.type}</button>`).join("")}
+          ${diagnosis.faults.map((fault) => `<button type="button" data-bearing-fault="${fault.type}" class="${fault.type === bearingFault?.type ? "active" : ""}" aria-pressed="${fault.type === bearingFault?.type}"><span>${fault.type}</span><small>계수 ${formatNumber(fault.coefficient, 4)}</small></button>`).join("")}
         </div>` : ""}
-    </section>` : "";
+    </div>` : "";
   const bearingCard = hasBearingDiagnosis && bearingFault ? `
     <section class="fft-diagnosis-card ${bearingFault.hasAnomaly ? "danger" : "normal"}" aria-label="가속도 베어링 분석 결과">
       <span>가속도 주파수 베어링 분석</span>
       <strong>${bearingFault.type} · ${bearingFault.label}</strong>
       <small>결함계수 ${formatNumber(bearingFault.coefficient, 2)} · 기준주파수 ${formatNumber(bearingFault.baseFrequency, 2)} Hz · 점수 ${formatNumber(bearingFault.score, 3)}</small>
+      <small>대표 판정: ${diagnosis.message}</small>
+    </section>` : hasBearingDiagnosis ? `
+    <section class="fft-diagnosis-card unknown" aria-label="가속도 베어링 분석 결과">
+      <span>가속도 주파수 베어링 분석</span>
+      <strong>${diagnosis.label}</strong>
+      <small>${diagnosis.message}</small>
     </section>` : "";
   const historyTags = relatedHistoryTag ? `
     <div class="fft-related-history-tags" aria-label="연관 과거 이력 태그">
@@ -122,7 +124,6 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
       <strong>${relatedHistoryTag.fault} · ${relatedHistoryTag.faultType}</strong>
     </div>` : "";
   details.innerHTML = `
-    ${bearingControls}
     <div class="fft-analysis-grid">
       ${diagnosis ? `
       <section class="fft-analysis-item peak">
@@ -139,19 +140,15 @@ export function renderFftAnalysis(fft, selectedFaultType = null, emptyState = {}
     </div>
     ${showDiagnosisChart ? `
     <section class="fft-analysis-chart-section">
+      ${bearingControls}
       <div id="fft-analysis-chart" class="plot fft-analysis-chart" role="img" aria-label="회전 주파수 분석 그래프"></div>
     </section>` : ""}
     ${bearingCard}
     ${hasVelocityDiagnosis ? `
-    <section class="fft-diagnosis-card ${fftDiagnosisClass(diagnosis)}" aria-label="속도 주파수 진단 결과">
+    <section class="fft-diagnosis-card ${diagnosis.status === "no_anomaly" ? "normal" : fftDiagnosisClass(diagnosis)}" aria-label="속도 주파수 진단 결과">
       <span>속도 주파수 진단 결과</span>
       <strong>${diagnosis.label}</strong>
-    </section>` : ""}
-    ${hasVelocityNormal ? `
-    <section class="fft-diagnosis-card normal" aria-label="속도 주파수 진단 결과">
-      <span>속도 주파수 진단 결과</span>
-      <strong>${diagnosis.label}</strong>
-      <small>${diagnosis.message}</small>
+      <small>${diagnosis.message ?? ""}</small>
     </section>` : ""}
     ${historyTags}`;
   if (showDiagnosisChart) renderPlot("fft-analysis-chart", buildFftDiagnosisFigure(fft, bearingFault?.type));
