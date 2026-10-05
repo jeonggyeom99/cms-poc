@@ -30,6 +30,8 @@ async def complete_with_tools(
     allow_additional_tools: bool = True,
     response_format: dict[str, Any] | None = None,
     max_completion_tokens: int = 1600,
+    max_tool_rounds: int = MAX_TOOL_ROUNDS,
+    max_tool_calls: int = MAX_TOOL_CALLS,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run model-selected server tools and return final text plus an audit trace."""
     required = set(required_tools or ())
@@ -38,10 +40,10 @@ async def complete_with_tools(
     calls_count = 0
     tool_rounds = 0
 
-    for _ in range(MAX_TOOL_ROUNDS + 1):
+    for _ in range(max_tool_rounds + 1):
         waiting_for_required = bool(required - executed) or (require_first_tool and not trace)
-        tools_allowed = allow_additional_tools and tool_rounds < MAX_TOOL_ROUNDS
-        if waiting_for_required and tool_rounds >= MAX_TOOL_ROUNDS:
+        tools_allowed = allow_additional_tools and tool_rounds < max_tool_rounds
+        if waiting_for_required and tool_rounds >= max_tool_rounds:
             raise AiResponseError()
         params: dict[str, Any] = {
             "model": model,
@@ -70,7 +72,7 @@ async def complete_with_tools(
             return content, trace
 
         calls_count += len(calls)
-        if calls_count > MAX_TOOL_CALLS:
+        if calls_count > max_tool_calls:
             raise AiResponseError()
 
         tool_rounds += 1

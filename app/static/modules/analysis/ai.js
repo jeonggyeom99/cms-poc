@@ -13,6 +13,15 @@ function elements() {
   };
 }
 
+function graphSummaries(trendText, fftText, periodText = "", busy = false) {
+  const trend = document.getElementById("trend-ai-summary");
+  const fft = document.getElementById("fft-ai-summary");
+  trend.textContent = trendText;
+  fft.textContent = fftText;
+  [trend, fft].forEach((node) => node.setAttribute("aria-busy", String(busy)));
+  document.getElementById("fft-ai-period").textContent = periodText;
+}
+
 function setAction(run, label, disabled, completed = false) {
   run.textContent = label;
   run.disabled = disabled;
@@ -95,15 +104,17 @@ function priorityLabel(value) {
 
 export function resetAiAnalysis({ available, heading, detail, baseline = null }) {
   const { description, run, details } = elements();
+  graphSummaries(available ? "최근 3개월 추세 분석을 기다리고 있습니다." : "추세 분석에 사용할 설비 데이터가 없습니다.",
+    available ? "주파수 이력 분석을 기다리고 있습니다." : "주파수 분석에 사용할 설비 데이터가 없습니다.");
   description.textContent = available
     ? "AI 분석 결과를 기다리고 있습니다."
-    : "주파수 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
+    : "설비 데이터가 준비되면 인공지능 종합 분석을 실행할 수 있습니다.";
   setAction(run, "다시 분석", !available);
   if (baseline?.fft) {
     placeholder(
       details,
       "AI 분석 대기",
-      "선택한 주파수 기록을 바탕으로 AI 분석 결과를 준비하고 있습니다.",
+      "설비의 추세와 주파수 이력을 바탕으로 AI 분석 결과를 준비하고 있습니다.",
     );
   }
   else placeholder(
@@ -115,12 +126,13 @@ export function resetAiAnalysis({ available, heading, detail, baseline = null })
 
 export function setAiAnalysisLoading(baseline) {
   const { description, run, details } = elements();
+  graphSummaries("최근 3개월 평균과 변화를 분석하고 있습니다.", "AI가 주파수 측정 이력을 조회하고 비교하고 있습니다.", "", true);
   description.textContent = "AI 분석 결과를 분석하고 있습니다. 잠시만 기다려 주세요.";
   setAction(run, "인공지능 분석 중...", true);
   placeholder(
     details,
     "AI 분석 중",
-    "선택한 주파수 기록을 바탕으로 AI 분석 결과를 생성하고 있습니다.",
+    "AI가 필요한 추세·주파수·과거 이력을 조회해 설비 분석을 작성하고 있습니다.",
   );
   details.setAttribute("aria-busy", "true");
 }
@@ -129,6 +141,14 @@ export function renderAiAnalysis(payload, baseline = null) {
   const { description, run, details } = elements();
   const analysis = payload.analysis;
   description.textContent = analysis.headline;
+  const period = analysis.fftAnalysisPeriod;
+  const dates = period?.start && period?.end
+    ? `비교 기간: ${period.start.replace("T", " ")} ~ ${period.end.replace("T", " ")}`
+    : "비교할 주파수 측정 근거가 없습니다.";
+  const references = analysis.fftReferenceRecordIds?.length
+    ? ` · 대표 기록: ${analysis.fftReferenceRecordIds.map((id) => `#${id}`).join(", ")}` : "";
+  const measuredAt = baseline?.fft?.measuredAt ? ` · 대표 측정일: ${baseline.fft.measuredAt}` : "";
+  graphSummaries(analysis.trendSummary, analysis.fftSummary, dates + references + measuredAt);
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");
@@ -152,6 +172,7 @@ export function renderAiAnalysis(payload, baseline = null) {
 
 export function renderAiAnalysisError(message, baseline) {
   const { description, run, details } = elements();
+  graphSummaries(message, message);
   description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";
   setAction(run, "다시 시도", false);
   placeholder(details, "AI 진단 실패", message);

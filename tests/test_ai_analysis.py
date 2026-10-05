@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta, timezone
 from pydantic import BaseModel
 
 from app.ai_analysis import (
+    AiAnalysisPeriod,
     AiAnalysisService,
     AiDiagnosis,
     AiEvidenceError,
@@ -32,6 +33,10 @@ def diagnosis() -> AiDiagnosis:
         headline="1X 성분을 재점검해야 합니다.",
         risk_level="caution",
         risk_label="주의",
+        trend_summary="측정 기간의 추세를 확인했습니다.",
+        fft_summary="주파수 측정 근거를 확인했습니다.",
+        fft_analysis_period={"start": None, "end": None},
+        fft_reference_record_ids=[],
         trend_findings=[AiFinding(heading="Trend", detail="완만한 상승입니다.")],
         fft_findings=[AiFinding(heading="FFT", detail="1X Peak가 우세합니다.")],
         history_findings=[],
@@ -509,6 +514,26 @@ def test_ai_analysis_service_caches_and_refreshes_on_force() -> None:
         return first.cached, cached.cached, refreshed.cached, gateway.calls
 
     assert asyncio.run(run()) == (False, True, False, 2)
+
+
+def test_cached_equipment_period_strips_timezone_without_changing_observation_times() -> None:
+    class EquipmentGateway(CountingGateway):
+        async def analyze(self, context: dict) -> AiDiagnosis:
+            self.calls += 1
+            return diagnosis().model_copy(update={
+                "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01T10:00:00Z", end="2026-01-02T11:00:00Z"),
+            })
+
+    async def run():
+        service = AiAnalysisService(EquipmentGateway(), "test-model")
+        context = {"fftInventory": {"start": "2026-01-01 09:00:00", "end": "2026-01-02 12:00:00"}}
+        await service.analyze(context)
+        cached = await service.analyze(context)
+        return cached.analysis.fft_analysis_period
+
+    period = asyncio.run(run())
+    assert period.start.isoformat(sep=" ") == "2026-01-01 10:00:00"
+    assert period.end.isoformat(sep=" ") == "2026-01-02 11:00:00"
 
 
 @pytest.mark.parametrize("value,expected", [(None, 86400), ("", 86400), ("3600", 3600), ("0", 86400), ("-1", 86400), ("bad", 86400), ("1.5", 86400)])

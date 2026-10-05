@@ -65,8 +65,8 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
     assert "setAiDiagnosisReference" not in selection
     assert "resetAiAnalysis" not in bearing_click
     assert "setAiDiagnosisReference" not in bearing_click
-    assert "bindAiAnalysis((force) => runAiAnalysis(force, true))" in controller
-    assert "setAiDiagnosisReference(getSelectedFftRecord(), getSelectedBearingFaultType())" in controller
+    assert "bindAiAnalysis((force) => runAiAnalysis(force))" in controller
+    assert "setAiDiagnosisReference(representative," in controller
     assert "fftRecord: reference.record" in controller
     assert "captureReferenceFft" in capture
 
@@ -149,7 +149,7 @@ def test_fft_history_excludes_acceleration_all_and_renames_acceleration_env() ->
     assert '"가속도ENV": "가속도"' in formatting
 
 
-def test_trend_and_fft_cards_have_equal_widths() -> None:
+def test_trend_and_level_cards_have_equal_widths() -> None:
     styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 
     assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles

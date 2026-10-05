@@ -45,7 +45,7 @@ const originalLayout = JSON.stringify(chart.layout);
 const graphs = [];
 let downloads = 0;
 globalThis.document = {
-  getElementById(id) { return id === 'report-action-status' ? status : id === 'diagnostic-ppt-export' ? button : chart; },
+  getElementById(id) { assert.notEqual(id, 'fft-chart'); return id === 'report-action-status' ? status : id === 'diagnostic-ppt-export' ? button : chart; },
   createElement(tag) { return { style:{}, remove() {}, click() { if (tag === 'a') downloads++; } }; },
   body: { append() {} },
 };

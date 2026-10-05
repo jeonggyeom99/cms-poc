@@ -58,7 +58,7 @@ async function captureFigure(plotly, figure, options, presentation) {
 
 async function captureReferenceFft(plotly, fft, selectedFaultType, options, presentation) {
   if (fft) return captureFigure(plotly, buildFftFigure(fft, selectedFaultType), options, presentation);
-  const chart = renderedChart("fft-chart", "FFT");
+  const chart = renderedChart("fft-analysis-chart", "FFT");
   return presentation
     ? captureFigure(plotly, { traces: chart.data, layout: chart.layout }, options, true)
     : plotly.toImage(chart, options);
