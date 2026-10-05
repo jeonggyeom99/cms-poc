@@ -844,8 +844,15 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'class="overview-metrics"' not in response.text
     assert "추세 그래프" in response.text
     assert "주파수 그래프" in response.text
-    assert 'class="card chart-card fft-card"' in response.text
-    assert response.text.count('id="fft-chart"') == 1
+    assert 'class="card chart-card fft-card"' not in response.text
+    assert 'id="fft-chart"' not in response.text
+    assert "선택 이력 주파수 분석" not in response.text
+    assert response.text.count("<h2>주파수 그래프</h2>") == 1
+    chart_grid = response.text[response.text.index('<section class="chart-grid"'):response.text.index('<dialog class="graph-modal"')]
+    assert chart_grid.index("추세 그래프") < chart_grid.index("기준값 분석 결과")
+    assert 'class="card diagnosis-card"' not in chart_grid
+    diagnosis = response.text[response.text.index('<article class="card diagnosis-card"'):response.text.index('<article class="card ai-analysis-card"')]
+    assert 'id="fft-expand"' in diagnosis
     assert 'id="trend-expand"' in response.text
     assert 'id="fft-expand"' in response.text
     assert 'id="graph-modal"' in response.text
