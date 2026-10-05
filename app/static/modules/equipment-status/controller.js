@@ -114,7 +114,7 @@ function groupedItems(items) {
 
 function createSensor(sensor) {
   const node = sensor.isLive ? element("a", "equipment-status-sensor") : element("div", "equipment-status-sensor");
-  if (sensor.isLive) node.href = `/dashboard?dataset=${encodeURIComponent(sensor.datasetId)}`;
+  if (sensor.isLive) node.href = `/dashboard2?dataset=${encodeURIComponent(sensor.datasetId)}`;
   node.append(
     element("i", `equipment-status-sensor__dot equipment-status-sensor__dot--${sensor.state}`),
     element("span", null, `${sensor.equipmentCode || "-"} · ${sensor.location || "측정위치 미상"}`),
