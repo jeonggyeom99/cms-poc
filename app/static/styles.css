@@ -653,9 +653,6 @@ h1 {
   height: 320px;
 }
 
-.fft-card .plot {
-  height: 320px;
-}
 
 .plot-empty {
   display: grid;
@@ -1454,6 +1451,15 @@ body.graph-modal-open {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+}
+
+.related-history-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .related-history-card {
@@ -2379,9 +2385,6 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .fft-card .plot {
-    height: 300px;
-  }
 
   .fft-analysis-workspace {
     grid-template-columns: 235px minmax(0, 1fr);
@@ -2444,8 +2447,7 @@ body.graph-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .plot,
-  .fft-card .plot {
+  .plot {
     height: 280px;
   }
 
@@ -2562,8 +2564,7 @@ body.graph-modal-open {
     padding: 17px;
   }
 
-  .plot,
-  .fft-card .plot {
+  .plot {
     height: 250px;
   }
 

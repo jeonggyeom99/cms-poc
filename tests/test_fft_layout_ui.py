@@ -117,3 +117,42 @@ assert.ok(purges > 0);
         input=script, text=True, capture_output=True, cwd=ROOT, timeout=15,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is unavailable")
+def test_related_history_card_shows_empty_state_and_matching_records():
+    script = r"""
+import assert from 'node:assert/strict';
+function node() {
+  return {
+    hidden: true, textContent: '', children: [], attributes: {}, dataset: {},
+    replaceChildren(...children) { this.children = children; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    append(...children) { this.children.push(...children); },
+    classList: { toggle() {} },
+  };
+}
+const nodes = {
+  'fft-related-history': node(),
+  'fft-related-history-count': node(),
+  'fft-related-history-list': node(),
+};
+globalThis.document = { createElement: node, getElementById: id => nodes[id] };
+const { renderRelatedHistory } = await import('./app/static/modules/fft/related-history.js');
+renderRelatedHistory(null, []);
+assert.equal(nodes['fft-related-history'].hidden, false);
+assert.equal(nodes['fft-related-history-count'].textContent, '0건');
+assert.equal(nodes['fft-related-history-list'].children[0].textContent, '일치하는 과거 이력이 없습니다.');
+renderRelatedHistory({ fault: '축', faultType: 'Unbalance' }, [{
+  id: 'history-1', date: '2026-09-01', equipmentName: '펌프', process: '수처리',
+  sensorNumber: '001', fault: '축', faultType: 'Unbalance', datasetId: '1',
+}]);
+assert.equal(nodes['fft-related-history'].hidden, false);
+assert.equal(nodes['fft-related-history-count'].textContent, '1건');
+assert.equal(nodes['fft-related-history-list'].children.length, 1);
+"""
+    result = subprocess.run(
+        [shutil.which("node"), "--input-type=module", "-"],
+        input=script, text=True, capture_output=True, cwd=ROOT, timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
