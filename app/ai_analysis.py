@@ -27,7 +27,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v8"
+PROMPT_VERSION = "cms-dashboard-analysis-v9-prefetched"
 ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
@@ -913,17 +913,21 @@ class OpenAIAnalysisGateway:
         ]
         messages = [
             {"role": "system", "content": SYSTEM_INSTRUCTIONS + "\nYou must call all three evidence tools before writing the diagnosis. Cite only values returned by those tools."},
-            {"role": "user", "content": json.dumps({"equipmentId": context["equipment"].get("id"), "recordId": context["fft"].get("recordId"), "scope": "선택된 FFT 레코드의 CMS 보조 분석"}, ensure_ascii=False)},
+            {"role": "user", "content": json.dumps({"equipmentId": context["equipment"].get("id"), "recordId": context.get("fft", {}).get("recordId"), "scope": "선택된 FFT 레코드의 CMS 보조 분석"}, ensure_ascii=False)},
         ]
         equipment_analysis = bool(context.get("equipmentAnalysis"))
         if equipment_analysis:
             from app.equipment_analysis import EQUIPMENT_INSTRUCTIONS, equipment_tool_definitions
-            tools = equipment_tool_definitions()
+            tools = [tool for tool in equipment_tool_definitions()
+                     if tool["function"]["name"] in {"get_fft_evidence", "get_fft_history_evidence", "get_related_history"}]
             messages = [
                 {"role": "system", "content": COMMON_INSTRUCTIONS + EQUIPMENT_INSTRUCTIONS},
                 {"role": "user", "content": json.dumps({
-                    "equipment": context["equipment"], "fftInventory": context["fftInventory"],
-                    "scope": context["scope"],
+                    "equipment": context["equipment"], "scope": context["scope"],
+                    "trend": context.get("trend"), "levelAnalysis": context.get("levelAnalysis"),
+                    "fftEvidence": context.get("preparedFftEvidence", {}),
+                    "dataQuality": context.get("dataQuality"),
+                    "requiredCounterEvidence": context.get("requiredCounterEvidence", []),
                 }, ensure_ascii=False)},
             ]
         request_id = uuid4().hex
@@ -943,12 +947,12 @@ class OpenAIAnalysisGateway:
                     try:
                         content, current_trace = await complete_with_tools(
                             client, self._settings.model, messages, tools, execute,
-                            required_tools=(ANALYSIS_TOOL_NAMES | ({"get_fft_history_evidence"} if equipment_analysis else set())) if attempt == 0 else None,
+                            required_tools=ANALYSIS_TOOL_NAMES if attempt == 0 and not equipment_analysis else None,
                             allow_additional_tools=equipment_analysis if attempt == 0 else False,
                             response_format=response_format,
                             max_completion_tokens=2400 if attempt == 0 else 4800,
-                            max_tool_rounds=(8 if equipment_analysis else 4) if attempt == 0 else 0,
-                            max_tool_calls=16 if equipment_analysis else 8,
+                            max_tool_rounds=(2 if equipment_analysis else 4) if attempt == 0 else 0,
+                            max_tool_calls=4 if equipment_analysis else 8,
                             prioritize_required=equipment_analysis,
                             diagnostics=diagnostics,
                         )
@@ -982,7 +986,7 @@ class OpenAIAnalysisGateway:
                         else:
                             if equipment_analysis:
                                 from app.equipment_analysis import equipment_issue_codes, equipment_quality_issues, normalize_equipment_period_timezone
-                                result = normalize_equipment_period_timezone(result, trace)
+                                result = normalize_equipment_period_timezone(result, trace, context)
                                 issues = equipment_quality_issues(context, result, trace)
                                 codes = equipment_issue_codes(issues)
                             else:

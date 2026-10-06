@@ -160,7 +160,7 @@ def test_equipment_gateway_allows_model_selected_extra_history_calls(monkeypatch
     })
     query = {"start": None, "end": None, "measure_mode": "3", "offset": 0}
     batches = [
-        [("get_trend_evidence", {}), ("get_fft_evidence", {"record_id": 1}),
+        [("get_fft_evidence", {"record_id": 1}),
          ("get_related_history", {"record_id": 1}), ("get_fft_history_evidence", query)],
         [("get_fft_history_evidence", {**query, "start": "2026-01-01"})],
     ]
@@ -187,7 +187,7 @@ def test_equipment_gateway_allows_model_selected_extra_history_calls(monkeypatch
                "trend": {"metrics": []}, "fft": fft}
     actual = asyncio.run(OpenAIAnalysisGateway(OpenAISettings(api_key="fake", model="test", timeout_seconds=1)).analyze(context, execute))
     assert actual == result
-    assert calls[0]["tool_choice"] == "required" and calls[1]["tool_choice"] == "auto"
+    assert calls[0]["tool_choice"] == calls[1]["tool_choice"] == "auto"
     assert observed[-1][1]["start"] == "2026-01-01"
 
 

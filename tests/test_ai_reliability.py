@@ -102,7 +102,7 @@ def equipment_result():
 def test_gateway_repairs_output_without_repeating_evidence_tools(monkeypatch, caplog, bad_reply, stage):
     requests = []
     replies = iter([
-        response(calls=["get_trend_evidence", "get_fft_evidence", "get_related_history", "get_fft_history_evidence"]),
+        response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"]),
         bad_reply, response(equipment_result().model_dump_json()),
     ])
 
@@ -137,7 +137,7 @@ def test_schema_repairs_stop_after_three_outputs(monkeypatch):
     async def create(**params):
         requests.append(params)
         if len(requests) == 1:
-            return response(calls=["get_trend_evidence", "get_fft_evidence", "get_related_history", "get_fft_history_evidence"])
+            return response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"])
         return response("{}")
 
     class FakeClient:
@@ -230,7 +230,7 @@ def test_fft_frequency_range_is_allowed_as_metadata_not_a_peak(peak_text):
     result = equipment_result().model_copy(update={
         "fft_reference_record_ids": [1, 2],
         "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01", end="2026-01-02"),
-        "fft_summary": "FFT 분해능 설정은 500 Hz이며 추가 점검이 필요합니다.",
+        "fft_summary": "FFT 측정 대역 설정은 500 Hz이며 추가 점검이 필요합니다.",
     })
     context = {"trend": {"metrics": []}}
     assert equipment_quality_issues(context, result, trace) == []
