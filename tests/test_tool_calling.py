@@ -133,7 +133,8 @@ def test_complete_with_tools_requires_named_evidence_before_final(monkeypatch) -
         return {"status": "ready"}
 
     content, trace = asyncio.run(complete_with_tools(
-        client, "gpt-5.6-luna", [], [], execute,
+        client, "gpt-5.6-luna", [],
+        [{"type": "function", "function": {"name": name}} for name in ("get_a", "get_b")], execute,
         required_tools={"get_a", "get_b"}, allow_additional_tools=False,
     ))
 

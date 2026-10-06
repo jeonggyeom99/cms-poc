@@ -412,7 +412,7 @@ def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
     assert "진단 근거 검사" in calls[2]["messages"][-1]["content"]
 
 
-def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeypatch) -> None:
+def test_ai_gateway_reports_evidence_failure_after_bounded_repairs(monkeypatch) -> None:
     calls = 0
 
     async def create(**kwargs):
@@ -440,7 +440,7 @@ def test_ai_gateway_reports_evidence_failure_after_second_generic_answer(monkeyp
 
     with pytest.raises(AiEvidenceError):
         asyncio.run(gateway.analyze(inner_race_context()))
-    assert calls == 3
+    assert calls == 4
 
 
 def test_repository_datasets_have_compact_ai_context_contract() -> None:
