@@ -1,0 +1,22 @@
+/* Shared CMS Operations navigation icon geometry. */
+.dashboard2-side nav a,
+.dashboard-ui6 .side nav a,
+.equipment-status2-page .side nav a,
+.history2-side nav a {
+  gap: 12px;
+}
+
+.dashboard2-side nav a > span:first-child,
+.dashboard-ui6 .side nav a > span:first-child,
+.equipment-status2-page .side nav a > span:first-child,
+.history2-side nav a > span:first-child {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+}
