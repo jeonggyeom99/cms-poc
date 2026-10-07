@@ -250,7 +250,7 @@ h1 {
 
 .equipment-overview-main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 32px;
 }
@@ -331,7 +331,7 @@ h1 {
 
 .overview-fft-result {
   display: grid;
-  flex: 0 0 clamp(220px, 25vw, 300px);
+  flex: 0 0 clamp(280px, 26vw, 340px);
   gap: 8px;
   padding: 17px 19px;
   background: rgba(255, 255, 255, 0.72);
@@ -349,7 +349,9 @@ h1 {
 
 .overview-fft-result strong {
   color: #172b40;
-  font-size: clamp(22px, 2vw, 28px);
+  font-size: 20px;
+  word-break: keep-all;
+  overflow-wrap: normal;
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
@@ -2663,3 +2665,13 @@ body.graph-modal-open {
 .report-action-status[data-state="warning"] {
   color: var(--warning, #a56a00);
 }
+
+/* Keep the diagnosis name, grade and evidence on predictable rows. */
+.overview-fft-grade { justify-self: start; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,.7); font-size: 15px; font-weight: 800; white-space: nowrap; }
+.overview-fft-grade[hidden], #overview-fft-limitation[hidden] { display: none; }
+.overview-fft-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 0; font-size: 12px; color: #5f7183; }
+.overview-fft-stats div { display: grid; gap: 2px; }
+.overview-fft-stats div:last-child { grid-column: 1 / -1; }
+.overview-fft-stats dt { font-weight: 600; }
+.overview-fft-stats dd { margin: 0; color: #172b40; font-weight: 750; white-space: nowrap; }
+#fft-ai-summary, .graph-ai-period { white-space: pre-line; }

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=fft-and-trend-history-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=weekly-layout-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=fft-and-trend-history-v1"></script>
+    <script type="module" src="/static/app.js?v=weekly-layout-v1"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -44,8 +44,11 @@
             </div>
             <aside class="overview-fft-result is-neutral" aria-label="현재 주파수 상태">
               <span class="overview-fft-result-label">현재 주파수 상태</span>
-              <strong id="overview-fft-result" aria-live="polite">기타/복합</strong>
-              <small id="overview-fft-measured-at">기준 측정일시 --</small>
+              <strong id="overview-fft-result" aria-live="polite">판정 불가</strong>
+              <span class="overview-fft-grade" id="overview-fft-grade" hidden></span>
+              <small id="overview-fft-measured-at">최근 7일 집계 대기</small>
+              <dl class="overview-fft-stats" id="overview-fft-stats"></dl>
+              <small id="overview-fft-limitation" hidden></small>
             </aside>
           </div>
           <section class="equipment-ai-diagnosis" aria-labelledby="ai-analysis-title">

@@ -159,6 +159,8 @@ def create_app(
             public["fft"] = {key: value for key, value in fft.items() if not key.startswith("_")}
         if public.get("trend") is not None:
             public["trend"] = {**public["trend"], "analysisResult": trend_analysis_result(dataset)}
+        from app.services.fft_status import weekly_fft_diagnosis
+        public["fftWeeklyDiagnosis"] = weekly_fft_diagnosis(fft)
         return public
 
     @application.get("/", response_class=HTMLResponse, include_in_schema=False)

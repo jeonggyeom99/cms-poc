@@ -191,6 +191,10 @@ def test_equipment_cause_can_be_supported_by_a_nonrepresentative_record():
     "외륜 피크는 미만이지만 결함이 의심됩니다.",
     "외륜 피크가 없지만 외륜 결함 가능성이 높습니다.",
     "외륜 피크가 확인되지 않지만 외륜 결함이 의심됩니다.",
+    "외륜 원인 후보를 지지하는 조회 FFT 근거가 없지만 결함이 의심됩니다.",
+    "외륜 원인으로 판단할 수 없지만 외륜 결함이 의심됩니다.",
+    "BPFO 1X에서 0.7 g가 관측되어 외륜 결함입니다.",
+    "BPFO 1X에서 0.7 g가 관측되어 외륜 결함이 존재합니다.",
 ])
 def test_negative_fault_finding_does_not_claim_an_unsupported_cause(positive_text):
     result = equipment_result().model_copy(update={
@@ -200,6 +204,12 @@ def test_negative_fault_finding_does_not_claim_an_unsupported_cause(positive_tex
     })
     context = {"trend": {"metrics": []}}
     assert equipment_quality_issues(context, result, mixed_trace()) == []
+    limited = result.model_copy(update={"fft_summary": "외륜 원인 후보를 지지하는 유의한 조회 FFT Peak 또는 확정 진단 근거가 없어 판단이 제한됩니다."})
+    assert equipment_quality_issues(context, limited, mixed_trace()) == []
+    for text in ("외륜 원인으로 판단할 수 없습니다.", "조회 FFT는 BPFO 원인을 지지하지 않습니다.",
+                 "BPFO 1X는 0.014 g에서 0.014 g로 관측되었습니다."):
+        observed = result.model_copy(update={"fft_summary": text})
+        assert "unsupported_cause" not in equipment_issue_codes(equipment_quality_issues(context, observed, mixed_trace()))
     positive = result.model_copy(update={"fft_summary": positive_text})
     assert "unsupported_cause" in equipment_issue_codes(equipment_quality_issues(context, positive, mixed_trace()))
 

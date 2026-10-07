@@ -27,7 +27,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v9-prefetched"
+PROMPT_VERSION = "cms-dashboard-analysis-v11-weekly-explanation"
 ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
@@ -78,7 +78,7 @@ class AiDiagnosis(_ApiModel):
     risk_level: Literal["normal", "caution", "danger", "unknown"]
     risk_label: str = Field(min_length=1, max_length=40)
     trend_summary: str = Field(min_length=1, max_length=500)
-    fft_summary: str = Field(min_length=1, max_length=500)
+    fft_summary: str = Field(min_length=1, max_length=1200)
     fft_analysis_period: AiAnalysisPeriod
     fft_reference_record_ids: list[int] = Field(max_length=50)
     trend_findings: list[AiFinding] = Field(max_length=4)
@@ -90,6 +90,7 @@ class AiDiagnosis(_ApiModel):
 
 
 class AiAnalysisResponse(_ApiModel):
+    fft_severity_assessments: list[dict[str, Any]] = Field(default_factory=list)
     status: Literal["ready"] = "ready"
     cached: bool
     model: str
@@ -379,6 +380,7 @@ def _fault_summary(items: Any) -> list[dict[str, Any]]:
 
 
 def _fft_summary(fft: dict[str, Any]) -> dict[str, Any]:
+    from app.analysis.fft_severity import assess_fft_harmonics
     analysis = fft.get("analysis") if isinstance(fft.get("analysis"), dict) else {}
     # Records emitted by the CSV loader use the spectrum result directly as
     # ``analysis``.  The first API contract used ``analysis.spectrum``.  Keep
@@ -417,6 +419,7 @@ def _fft_summary(fft: dict[str, Any]) -> dict[str, Any]:
             break
     return {
         "available": True,
+        "severityAssessments": assess_fft_harmonics(fft),
         "recordId": fft.get("recordId") if isinstance(fft.get("recordId"), int) else None,
         "measuredAt": _timestamp_text(fft.get("measuredAt")),
         "frequencyUnit": _text(fft.get("frequencyUnit"), 20),
@@ -844,7 +847,16 @@ minus the latest reading available at or before that many days earlier; they are
 not averages or rates. thresholdState is a deterministic comparison with the
 configured thresholds. Include counter-evidence whenever the supplied evidence
 is incomplete or does not support the leading cause. Keep each list concise and
-practical.
+practical. severityAssessments and fftWeeklyDiagnosis are server-calculated amplitude
+classifications, separate from fault-cause certainty. Use their Korean grade labels
+(양호, 초기 결함, 심각, 정지, 베어링 교체) when describing the corresponding
+harmonics. Describe these classifications explicitly as 진폭 기준 or 등급; they
+do not independently establish a physical fault cause. Weekly ranking uses abnormal occurrence count, then summed grade points.
+For grade-only bearing statements use the explicit Korean phrase 진폭 기준 초기 결함 등급
+(or the supplied grade). A grade alone must not put a bearing fault in likelyCauses.
+Only significant diagnostic harmonics support physical bearing-cause hypotheses.
+Do not present grade scores as measured amplitudes or introduce threshold numbers
+as observations. Detailed per-harmonic grades are rendered separately by the server.
 """
 
 SYSTEM_INSTRUCTIONS = COMMON_INSTRUCTIONS + """
@@ -926,6 +938,8 @@ class OpenAIAnalysisGateway:
                     "equipment": context["equipment"], "scope": context["scope"],
                     "trend": context.get("trend"), "levelAnalysis": context.get("levelAnalysis"),
                     "fftEvidence": context.get("preparedFftEvidence", {}),
+                    "fftWeeklyDiagnosis": context.get("fftWeeklyDiagnosis"),
+                    "weeklyExplanationFacts": context.get("weeklyExplanationFacts", []),
                     "dataQuality": context.get("dataQuality"),
                     "requiredCounterEvidence": context.get("requiredCounterEvidence", []),
                 }, ensure_ascii=False)},
@@ -950,7 +964,7 @@ class OpenAIAnalysisGateway:
                             required_tools=ANALYSIS_TOOL_NAMES if attempt == 0 and not equipment_analysis else None,
                             allow_additional_tools=equipment_analysis if attempt == 0 else False,
                             response_format=response_format,
-                            max_completion_tokens=2400 if attempt == 0 else 4800,
+                            max_completion_tokens=(3200 if equipment_analysis else 2400) if attempt == 0 else 4800,
                             max_tool_rounds=(2 if equipment_analysis else 4) if attempt == 0 else 0,
                             max_tool_calls=4 if equipment_analysis else 8,
                             prioritize_required=equipment_analysis,
@@ -1185,7 +1199,21 @@ class AiAnalysisService:
                 diagnosis = await self._gateway.analyze(context, execute)
             else:
                 diagnosis = await self._gateway.analyze(context)
+            # Server-owned assessments remain mandatory even if the model omits grades.
+            assessments = []
+            prepared = {item["recordId"]: item for item in
+                        context.get("preparedFftEvidence", {}).get("representativeRecords", [])}
+            for record_id in diagnosis.fft_reference_record_ids:
+                evidence = prepared.get(record_id)
+                if evidence is None and execute is not None and context.get("equipmentAnalysis"):
+                    payload = await execute("get_fft_evidence", {"record_id": record_id})
+                    evidence = payload.get("fft")
+                if evidence is None and context.get("fft", {}).get("recordId") == record_id:
+                    evidence = context["fft"]
+                if evidence:
+                    assessments.extend(evidence.get("severityAssessments", []))
             response = AiAnalysisResponse(
+                fft_severity_assessments=assessments,
                 cached=False, model=self._model,
                 generated_at=self._clock(), analysis=diagnosis,
             )

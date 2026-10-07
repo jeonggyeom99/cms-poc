@@ -61,6 +61,9 @@ def recent_trend_evidence(dataset: dict[str, Any]) -> dict[str, Any]:
 def build_equipment_context(dataset_id: str, dataset: dict[str, Any], history: list[dict], until: date | None) -> dict:
     fft = dataset.get("fft") or {}
     context = build_ai_context(dataset_id, dataset, fft, history, None, until)
+    from app.services.fft_status import weekly_fft_diagnosis, weekly_explanation_facts
+    context["fftWeeklyDiagnosis"] = weekly_fft_diagnosis(fft)
+    context["weeklyExplanationFacts"] = weekly_explanation_facts(context["fftWeeklyDiagnosis"])
     context["equipmentAnalysis"] = True
     context["datasetId"] = dataset_id
     context["scope"] = "설비 전체 이력을 바탕으로 한 CMS 보조 분석"
@@ -214,7 +217,13 @@ monthly average; mark partialMonth periods as partial. A reading difference is n
 The recent 72-hour rule and the 3-month monthly averages describe different windows. You may
 describe long-term increases supported by the monthly averages even when the short-term rule
 is stable. Do not call isolated spikes a sustained increase. Describe missing data explicitly.
-fftSummary: 1-2 sentences connecting observed historical harmonic changes, dominant components,
+fftSummary: 2-3 connected paragraphs (up to 1200 Korean characters) connecting the historical
+analysis and why the current weekly status was selected. Integrate ALL weeklyExplanationFacts
+into this narrative (you may copy their exact sentences); do not use a separate heading.
+Preserve dates, counts, grade points, competing causes, the peak date/mode/harmonic/value,
+and the criterion range. Explain the count-first ranking and the selected cause's highest weekly
+grade. Mention missing/partial data. Keep grade explanations separate from physical fault certainty.
+Then connect observed historical harmonic changes, dominant components,
 supported hypotheses and practical additional checks. A dominant shaft 1X alone does not establish
 misalignment: check 2X/3X and their ratios. Bearing defect harmonics and shaft harmonics differ;
 never mix acceleration g with velocity mm/s or compare different modes as one time series.
@@ -312,6 +321,13 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
         if mode in {"0", "2"}:
             supported_causes.update(fault["type"] for fault in diagnosis.get("faults", [])
                                     if any(item.get("significant") for item in fault.get("harmonics", [])))
+    amplitude_grades: dict[str, set[str]] = {}
+    for fft in inspected.values():
+        for assessment in fft.get("severityAssessments", []):
+            if assessment.get("score") is not None:
+                amplitude_grades.setdefault(assessment["cause"], set()).add(assessment["grade"])
+    for cause in context.get("fftWeeklyDiagnosis", {}).get("causes", []):
+        amplitude_grades.setdefault(cause["cause"], set()).add(cause["grade"])
     cause_terms = {
         "unbalance": ("unbalance", "불평형", "언밸런스"),
         "misalignment": ("misalignment", "축정렬 불량", "축정렬 상태 불량", "정렬 불량", "미스얼라인"),
@@ -324,7 +340,8 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
                         *[(f"likelyCauses[{index}]", f"{item.cause} {item.rationale}") for index, item in enumerate(result.likely_causes)]]
     limitation_phrases = ("판정 불가", "단정할 수 없", "추정할 수 없", "판단할 수 없", "확정할 수 없",
                           "근거가 없", "확인되지", "여부를 확인", "여부는 추가", "판단하기 어렵",
-                          "단정하기 어렵", "확정하기 어렵", "판정할 수 없", "확인할 수 없")
+                          "단정하기 어렵", "확정하기 어렵", "판정할 수 없", "확인할 수 없",
+                          "확정하지", "단정하지", "지지하지")
     trend = context.get("trend") or {}
     velocity = next((metric for metric in trend.get("metrics", []) if metric.get("key") == "velocity"), None)
     insufficient_trend = trend.get("available") is False or (
@@ -344,12 +361,20 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
     positive_claim = re.compile(
         r"가능성(?:이|은)?\s*(?:있|높|크|우선)|불량(?:이|은)?\s*우선|"
         r"의심(?:됩|된|돼|되므로|스럽)|추정(?:됩|된|되므로)|"
-        r"후보(?:입니다|로|가\s*있|를\s*지지)|결함(?:이|은)\s*(?:확인되|확인됩|발생했)|"
+        r"후보(?:입니다|로|가\s*있|를\s*지지)|결함(?:이|은)\s*(?:확인되|확인됩|발생했|존재)|"
+        r"(?:외륜|내륜|케이지|전동체|bpfo|bpfi|ftf|bsf|물리적)\s*결함입니다|"
         r"원인(?:입니다|일\s*가능|으로\s*판단)"
     )
     inspection_request = re.compile(r"(?:의\s*)?(?:여부|상태)(?:를|는|에\s*대한)?\s*(?:(?:추가|우선)\s*)?(?:확인|점검|검사)")
     for field, text in diagnostic_texts:
         for sentence in re.split(r"[.!?\n](?!\d)", text.lower()):
+            # A negated support clause is a limitation, while later positive claims
+            # in the same sentence must still be rejected.
+            claim_text = re.sub(
+                r"후보를\s*지지(?:하는)?[^,;]{0,80}?근거가\s*없",
+                "", sentence,
+            )
+            claim_text = re.sub(r"원인으로\s*판단할\s*수\s*없", "", claim_text)
             for cause, terms in cause_terms.items():
                 mentions = [match for term in terms
                             for match in re.finditer(re.escape(term).replace(r"\ ", r"\s*"), sentence)]
@@ -358,10 +383,26 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
                 if any(term in sentence for term in ("확실", "확정되", "명백", "고장 확정")):
                     issues.append("고장 원인을 확정하지 말고 근거에 따른 가능성과 확인 행동으로 작성하세요.")
                 elif cause not in supported_causes:
+                    # Amplitude classification does not assert a physical fault cause.
+                    grade_only = (not field.startswith("likelyCauses")
+                                  and any(label in sentence for label in amplitude_grades.get(cause, set()))
+                                  and any(word in sentence for word in ("진폭 기준", "등급", "주간 기준"))
+                                  and not positive_claim.search(claim_text))
+                    weekly_fact = (not field.startswith("likelyCauses")
+                                   and cause in {item["cause"] for item in context.get("fftWeeklyDiagnosis", {}).get("causes", [])}
+                                   and any(word in sentence for word in ("발생", "집계", "선정", "최고값", "진폭 등급이 반복"))
+                                   and not positive_claim.search(claim_text))
+                    observed_harmonic = (not field.startswith("likelyCauses")
+                                         and re.search(r"(?:bpfi|bpfo|bsf|ftf)\s*[123]x", sentence)
+                                         and re.search(r"\d\s*g(?![a-z])", sentence)
+                                         and any(word in sentence for word in ("관찰", "관측", "증가", "감소"))
+                                         and not positive_claim.search(claim_text))
+                    if grade_only or weekly_fact or observed_harmonic:
+                        continue
                     limited = any(phrase in sentence for phrase in (*limitation_phrases, *negative_findings))
                     direct_inspection = any(inspection_request.match(sentence[mention.end():].lstrip())
                                             for mention in mentions)
-                    if (limited or direct_inspection) and not positive_claim.search(sentence):
+                    if (limited or direct_inspection) and not positive_claim.search(claim_text):
                         continue
                     issues.append(f"{cause} 원인 후보를 지지하는 조회 FFT 근거가 없습니다. 판단 제한을 명시하세요. ({field})")
     # Compare measurements within their physical units, rather than any numeric field.
@@ -411,6 +452,13 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
             for component in month["components"].values():
                 for key in ("first", "latest", "minimum", "maximum"):
                     collect_fft(component[key], group["amplitudeUnit"])
+    weekly = context.get("fftWeeklyDiagnosis") or {}
+    for cause in weekly.get("causes", []):
+        peak = cause.get("peakEvidence") or {}
+        if peak.get("amplitude") is not None:
+            fft_values.setdefault(peak["unit"], []).append(peak["amplitude"])
+        if peak.get("frequency") is not None:
+            fft_values["Hz"].append(peak["frequency"])
     combined_values = {unit: list(values) for unit, values in trend_values.items()}
     for unit, values in fft_values.items():
         combined_values.setdefault(unit, []).extend(values)
@@ -431,6 +479,17 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
                 for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(mm/s|Hz|g)(?![A-Za-z])", sentence):
                     value = float(match[1])
                     candidates = list(values_by_unit.get(match[2], []))
+                    # Explicit criterion bounds are policy values, not observations.
+                    from app.analysis.fft_severity import VELOCITY_LIMITS, ACCELERATION_LIMITS
+                    limits = VELOCITY_LIMITS if match[2] == "mm/s" else ACCELERATION_LIMITS if match[2] == "g" else ()
+                    criterion = (match[2] in ("g", "mm/s")
+                                 and any(word in sentence for word in ("진폭 기준", "구간", "범위"))
+                                 and re.match(r"\s*(?:초과|미만|이하|이상)", sentence[match.end():]))
+                    if criterion:
+                        if value in limits:
+                            continue
+                        issues.append(f"{field}에 잘못된 판정 기준 {value:g} {match[2]}가 있습니다. weeklyExplanationFacts의 기준을 사용하세요.")
+                        continue
                     metadata_prefix = re.search(r"(?:범위|분해능|해상도|대역)(?:\s*설정)?(?:은|는|이|가|:|=)?\s*(?:약\s*)?$", sentence[:match.start()])
                     metadata_suffix = re.match(r"\s*(?:의\s*)?(?:범위|분해능|해상도|대역|조건)", sentence[match.end():])
                     if match[2] == "Hz" and (metadata_prefix or metadata_suffix):
@@ -455,6 +514,7 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
     if inspected and not any(word in " ".join(item.action for item in result.recommended_actions)
                              for word in ("확인", "점검", "재측정", "측정", "검사")):
         issues.append("권장 점검에 실행 가능한 확인 또는 재측정 조치를 포함하세요.")
+    issues.extend(weekly_summary_issues(context, result.fft_summary))
     return list(dict.fromkeys(issues))
 
 
@@ -509,3 +569,33 @@ def normalize_equipment_period_timezone(result: AiDiagnosis, trace: list[dict], 
             end=max(end_observations) if end_observations else period.end.replace(tzinfo=None) if period.end else None,
         )
     return result
+
+
+def weekly_summary_issues(context: dict, summary: str) -> list[str]:
+    weekly = context.get("fftWeeklyDiagnosis")
+    if weekly is None:
+        return []
+    text = re.sub(r"\s+", "", summary).lower()
+    required = []
+    if weekly.get("start"):
+        required.extend((weekly['start'][:10], weekly['end'][:10]))
+    cause = weekly.get("representative")
+    if cause:
+        peak = cause['peakEvidence']
+        required.append({"0": "가속도ALL", "2": "가속도ENV", "3": "속도"}[peak["measureMode"]])
+        required.extend((cause['causeLabel'].lower(), cause['grade'], f"{cause['count']}건", f"{cause['totalScore']}점",
+                         peak['measuredAt'][:10], f"{peak['harmonicOrder']}x", f"{peak['amplitude']:.4f}", "발생횟수", "최고등급"))
+        from app.analysis.fft_severity import grade_criterion
+        required.append(grade_criterion(cause['unit'], cause['highestScore']))
+        for other in weekly['causes']:
+            required.extend((other['causeLabel'].lower(), f"{other['count']}건"))
+    else:
+        required.append(weekly['label'])
+    if weekly.get('limitation') and weekly.get('start'):
+        required.append('제한')
+    missing = [item for item in required if re.sub(r"\s+", "", item).lower() not in text]
+    for item in weekly.get("causes", []):
+        label = re.escape(re.sub(r"\s+", "", item["causeLabel"]).lower())
+        if not re.search(label + rf"(?:은|는|이|가|:)?{item['count']}건.{{0,8}}?{item['totalScore']}점", text):
+            missing.append(f"{item['causeLabel']} {item['count']}건·{item['totalScore']}점")
+    return ["fftSummary에 주간 상태 선정 근거를 빠짐없이 통합하세요. weeklyExplanationFacts의 문장을 그대로 사용하면 됩니다. 누락: " + ', '.join(missing)] if missing else []

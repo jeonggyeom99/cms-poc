@@ -2,35 +2,43 @@ import { formatNumber } from "../core/format.js?v=korean-ui-v1";
 import { getPlotly, renderPlot } from "../core/plot.js?v=plot-zoom-bounds";
 import { buildFftDiagnosisFigure } from "./chart.js?v=korean-ui-v1";
 
-const COMPACT_FFT_DIAGNOSES = Object.freeze({
-  normal: { label: "정상", state: "normal" },
-  unbalance: { label: "불균형", state: "caution" },
-  misalignment: { label: "축정렬 불량", state: "danger" },
-  bearing_inner_race: { label: "베어링 내륜", state: "danger" },
-  bearing_outer_race: { label: "베어링 외륜", state: "danger" },
-  other: { label: "기타/복합", state: "neutral" },
-});
-
-function compactFftDiagnosis(diagnosis) {
-  if (!diagnosis || diagnosis.status === "unavailable") {
-    return { label: "분석 불가", state: "neutral" };
-  }
-  const diagnosisKey = diagnosis?.diagnosis;
-  return Object.hasOwn(COMPACT_FFT_DIAGNOSES, diagnosisKey)
-    ? COMPACT_FFT_DIAGNOSES[diagnosisKey]
-    : COMPACT_FFT_DIAGNOSES.other;
-}
-
-export function renderOverviewFftResult(fft) {
+export function renderOverviewFftResult(fft, weekly = null) {
   const panel = document.querySelector(".overview-fft-result");
   const result = document.getElementById("overview-fft-result");
   const measuredAt = document.getElementById("overview-fft-measured-at");
   if (!panel || !result || !measuredAt) return;
 
-  const { label, state } = compactFftDiagnosis(fft?.analysis?.diagnosis);
-  panel.className = `overview-fft-result is-${state}`;
-  result.textContent = label;
-  measuredAt.textContent = fft?.measuredAt ? `기준 측정일시 ${fft.measuredAt}` : "기준 측정일시 --";
+  panel.className = `overview-fft-result is-${weekly?.state || "neutral"}`;
+  const representative = weekly?.representative;
+  result.textContent = representative?.causeLabel || weekly?.label || "판정 불가";
+  const grade = document.getElementById("overview-fft-grade");
+  if (grade) {
+    grade.textContent = representative?.grade || "";
+    grade.hidden = !representative;
+  }
+  measuredAt.textContent = weekly?.start && weekly?.end
+    ? `최근 7일 ${weekly.start.slice(0, 10)} ~ ${weekly.end.slice(0, 10)}`
+    : "최근 7일 측정 근거 없음";
+  const stats = document.getElementById("overview-fft-stats");
+  if (stats) {
+    const values = representative ? [["이상 발생", `${representative.count}건`], ["누적 점수", `${representative.totalScore}점`],
+      ["최고 진폭", `${formatNumber(representative.maxAmplitude, 4)} ${representative.unit}`]]
+      : [["평가 기록", `${weekly?.evaluatedRecordCount || 0}건`]];
+    stats.replaceChildren(...values.map(([label, value]) => {
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = label;
+      detail.textContent = value;
+      row.append(term, detail);
+      return row;
+    }));
+  }
+  const limitation = document.getElementById("overview-fft-limitation");
+  if (limitation) {
+    limitation.textContent = weekly?.limitation || "";
+    limitation.hidden = !weekly?.limitation;
+  }
 }
 
 export function fftExtractionClass(code) {

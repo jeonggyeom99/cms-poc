@@ -185,7 +185,7 @@ def test_summary_values_are_evidence_but_hidden_values_and_record_ids_are_not(tm
     refs = group["representativeRecordIds"]
     result = equipment_result().model_copy(update={
         "fft_reference_record_ids": refs,
-        "fft_summary": f"월내 최대 1X 진폭은 {sample['amplitude']} mm/s입니다.",
+        "fft_summary": f"월내 최대 1X 진폭은 {sample['amplitude']} mm/s입니다. " + ' '.join(context['weeklyExplanationFacts']),
         "fft_analysis_period": AiAnalysisPeriod(start=group["start"], end=group["end"]),
         "counter_evidence": ["베어링 모델 정보가 없습니다."],
     })

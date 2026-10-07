@@ -10,7 +10,7 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=equipment-ai-v4";
+} from "../analysis/ai.js?v=weekly-layout-v1";
 import {
   bindEmailDraft,
   resetEmailDraft,
@@ -49,7 +49,7 @@ import {
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=fft-and-trend-history-v1";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=weekly-layout-v1";
 import { buildFftFigure } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -144,7 +144,7 @@ function renderFft() {
     resetSelectedBearingFaultType(selectedFft);
   }
   const selectedBearingFaultType = getSelectedBearingFaultType();
-  renderOverviewFftResult(currentFft);
+  renderOverviewFftResult(currentFft, getDashboardData()?.fftWeeklyDiagnosis);
   renderFftRecordList(currentFft, selectedFft?.recordId);
   setExpandButtonEnabled("fft", Boolean(selectedFft));
   renderTimeWaveChart(selectedFft);

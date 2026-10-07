@@ -68,6 +68,21 @@ function findingItem(finding) {
   return item;
 }
 
+function severitySection(assessments) {
+  if (!Array.isArray(assessments) || !assessments.length) return null;
+  const findings = assessments.map((item) => ({
+    heading: `#${item.recordId} ${item.causeLabel} · ${item.grade}`,
+    detail: `${item.measuredAt || "측정일 미상"} · ${(item.harmonics || []).map((harmonic) =>
+      harmonic.score == null ? `${harmonic.order}X: 판정 불가`
+        : `${harmonic.order}X ${harmonic.amplitude.toFixed(4)} ${item.unit}: ${harmonic.label}`
+    ).join(" / ")}${item.reason ? ` · ${item.reason}` : ""}`,
+  }));
+  const section = listSection("FFT 기준 판정", findings, findingItem);
+  section.append(element("p", "ai-analysis-text-item",
+    "속도: ≤4 양호, >4~≤10 초기 결함, >10~≤20 심각, >20 정지 (mm/s). 가속도: ≤0.2 양호, >0.2~<1 초기 결함, ≥1 베어링 교체 (g). 각 원인의 종합 등급은 1X·2X·3X 중 최고 등급입니다."));
+  return section;
+}
+
 function causeItem(cause) {
   const item = element("li", "ai-analysis-cause");
   const heading = element("div", "ai-analysis-item-heading");
@@ -146,14 +161,15 @@ export function renderAiAnalysis(payload, baseline = null) {
     ? `비교 기간: ${period.start.replace("T", " ")} ~ ${period.end.replace("T", " ")}`
     : "비교할 주파수 측정 근거가 없습니다.";
   const references = analysis.fftReferenceRecordIds?.length
-    ? ` · 대표 기록: ${analysis.fftReferenceRecordIds.map((id) => `#${id}`).join(", ")}` : "";
-  const measuredAt = baseline?.fft?.measuredAt ? ` · 대표 측정일: ${baseline.fft.measuredAt}` : "";
+    ? `\n대표 기록: ${analysis.fftReferenceRecordIds.map((id) => `#${id}`).join(", ")}` : "";
+  const measuredAt = baseline?.fft?.measuredAt ? `\n대표 측정일: ${baseline.fft.measuredAt}` : "";
   graphSummaries(analysis.trendSummary, analysis.fftSummary, dates + references + measuredAt);
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");
   const groups = [
     limitationSection(baseline),
+    severitySection(payload.fftSeverityAssessments),
     listSection("추세 근거", analysis.trendFindings, findingItem),
     listSection("주파수 근거", analysis.fftFindings, findingItem),
     listSection("과거 이력 근거", analysis.historyFindings, findingItem),
