@@ -297,6 +297,30 @@ def test_csv_loader_groups_files_and_ignores_warning_status_only_dataset(tmp_pat
     }
 
 
+def test_warning_status_with_different_file_number_matches_equipment_code(tmp_path: Path) -> None:
+    write_csv(
+        tmp_path / "2.Trend_Area_Test Pump_Point A (V056).csv",
+        TREND_COLUMNS,
+        [trend_row("2026-01-02 00:00:00", 2.0, 0.2)],
+    )
+    write_csv(
+        tmp_path / "9.WarningStatus_Area_Test Pump_Point A (V056).csv",
+        WARNING_STATUS_COLUMNS,
+        [warning_status_row("2026-01-05 00:00:00", 1.4, 2.8)],
+    )
+
+    dataset = load_datasets(tmp_path)["2"]
+
+    assert dataset["meta"]["availability"]["warningStatus"] is True
+    assert dataset["current"]["warningThreshold"] == 1.4
+    assert dataset["current"]["dangerThreshold"] == 2.8
+    assert dataset["levelAnalysis"]["configured"]["warningThreshold"] == 1.4
+    velocity_metric = next(
+        metric for metric in dataset["trend"]["metrics"] if metric["key"] == "velocity"
+    )
+    assert velocity_metric["warningThreshold"] == 1.4
+
+
 def test_csv_loader_sorts_trend_and_decodes_latest_velocity_fft(tmp_path: Path) -> None:
     datasets = load_datasets(make_data_dir(tmp_path))
     dataset = datasets["1"]

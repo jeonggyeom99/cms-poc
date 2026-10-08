@@ -62,6 +62,21 @@ DATA_DIR = BASE_DIR.parent / "data"
 EQUIPMENT_STATUS_DEMO_DIR = BASE_DIR.parent / "equipment-status-demo"
 
 
+def operations_page(page: str) -> str:
+    """Apply the shared presentation only to the current CMS operating pages."""
+    page = page.replace("<body", "<body data-cms-operations", 1)
+    page = page.replace(
+        "</head>",
+        '<link rel="stylesheet" href="/static/cms-operations.css?v=20261008-5"></head>',
+        1,
+    )
+    return page.replace(
+        "</body>",
+        '<script type="module" src="/static/modules/core/cms-operations.js?v=20261008"></script></body>',
+        1,
+    )
+
+
 def create_app(
     data_dir: Path = DATA_DIR,
     ai_gateway: AiAnalysisGateway | None = None,
@@ -177,12 +192,12 @@ def create_app(
     async def workspace_dashboard(request: Request) -> str:
         page = (STATIC_DIR / "main-workspace.html").read_text(encoding="utf-8").replace("ws1", "ws4")
         if request.url.path == "/main_ct":
-            page = page.replace('<div class="sidebar-label">WORKSPACE</div><nav><a data-page="overview" href="#overview">Overview</a><a data-page="risk" href="#risk">Risk map</a><a data-page="worklist" href="#worklist">Worklist</a><a data-page="history" href="/history">Diagnosis history</a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>Data refreshed<br><b id="sidebar-time">-</b></span></div>', '<div class="sidebar-label">CMS 운영</div><nav><a data-page="overview" href="/dashboard_ui6">▦ <span>대시보드</span></a><a data-page="risk" href="/equipment-status2">◈ <span>설비 알람 현황</span></a><a data-page="history" href="/history2">◌ <span>진단 이력</span></a><a data-page="control" href="/main_ct">⌁ <span>중앙 관제</span></a></nav><div class="sidebar-label manage-label">관리</div><nav><a href="/main_ct">⚙ <span>설정</span></a><a href="#">? <span>도움말</span></a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>CMS 운영팀</span></div>', 1)
+            page = page.replace('<div class="sidebar-label">WORKSPACE</div><nav><a data-page="overview" href="#overview">Overview</a><a data-page="risk" href="#risk">Risk map</a><a data-page="worklist" href="#worklist">Worklist</a><a data-page="history" href="/history">Diagnosis history</a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>Data refreshed<br><b id="sidebar-time">-</b></span></div>', '<div class="sidebar-label">CMS 운영</div><nav><a data-page="overview" href="/dashboard_ui6"><span class="cms-nav-icon">▦</span><span>대시보드</span></a><a data-page="risk" href="/equipment-status2"><span class="cms-nav-icon">◈</span><span>설비 알람 현황</span></a><a data-page="history" href="/history2"><span class="cms-nav-icon">◌</span><span>진단 이력</span></a><a data-page="control" href="/main_ct"><span class="cms-nav-icon">⌁</span><span>중앙 관제</span></a></nav><div class="sidebar-label manage-label">관리</div><nav><a href="/main_ct"><span class="cms-nav-icon">⚙</span><span>설정</span></a><a href="#"><span class="cms-nav-icon">?</span><span>도움말</span></a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>CMS 운영팀</span></div>', 1)
             page = page.replace('href="/" class="header-link"', 'href="/equipment-status2" class="header-link"').replace('href="/history"', 'href="/history2"').replace('/dashboard?dataset=', '/dashboard2?dataset=')
             page = page.replace('</head>', '<style>.workspace{grid-template-columns:76px minmax(0,1fr);background:#f7f8fb}.workspace-sidebar{width:76px;padding:28px 18px;background:#16263f;overflow:hidden;white-space:nowrap;transition:width .2s}.workspace:has(.workspace-sidebar:hover){grid-template-columns:244px minmax(0,1fr)}.workspace-sidebar:hover{width:244px}.workspace-logo{height:40px;gap:11px;margin:0 0 42px}.workspace-logo i{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#5ce3c0,#2f6fed);box-shadow:none;position:relative}.workspace-logo i:after{content:"P";position:absolute;inset:0;display:grid;place-items:center;color:#10223a;font-size:24px;font-style:normal;font-weight:900}.workspace-logo span,.workspace-sidebar .sidebar-label,.workspace-sidebar nav a:not(:first-child),.workspace-sidebar nav a:first-child{font-size:0}.workspace-sidebar:hover .workspace-logo span,.workspace-sidebar:hover .sidebar-label,.workspace-sidebar:hover nav a{font-size:12px}.workspace-sidebar nav a{width:52px;padding:12px 10px;margin:3px 0;color:#aebcd0;border-radius:10px}.workspace-sidebar:hover nav a{width:auto}.workspace-sidebar nav a:hover,.workspace-sidebar nav a:first-child{color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.workspace-sidebar .sidebar-label{margin:0 0 12px;padding:0 10px;color:#70809a}.workspace-sidebar .sidebar-bottom{border-top-color:#ffffff14}.workspace-main{min-width:0;padding:30px 38px 50px;background:#f7f8fb}.workspace-header{margin-bottom:24px}.workspace-header h1{font-size:28px}</style></head>', 1)
         if request.url.path == "/main_ct":
             page = page.replace('</head>', '<style>.workspace-main{color:#172033}.workspace-header .eyebrow,.workspace-header #role-label{color:#2f6fed!important;font-size:11px!important;letter-spacing:.14em}.workspace-header h1{font-size:28px!important;letter-spacing:-.05em}.header-actions select,.header-link{border:1px solid #e8ebf1;background:#fff;border-radius:9px}.hero-grid{background:linear-gradient(120deg,#1e4d89,#2678bd);border-radius:16px;box-shadow:0 12px 30px rgba(29,43,70,.07)}.hero-rings .ring{background:rgba(255,255,255,.12)!important;color:#fff!important;backdrop-filter:blur(2px)}.hero-rings .ring small{color:#d9ebf7!important}.summary-line{border:1px solid #e8ebf1;border-radius:14px;box-shadow:0 12px 30px rgba(29,43,70,.07);background:#fff}.workspace-panel{border:1px solid #e8ebf1;border-radius:14px;box-shadow:0 12px 30px rgba(29,43,70,.07);background:#fff}.panel-title h3{font-size:15px}.risk-cell{border-left-width:4px;border-radius:8px}.work-row{border-bottom-color:#f0f2f6}.history-panel{grid-column:2;grid-row:2}.workspace-sidebar .workspace-logo span{display:none!important}.workspace-sidebar:hover .workspace-logo span{display:block!important}.workspace-sidebar nav a{font-size:20px!important}.workspace-sidebar nav a span{display:none!important;font-size:12px!important}.workspace-sidebar:hover nav a{font-size:12px!important}.workspace-sidebar:hover nav a span{display:inline!important}.workspace-sidebar nav a:first-child{color:#aebcd0;background:transparent;box-shadow:none}.workspace-sidebar nav:nth-of-type(1) a:nth-child(4){color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.workspace-sidebar nav:nth-of-type(2) a{color:#aebcd0;background:transparent;box-shadow:none}</style></head>', 1)
-        return page
+        return operations_page(page) if request.url.path == "/main_ct" else page
 
     @application.get("/dashboard_ui3", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/dashboard_ui4", response_class=HTMLResponse, include_in_schema=False)
@@ -212,10 +227,13 @@ def create_app(
     @application.get("/dashboard_ui6", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_ui6() -> str:
         page = (STATIC_DIR / "kpi-dashboard-concept.html").read_text(encoding="utf-8")
-        page = page.replace("<body>", '<body class="dashboard-ui6">').replace("/static/modules/main/kpi-concept.js?v=20261003", "/static/modules/main/kpi-concept.js?v=20261007").replace("Pulseboard", "CMS Operations").replace("Pulse KPI Dashboard — Concept", "CMS Operations Dashboard").replace('href="/history"', 'href="/history2"').replace('<a href="#"><span>◌</span><span>Operations</span></a>', '<a href="/history2"><span>◌</span><span>진단 이력</span></a>')
+        page = page.replace('<div class="spark">' + '<i></i>' * 8 + '</div>', '<div class="spark">' + '<i></i>' * 7 + '</div>', 1)
+        page = page.replace('<div style="display:flex;justify-content:space-between;color:#a1a9b8;font-size:10px">', '<div class="snapshot-days">', 1)
+        page = page.replace("<body>", '<body class="dashboard-ui6">').replace("/static/modules/main/kpi-concept.js?v=20261003", "/static/modules/main/kpi-concept.js?v=20261011").replace("Pulseboard", "CMS Operations").replace("Pulse KPI Dashboard — Concept", "CMS Operations Dashboard").replace('href="/history"', 'href="/history2"').replace('<a href="#"><span>◌</span><span>Operations</span></a>', '<a href="/history2"><span>◌</span><span>진단 이력</span></a>')
         page = page.replace('</head>', '<link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"></head>', 1)
         page = page.replace('</head>', '<style>.dashboard-ui6 .shell{grid-template-columns:76px 1fr;transition:grid-template-columns .2s}.dashboard-ui6 .side{width:76px;padding:28px 18px;overflow:hidden;white-space:nowrap;transition:width .2s;z-index:2}.dashboard-ui6 .shell:has(.side:hover){grid-template-columns:244px 1fr}.dashboard-ui6 .shell:has(.side:hover) .side{width:244px}.dashboard-ui6 .brand{margin:0 0 42px}.dashboard-ui6 .brand-mark{width:40px;height:40px;border-radius:11px;flex:none}.dashboard-ui6 .brand span,.dashboard-ui6 .nav-label,.dashboard-ui6 .nav a span:last-child,.dashboard-ui6 .side-bottom{display:none}.dashboard-ui6 .shell:has(.side:hover) .brand span,.dashboard-ui6 .shell:has(.side:hover) .nav-label,.dashboard-ui6 .shell:has(.side:hover) .nav a span:last-child,.dashboard-ui6 .shell:has(.side:hover) .side-bottom{display:block}.dashboard-ui6 .nav a{justify-content:flex-start;width:52px;padding:12px 10px;gap:12px}.dashboard-ui6 .shell:has(.side:hover) .nav a{width:auto}.dashboard-ui6 .nav-label{text-transform:none;padding:0 10px}.dashboard-ui6 .side-bottom{margin-top:auto;color:#aebcd0;font-size:11px;border-top:1px solid rgba(255,255,255,.08);padding-top:18px}.dashboard-ui6 .top p{display:none!important}.dashboard-ui6 .actions{display:none!important}</style></head>', 1)
-        return page.replace('</body>', '<script type="module" src="/static/modules/main/dashboard-chart-panels.js?v=20261004"></script></body>')
+        page = page.replace('</body>', '<script type="module" src="/static/modules/main/dashboard-chart-panels.js?v=20261008"></script></body>')
+        return operations_page(page)
 
     @application.get("/equipment-status2", response_class=HTMLResponse, include_in_schema=False)
     async def equipment_status2() -> str:
@@ -232,7 +250,7 @@ def create_app(
         page = page.replace('<label>설비상태<select', '<label>설비유형<select id="equipment-status-type"><option value="all">전체</option></select></label><label>설비상태<select', 1)
         page = page.replace('<section class="equipment-status-panel">', '<p id="equipment-status-notice" hidden></p><section class="equipment-status-panel">', 1)
         page = page.replace('href="/history"', 'href="/history2"')
-        return page
+        return operations_page(page)
 
     @application.get("/main_ct1", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/main_ct2", response_class=HTMLResponse, include_in_schema=False)
@@ -263,7 +281,8 @@ def create_app(
         page = page.replace('<a class="dashboard-home-link" href="/"', '<a class="dashboard-home-link" href="/equipment-status2"', 1)
         page = page.replace("<div class=\"app-shell\">", shell + '<div class="app-shell">', 1)
         page = page.replace("</head>", '<link rel="stylesheet" href="/static/dashboard2-shell.css?v=20261006"><link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"><script>history.scrollRestoration="manual";const dashboard2Top=()=>window.scrollTo({top:0,left:0,behavior:"auto"});dashboard2Top();window.addEventListener("DOMContentLoaded",dashboard2Top);window.addEventListener("load",dashboard2Top);window.addEventListener("pageshow",dashboard2Top);setTimeout(dashboard2Top,50);setTimeout(dashboard2Top,300);</script></head>', 1)
-        return page.replace("</body>", '<script>const dashboard2TopAfterChange=()=>setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),0);document.addEventListener("change",event=>{if(event.target.id==="dataset-select")dashboard2TopAfterChange()});setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),1000);</script></body>', 1)
+        page = page.replace("</body>", '<script>const dashboard2TopAfterChange=()=>setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),0);document.addEventListener("change",event=>{if(event.target.id==="dataset-select")dashboard2TopAfterChange()});setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),1000);</script></body>', 1)
+        return operations_page(page)
 
     @application.get("/history", response_class=HTMLResponse, include_in_schema=False)
     async def history() -> str:
@@ -277,7 +296,7 @@ def create_app(
         css = '<style>.history2-side{position:fixed;inset:0 auto 0 0;width:76px;padding:28px 18px;background:#16263f;color:#c4cede;overflow:hidden;white-space:nowrap;z-index:5;transition:.2s}.history2-side:hover{width:244px}.history2-brand{display:flex;align-items:center;gap:11px;margin-bottom:42px;font-size:17px;font-weight:800}.history2-mark{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#5ce3c0,#2f6fed);color:#10223a;font-size:24px}.history2-brand span,.history2-label,.history2-side nav b,.history2-footer{display:none}.history2-side:hover .history2-brand span,.history2-side:hover .history2-label,.history2-side:hover nav b,.history2-side:hover .history2-footer{display:block}.history2-label{padding:0 10px;margin-bottom:12px;color:#70809a;font-size:10px}.history2-label.manage{margin-top:34px}.history2-side nav a{display:flex;align-items:center;gap:12px;width:52px;padding:12px 10px;margin:3px 0;border-radius:10px;color:#aebcd0;text-decoration:none}.history2-side nav b{font:inherit;font-weight:400}.history2-side nav a.active{color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.history2-side:hover nav a{width:auto}.history2-footer{position:absolute;bottom:28px;color:#aebcd0;font-size:11px}.history-page{margin-left:76px;min-height:100vh;background:#f7f8fb}.history-topbar{display:none!important}.history-content{max-width:1600px;margin:auto;padding-top:30px!important}@media(max-width:800px){.history-page{margin-left:0}.history2-side{display:none}}</style>'
         css = css.replace('<style>', '<style>html,body,.history-page{background:#f7f8fb!important}.history-heading{align-items:start}.history-kicker{color:#2f6fed!important;font-size:11px!important;font-weight:800!important;letter-spacing:.14em!important}.history-heading h1{font-size:28px!important;font-weight:800!important;margin-top:7px!important}.history-heading p{display:none!important}.history2-side{font-size:12px!important}.history2-side nav b{font-size:12px!important}.history2-side .history2-label{font-size:9px!important}.history2-side .history2-brand{font-size:15px!important}.history-page{transition:margin-left .2s}.history2-side:hover ~ .history-page{margin-left:244px}.history-content{width:auto!important;max-width:1600px!important;margin:0!important;padding:30px 38px 48px!important}')
         page = page.replace('</head>', css + '<link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"></head>', 1).replace('<div class="history-page">', sidebar + '<div class="history-page">', 1)
-        return page
+        return operations_page(page)
 
     @application.get("/api/datasets")
     async def datasets(request: Request) -> dict:

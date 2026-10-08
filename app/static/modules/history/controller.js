@@ -2,6 +2,8 @@ import { fetchHistory } from "../api/history.js?v=cms-history-v1";
 
 let historyItems = [];
 let expandedHistoryId = null;
+let requestedDatasetId = new URLSearchParams(window.location.search).get("dataset");
+let requestedRecordId = new URLSearchParams(window.location.search).get("record");
 
 function element(tagName, className, text) {
   const node = document.createElement(tagName);
@@ -41,6 +43,8 @@ function filteredItems() {
   const keyword = normalizedSearchValue(document.getElementById("history-keyword").value);
   const process = document.getElementById("history-process").value;
   return historyItems.filter((item) => (
+    (!requestedDatasetId || String(item.datasetId) === requestedDatasetId)
+    &&
     (process === "all" || item.process === process)
     && (!keyword || searchableText(item).includes(keyword))
   ));
@@ -122,7 +126,7 @@ function createDetailRow(item) {
 }
 
 function createSummaryRow(item) {
-  const row = element("tr", "history-summary-row");
+  const row = element("tr", `history-summary-row${requestedRecordId === String(item.id) ? " is-focused" : ""}`);
   row.dataset.historyId = item.id;
   const resultCell = element("td", "history-result");
   const resultTags = element("div", "history-result__tags");
@@ -209,6 +213,9 @@ function bindControls() {
     keyword.value = "";
     process.value = "all";
     expandedHistoryId = null;
+    requestedDatasetId = null;
+    requestedRecordId = null;
+    window.history.replaceState({}, "", window.location.pathname);
     renderHistory();
     keyword.focus();
   });
@@ -236,7 +243,19 @@ export async function initializeHistoryPage() {
     historyItems = payload.items;
     document.getElementById("history-source").textContent = `${payload.source} · 2026년`;
     populateProcessOptions(historyItems);
+    const requestedRecord = historyItems.find((item) => (
+      requestedRecordId === String(item.id)
+      && (!requestedDatasetId || String(item.datasetId) === requestedDatasetId)
+    ));
+    if (requestedRecord) expandedHistoryId = requestedRecord.id;
+    if (requestedDatasetId) {
+      const matchingItem = historyItems.find((item) => String(item.datasetId) === requestedDatasetId);
+      if (matchingItem) {
+        document.getElementById("history-keyword").placeholder = `${matchingItem.equipmentName} 진단 이력만 표시 중`;
+      }
+    }
     renderHistory();
+    document.querySelector(".history-summary-row.is-focused")?.scrollIntoView({ block: "center" });
   } catch (error) {
     console.error("CMS history loading failed", error);
     setNotice(`과거 이력을 불러오지 못했습니다. ${error.message}`);

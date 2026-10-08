@@ -106,6 +106,31 @@ def load_datasets(data_dir: Path) -> dict[str, dict[str, Any]]:
                     "WarningStatus CSV를 읽지 못했습니다: %s (%s)", warning_status_path, error
                 )
                 errors["warningStatus"] = str(error)
+        else:
+            # Some exports number Trend/FFT and WarningStatus files separately.
+            # Reuse a uniquely matching sensor's status when the dataset number
+            # differs, while keeping exact dataset-number matches authoritative.
+            matching_status_paths = {
+                candidate_files["warningStatus"]
+                for candidate_id, candidate_files in grouped_files.items()
+                if "warningStatus" in candidate_files
+                and _equipment_metadata(
+                    candidate_id,
+                    candidate_files.get("trend")
+                    or candidate_files.get("fft")
+                    or candidate_files["warningStatus"],
+                )["id"] == equipment["id"]
+            }
+            if len(matching_status_paths) == 1:
+                try:
+                    warning_status = _load_warning_status(matching_status_paths.pop())
+                except (OSError, ValueError, csv.Error) as error:
+                    LOGGER.warning(
+                        "설비 코드로 연결된 WarningStatus CSV를 읽지 못했습니다: %s (%s)",
+                        equipment["id"],
+                        error,
+                    )
+                    errors["warningStatus"] = str(error)
 
         if trend is not None:
             trend["metrics"] = _build_trend_metrics(trend, warning_status)

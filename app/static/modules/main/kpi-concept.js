@@ -8,6 +8,86 @@ const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({"&":"&am
 const key = (item) => item.status === "normal" ? "safe" : item.status === "caution" ? "attention" : "critical";
 const label = (item) => item.statusLabel || (item.status === "normal" ? "정상" : item.status === "caution" ? "주의" : "심각");
 const pct = (value, total) => total ? Math.round(value / total * 100) : 0;
+const BEARING_DIAGNOSIS = { BPFI: "베어링 내륜", BPFO: "베어링 외륜", BSF: "베어링 전동체", FTF: "베어링 케이지" };
+const SHAFT_DIAGNOSIS = { Unbalance: "축 불평형", Misalignment: "축 정렬 불량", Complex: "축 복합 결함" };
+
+function diagnosisName(item) {
+  const fault = item.fault || "";
+  const type = item.faultType || "";
+  if (fault === "베어링") return `${BEARING_DIAGNOSIS[type] || "베어링 결함"}(${type || "기타"})`;
+  if (fault === "축") return `${SHAFT_DIAGNOSIS[type] || "축 이상"}(${type || "기타"})`;
+  return [fault, type].filter(Boolean).join(" · ") || "진단 이력";
+}
+
+function setupRiskHistoryCard(items, history) {
+  const card = q(".hero-card");
+  const metric = qs(".hero-metric > div")[1];
+  if (!card || !metric) return;
+
+  const riskItems = items.filter((item) => item.status !== "normal");
+  const riskIds = new Set(riskItems.map((item) => String(item.id)));
+  const riskById = new Map(riskItems.map((item) => [String(item.id), item]));
+  const relatedHistory = history
+    .filter((entry) => riskIds.has(String(entry.datasetId)))
+    .sort((left, right) => String(right.date || "").localeCompare(String(left.date || "")));
+  const rows = relatedHistory.map((entry) => {
+    const item = riskById.get(String(entry.datasetId));
+    const name = entry.equipmentName || item?.displayName || item?.name || item?.equipmentCode || "이름 없는 설비";
+    const diagnosis = diagnosisName(entry);
+    const query = new URLSearchParams({ dataset: entry.datasetId });
+    if (entry.date) query.set("until", entry.date);
+    return `<a class="hero-history-record" href="/dashboard2?${query}" aria-label="${esc(name)}, ${esc(diagnosis)}, ${esc(entry.date || "")} 그래프 보기"><strong>${esc(name)}</strong><span>${esc(diagnosis)}</span><i aria-hidden="true">↗</i></a>`;
+  }).join("") || `<p class="hero-history-empty-all">주의 이상 설비와 연결된 진단 이력이 없습니다.</p>`;
+
+  const scene = document.createElement("div");
+  scene.className = "hero-card-scene";
+  scene.setAttribute("aria-label", "설비 상태 및 진단 이력");
+  const flipper = document.createElement("div");
+  flipper.className = "hero-card-flipper";
+  card.parentNode.replaceChild(scene, card);
+  scene.append(flipper);
+  card.classList.add("hero-card-front");
+  flipper.append(card);
+
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
+  card.setAttribute("aria-label", `${riskItems.length}대 주의 이상 설비의 진단 이력 보기`);
+  card.setAttribute("aria-expanded", "false");
+
+  const back = document.createElement("section");
+  back.className = "hero-card-back";
+  back.setAttribute("aria-label", "주의 이상 설비의 진단 이력");
+  back.setAttribute("aria-hidden", "true");
+  back.innerHTML = `<header class="hero-history-header"><div><span>DIAGNOSIS HISTORY</span><h2>주의 이상 설비 진단 이력</h2><p>${riskItems.length}대 설비 · 실제 진단 기록 ${relatedHistory.length}건</p></div><button type="button" class="hero-history-close" aria-label="요약 카드로 돌아가기">요약으로</button></header><div class="hero-history-list">${rows}</div><a class="hero-history-all" href="/history2">진단 이력 전체 보기 <span>→</span></a>`;
+  flipper.append(back);
+
+  const toggle = (flipped) => {
+    scene.classList.toggle("is-flipped", flipped);
+    card.setAttribute("aria-expanded", String(flipped));
+    back.setAttribute("aria-hidden", String(!flipped));
+    card.inert = flipped;
+    back.inert = !flipped;
+  };
+  back.inert = true;
+  const closeButton = back.querySelector(".hero-history-close");
+  scene.addEventListener("click", (event) => {
+    if (event.target.closest("a, button")) return;
+    const flipped = !scene.classList.contains("is-flipped");
+    toggle(flipped);
+    if (flipped) closeButton.focus();
+    else card.focus();
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggle(true);
+    closeButton.focus();
+  });
+  closeButton.addEventListener("click", () => {
+    toggle(false);
+    card.focus();
+  });
+}
 
 function setShellText() {
   document.title = "CMS 설비 KPI 대시보드";
@@ -77,6 +157,7 @@ async function init() {
     setText(".hero-card .eyebrow", "CMS OPERATIONS PULSE"); setText(".hero-card h2", risk ? `${risk}개 설비의 확인이 필요합니다.` : "전체 설비가 정상 운영 중입니다."); setText(".hero-card p", `전체 ${total}대 설비의 최신 상태와 ${history.length}건의 진단 이력을 기준으로 집계했습니다.`);
     const metrics = qs(".hero-metric strong"); if (metrics[0]) metrics[0].textContent = `${normalRate}%`; if (metrics[1]) metrics[1].textContent = `${risk}대`;
     const metricLabels = qs(".hero-metric small"); if (metricLabels[0]) metricLabels[0].textContent = "정상 설비 비율"; if (metricLabels[1]) metricLabels[1].textContent = "주의 이상 설비";
+    setupRiskHistoryCard(items, history);
     setText(".snapshot h3", "최근 진단 활동"); setText(".snapshot .empty", "최근 진단 건수"); setText(".snapshot .tag", `총 ${history.length}건`);
     const kpis = [["전체 설비", total, "↗"], ["정상 설비", counts.normal, "✓"], ["주의 설비", counts.caution, "!"], ["심각 설비", counts.critical, "!"]];
     qs(".kpi").forEach((card, index) => { const [name, value, icon] = kpis[index]; card.querySelector(".kpi-top span").textContent = name; card.querySelector(".kpi-icon").textContent = icon; card.querySelector("strong").textContent = value; card.querySelector(".delta").textContent = index === 0 ? "현재 조회 기준" : `${pct(value, total)}% · 전체 대비`; });
