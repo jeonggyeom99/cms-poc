@@ -1,4 +1,4 @@
-import { demoSummary, demoDashboard } from "../demo.js?v=demo-related-v4";
+import { demoSummary, demoDashboard, demoFftRecord, isDemoDataset } from "../demo.js?v=demo-velocity-v7";
 
 async function fetchJson(url) {
   // CSV data is loaded when the API application starts. Avoid reusing a
@@ -13,12 +13,22 @@ export async function fetchDatasetSummaries() {
   return items.map(demoSummary);
 }
 
-export function fetchDashboard(datasetId, until, start) {
+export async function fetchDashboard(datasetId, until, start) {
   const params = new URLSearchParams();
   if (until) params.set("until", until);
   if (start) params.set("start", start);
   const query = params.size ? `?${params}` : "";
-  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}${query}`).then(demoDashboard);
+  const data = await fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}${query}`);
+  if (isDemoDataset(datasetId) && data.fft) {
+    const velocity = data.fft.records?.find((record) => record.measureMode?.code === "3");
+    if (velocity && velocity.id !== data.fft.recordId) {
+      const fft = await fetchFftRecord(datasetId, velocity.id, until, start);
+      data.fft = { ...fft, records: data.fft.records };
+    } else {
+      data.fft = demoFftRecord(data.fft, datasetId);
+    }
+  }
+  return demoDashboard(data);
 }
 
 export function fetchFftRecord(datasetId, recordId, until, start) {
@@ -26,5 +36,5 @@ export function fetchFftRecord(datasetId, recordId, until, start) {
   if (until) params.set("until", until);
   if (start) params.set("start", start);
   const query = params.size ? `?${params}` : "";
-  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}${query}`);
+  return fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}/fft/${recordId}${query}`).then((fft) => demoFftRecord(fft, datasetId));
 }

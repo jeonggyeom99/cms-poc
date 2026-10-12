@@ -10,7 +10,7 @@ import pytest
 def test_demo_display_and_api_boundaries():
     script = r"""
 import assert from 'node:assert/strict';
-import { demoDashboard, demoSummary, demoRelatedHistory } from './app/static/modules/demo.js';
+import { demoDashboard, demoSummary, demoRelatedHistory, demoFftRecord } from './app/static/modules/demo.js';
 import { fetchAiAnalysis } from './app/static/modules/api/ai-analysis.js';
 import { fetchRelatedHistory } from './app/static/modules/api/history.js';
 import { fetchDashboard, fetchDatasetSummaries } from './app/static/modules/api/dashboard.js';
@@ -28,6 +28,11 @@ assert.equal(result.fftWeeklyDiagnosis.representative.grade,'속도 알람');
 assert.deepEqual(source,original);
 assert.strictEqual(result.fft,source.fft);
 assert.strictEqual(result.trend.points,source.trend.points);
+const velocity={recordId:3,metadata:{measureMode:{code:'3'}},amplitudes:[2.36],analysis:{diagnosis:{harmonics:[{order:1}],label:'uncertain'}}};
+assert.equal(demoFftRecord(velocity,'1').analysis.diagnosis.label,'Unbalance');
+assert.strictEqual(demoFftRecord(velocity,'1').amplitudes,velocity.amplitudes);
+assert.equal(velocity.analysis.diagnosis.label,'uncertain');
+assert.strictEqual(demoFftRecord(velocity,'2'),velocity);
 const other={...source,meta:{datasetId:'2'}};
 assert.strictEqual(demoDashboard(other),other);
 const otherSummary={id:'2',status:'normal'};
@@ -55,6 +60,13 @@ assert.equal(ai.demoPresentation,true);
 assert.equal((await fetchAiAnalysis('2',{})).analysis.headline,'live');
 assert.equal(requests.at(-1).options.method,'POST');
 assert.equal((await fetchDashboard('1')).meta.demoPresentation,true);
+const baseFetch=globalThis.fetch;
+globalThis.fetch=async (url)=>({ok:true,json:async()=>url.includes('/fft/')?velocity:{...source,fft:{...source.fft,recordId:2,records:[{id:2,measureMode:{code:'2'}},{id:3,measureMode:{code:'3'}}]}}});
+const velocityDashboard=await fetchDashboard('1');
+assert.equal(velocityDashboard.fft.recordId,3);
+assert.equal(velocityDashboard.fft.analysis.diagnosis.label,'Unbalance');
+assert.equal(velocityDashboard.fft.records.length,2);
+globalThis.fetch=baseFetch;
 assert.equal((await fetchDatasetSummaries())[0].status,'caution');
 assert.deepEqual((await fetchRelatedHistory('1',2)).items,demoHistory);
 assert.equal(requests.at(-1).url,'/api/history');

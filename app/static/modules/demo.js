@@ -6,6 +6,14 @@ export function demoSummary(item) {
     statusDescription: "속도 알람과 우상향 경향이 확인되어 축 불평형 점검이 필요합니다.", statusColor: "#f1a526" } : item;
 }
 
+export function demoFftRecord(fft, datasetId) {
+  if (!isDemoDataset(datasetId) || fft?.metadata?.measureMode?.code !== "3") return fft;
+  return { ...fft, analysis: { ...fft.analysis, diagnosis: { ...fft.analysis?.diagnosis,
+    status: "anomaly", diagnosis: "unbalance", label: "Unbalance",
+    message: "회전 1X 성분이 우세한 축 불평형(Unbalance) 상태입니다.",
+  } } };
+}
+
 export function demoDashboard(data) {
   if (!isDemoDataset(data.meta?.datasetId)) return data;
   return { ...data, meta: { ...data.meta, demoPresentation: true },
