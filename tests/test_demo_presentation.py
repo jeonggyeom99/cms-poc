@@ -11,6 +11,7 @@ def test_demo_display_and_api_boundaries():
     script = r"""
 import assert from 'node:assert/strict';
 import { demoDashboard, demoSummary, demoRelatedHistory, demoFftRecord } from './app/static/modules/demo.js';
+import { fetchEmailDraft } from './app/static/modules/api/email-draft.js';
 import { fetchAiAnalysis } from './app/static/modules/api/ai-analysis.js';
 import { fetchRelatedHistory } from './app/static/modules/api/history.js';
 import { fetchDashboard, fetchDatasetSummaries } from './app/static/modules/api/dashboard.js';
@@ -53,6 +54,10 @@ globalThis.fetch=async (url,options)=>{
  url.includes('/ai-analysis')?{analysis:{headline:'live'}}:url.includes('/related-history')?{items:[]} :source;
  return {ok:true,json:async()=>body};
 };
+const draft=await fetchEmailDraft('1',{demoPresentation:true});
+assert.match(draft.draft.subject,/Unbalance/);
+assert.match(draft.draft.fft,/Unbalance/);
+assert.equal(requests.length,0);
 const ai=await fetchAiAnalysis('1',{force:true});
 assert.equal(requests.length,0);
 assert.match(ai.analysis.headline,/Unbalance/);

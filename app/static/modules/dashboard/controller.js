@@ -3,25 +3,25 @@ import {
   fetchDashboard,
   fetchDatasetSummaries,
   fetchFftRecord,
-} from "../api/dashboard.js?v=work-order-v8";
-import { fetchAiAnalysis } from "../api/ai-analysis.js?v=work-order-v8";
+} from "../api/dashboard.js?v=demo-actions-v10";
+import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-actions-v10";
 import {
   bindAiAnalysis,
   renderAiAnalysis,
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=work-order-v8";
+} from "../analysis/ai.js?v=demo-actions-v10";
 import {
   bindEmailDraft,
   resetEmailDraft,
   setEmailDraftAvailable,
-} from "../report/email-draft.js?v=equipment-ai-v1";
+} from "../report/email-draft.js?v=demo-actions-v10";
 import {
   bindPptExport,
   resetPptExport,
   setPptExportAvailable,
-} from "../report/ppt-export.js?v=ppt-ui-validation-v1";
+} from "../report/ppt-export.js?v=demo-actions-v10";
 import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
 import { renderTrendDirection } from "../analysis/trend-direction.js?v=fft-and-trend-history-v1";
 import {
@@ -50,7 +50,7 @@ import {
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=work-order-v8";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-actions-v10";
 import { buildFftFigure } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -67,8 +67,8 @@ import {
   bindRelatedHistory,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=work-order-v8";
-import { fetchRelatedHistory } from "../api/history.js?v=work-order-v8";
+} from "../fft/related-history.js?v=demo-actions-v10";
+import { fetchRelatedHistory } from "../api/history.js?v=demo-actions-v10";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {
@@ -92,12 +92,13 @@ function buildReportRequest() {
     selectedFaultType: reference.selectedFaultType,
     fftRecord: reference.record,
     until: requestedUntil(),
+    demoPresentation: Boolean(dashboardData.meta.demoPresentation),
     force: false,
   };
 }
 
 function resetReportActionsFor(fft) {
-  const available = Boolean(fft?.recordId) && !getDashboardData()?.meta?.demoPresentation;
+  const available = Boolean(fft?.recordId);
   resetPptExport();
   resetEmailDraft();
   setPptExportAvailable(available);
@@ -229,6 +230,8 @@ async function runAiAnalysis(force) {
     });
     if (requestId !== aiAnalysisRequest) return;
     if (payload.demoPresentation) {
+      resetReportActionsFor(getAiDiagnosisReference()?.record);
+      document.getElementById("report-action-status").textContent = "분석 결과를 보고서와 이메일로 활용할 수 있습니다.";
       renderAiAnalysis(payload, baseline);
       return;
     }

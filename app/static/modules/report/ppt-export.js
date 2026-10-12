@@ -68,6 +68,20 @@ async function exportDiagnosticPpt() {
       selectedFaultType: request.selectedFaultType,
       presentation: true,
     });
+    if (request.demoPresentation) {
+      const escape = (value) => String(value || "").replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const title = escape(document.getElementById('equipment-title').textContent);
+      const sections = [
+        ['AI 분석', 'ai-analysis-description'], ['AI 추세 분석', 'trend-ai-summary'],
+        ['AI 주파수 분석', 'fft-ai-summary'],
+      ].map(([label, id]) => `<h2>${label}</h2><p>${escape(document.getElementById(id)?.textContent)}</p>`).join('');
+      const html = `<!doctype html><html lang="ko"><meta charset="utf-8"><title>${title} 진단 보고서</title><style>body{max-width:1000px;margin:40px auto;padding:24px;font-family:sans-serif;color:#233c4c;line-height:1.8}h1{font-size:30px}h2{font-size:20px;color:#138580}img{width:100%;border:1px solid #e1eaf1;border-radius:12px}</style><h1>${title}</h1><p>설비 진단 보고서 · 데모</p>${sections}<h2>추세 그래프</h2><img alt="추세 그래프" src="${trendImageDataUrl}"><h2>주파수 그래프</h2><img alt="주파수 그래프" src="${fftImageDataUrl}"></html>`;
+      const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'diagnostic-demo-1.html'; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus('데모 진단 보고서를 저장했습니다.', 'success');
+      return;
+    }
     const { blob, validation } = await fetchDiagnosticPpt(request.datasetId, {
       recordId: request.recordId,
       selectedFaultType: request.selectedFaultType,

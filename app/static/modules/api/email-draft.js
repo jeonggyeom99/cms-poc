@@ -1,3 +1,5 @@
+import { demoAiAnalysis } from "../demo.js?v=demo-related-v4";
+
 async function responseError(response) {
   let payload;
   try {
@@ -18,6 +20,17 @@ async function responseError(response) {
 }
 
 export async function fetchEmailDraft(datasetId, request) {
+  if (request.demoPresentation && String(datasetId) === "1") {
+    const analysis = demoAiAnalysis().analysis;
+    return { draft: {
+      subject: "[설비 점검 요청] Direct Cooling Pump DS · 속도 알람 / Unbalance",
+      greeting: "설비보전 담당자님, 안녕하세요.", status: analysis.headline,
+      trend: analysis.trendSummary, fft: analysis.fftSummary,
+      priorityActions: analysis.recommendedActions,
+      limitations: ["고정 데모 분석을 바탕으로 작성한 점검 요청입니다."],
+      closing: "회전체 점검과 동일 운전 조건의 재측정 일정을 확인해 주시기 바랍니다.",
+    } };
+  }
   const response = await fetch(
     `/api/dashboard/${encodeURIComponent(datasetId)}/email-draft`,
     {

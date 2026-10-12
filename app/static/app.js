@@ -1,4 +1,4 @@
-import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=work-order-v8";
+import { initializeDashboardApplication } from "./modules/dashboard/controller.js?v=demo-actions-v10";
 import { initializeDashboardChat } from "./modules/chat/controller.js?v=fft-current-history-v2";
 
 window.addEventListener("DOMContentLoaded", () => {

@@ -1,4 +1,4 @@
-import { fetchEmailDraft } from "../api/email-draft.js?v=email-draft-v1";
+import { fetchEmailDraft } from "../api/email-draft.js?v=demo-actions-v9";
 import { captureDashboardCharts } from "./chart-capture.js?v=equipment-ai-v1";
 
 const state = {
