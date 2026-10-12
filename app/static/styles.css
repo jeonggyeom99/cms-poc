@@ -2675,3 +2675,12 @@ body.graph-modal-open {
 .overview-fft-stats dt { font-weight: 600; }
 .overview-fft-stats dd { margin: 0; color: #172b40; font-weight: 750; white-space: nowrap; }
 #fft-ai-summary, .graph-ai-period { white-space: pre-line; }
+
+.work-order-dialog { width: min(1040px, calc(100vw - 48px)); }
+.work-order-intro { margin: 0 0 22px; color: #63788a; font-size: 14px; }
+.work-order-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.work-order-field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 700; color: #294454; }
+.work-order-field input, .work-order-field textarea { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #dce5ed; border-radius: 8px; background: #fff; color: #233c4c; font: inherit; font-weight: 500; }
+.work-order-field input:focus, .work-order-field textarea:focus { outline: 2px solid #138580; outline-offset: 2px; }
+.work-order-field input[readonly] { background: #f3f7fa; color: #657b8c; }
+.work-order-field-wide { grid-column: 1 / -1; }

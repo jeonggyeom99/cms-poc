@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
-    <link rel="stylesheet" href="/static/styles.css?v=weekly-layout-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=work-order-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=demo-velocity-v7"></script>
+    <script type="module" src="/static/app.js?v=work-order-v8"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -61,6 +61,7 @@
             <div class="ai-analysis-actions">
               <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>다시 분석</button>
               <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
+              <button type="button" class="report-action" id="work-order-open">W/O 발행하기</button>
               <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
             </div>
             <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
@@ -150,6 +151,23 @@
                 </section>
               </div>
             </div>
+          </div>
+        </dialog>
+
+        <dialog class="email-draft-dialog work-order-dialog" id="work-order-dialog" aria-labelledby="work-order-title">
+          <div class="email-draft-dialog-shell">
+            <header class="email-draft-dialog-header">
+              <div><span class="eyebrow">WORK ORDER</span><h2 id="work-order-title">작업주문 발행</h2></div>
+              <button type="button" class="email-draft-dialog-close" id="work-order-close" aria-label="작업주문 닫기">×</button>
+            </header>
+            <div class="email-draft-dialog-body">
+              <p class="work-order-intro">설비 진단을 바탕으로 작성한 작업주문입니다. 데모 발행 시 입력 내용을 파일로 저장합니다.</p>
+              <form id="work-order-form" class="work-order-grid"></form>
+            </div>
+            <footer class="email-draft-dialog-footer">
+              <p id="work-order-status" role="status"></p>
+              <button type="submit" form="work-order-form" id="work-order-issue" class="email-draft-copy">W/O 발행하기</button>
+            </footer>
           </div>
         </dialog>
 

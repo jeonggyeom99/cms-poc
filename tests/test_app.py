@@ -872,8 +872,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=demo-velocity-v7"' in response.text
-    assert 'controller.js?v=demo-velocity-v7' in app_module
+    assert 'type="module" src="/static/app.js?v=work-order-v8"' in response.text
+    assert 'controller.js?v=work-order-v8' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
