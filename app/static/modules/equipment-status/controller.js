@@ -1,4 +1,4 @@
-import { fetchDatasetSummaries } from "../api/dashboard.js?v=fft-load-fix";
+import { fetchDatasetSummaries } from "../api/dashboard.js?v=demo-unbalance-v1";
 
 const STATE_DETAILS = {
   normal: { label: "정상", description: "정상 상태입니다." },

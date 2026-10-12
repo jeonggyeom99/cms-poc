@@ -1,5 +1,5 @@
-import { fetchDatasetSummaries } from "../api/dashboard.js";
-import { fetchHistory } from "../api/history.js";
+import { fetchDatasetSummaries } from "../api/dashboard.js?v=demo-unbalance-v1";
+import { fetchHistory } from "../api/history.js?v=demo-unbalance-v1";
 
 const q = (selector) => document.querySelector(selector);
 const qs = (selector) => [...document.querySelectorAll(selector)];
@@ -29,13 +29,14 @@ function setupRiskHistoryCard(items, history) {
   const riskById = new Map(riskItems.map((item) => [String(item.id), item]));
   const relatedHistory = history
     .filter((entry) => riskIds.has(String(entry.datasetId)))
-    .sort((left, right) => String(right.date || "").localeCompare(String(left.date || "")));
+    .sort((left, right) => Number(String(right.datasetId) === "1") - Number(String(left.datasetId) === "1")
+      || String(right.date || "").localeCompare(String(left.date || "")));
   const rows = relatedHistory.map((entry) => {
     const item = riskById.get(String(entry.datasetId));
     const name = entry.equipmentName || item?.displayName || item?.name || item?.equipmentCode || "이름 없는 설비";
     const diagnosis = diagnosisName(entry);
     const query = new URLSearchParams({ dataset: entry.datasetId });
-    if (entry.date) query.set("until", entry.date);
+    if (entry.date && String(entry.datasetId) !== "1") query.set("until", entry.date);
     return `<a class="hero-history-record" href="/dashboard2?${query}" aria-label="${esc(name)}, ${esc(diagnosis)}, ${esc(entry.date || "")} 그래프 보기"><strong>${esc(name)}</strong><span>${esc(diagnosis)}</span><i aria-hidden="true">↗</i></a>`;
   }).join("") || `<p class="hero-history-empty-all">주의 이상 설비와 연결된 진단 이력이 없습니다.</p>`;
 
@@ -68,7 +69,7 @@ function setupRiskHistoryCard(items, history) {
     card.inert = flipped;
     back.inert = !flipped;
   };
-  back.inert = true;
+  toggle(document.body.classList.contains("dashboard-ui6"));
   const closeButton = back.querySelector(".hero-history-close");
   scene.addEventListener("click", (event) => {
     if (event.target.closest("a, button")) return;

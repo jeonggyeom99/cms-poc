@@ -163,12 +163,12 @@ export function renderAiAnalysis(payload, baseline = null) {
   const references = analysis.fftReferenceRecordIds?.length
     ? `\n대표 기록: ${analysis.fftReferenceRecordIds.map((id) => `#${id}`).join(", ")}` : "";
   const measuredAt = baseline?.fft?.measuredAt ? `\n대표 측정일: ${baseline.fft.measuredAt}` : "";
-  graphSummaries(analysis.trendSummary, analysis.fftSummary, dates + references + measuredAt);
+  graphSummaries(analysis.trendSummary, analysis.fftSummary, payload.demoPresentation ? "" : dates + references + measuredAt);
   setAction(run, "다시 분석", false, true);
 
   const content = element("div", "ai-analysis-details");
   const groups = [
-    limitationSection(baseline),
+    payload.demoPresentation ? null : limitationSection(baseline),
     severitySection(payload.fftSeverityAssessments),
     listSection("추세 근거", analysis.trendFindings, findingItem),
     listSection("주파수 근거", analysis.fftFindings, findingItem),

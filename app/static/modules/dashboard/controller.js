@@ -2,15 +2,15 @@ import {
   fetchDashboard,
   fetchDatasetSummaries,
   fetchFftRecord,
-} from "../api/dashboard.js?v=fft-load-fix";
-import { fetchAiAnalysis } from "../api/ai-analysis.js?v=equipment-ai-v4";
+} from "../api/dashboard.js?v=demo-unbalance-v1";
+import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-unbalance-v1";
 import {
   bindAiAnalysis,
   renderAiAnalysis,
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=weekly-layout-v1";
+} from "../analysis/ai.js?v=demo-unbalance-v1";
 import {
   bindEmailDraft,
   resetEmailDraft,
@@ -49,7 +49,7 @@ import {
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=weekly-layout-v1";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-unbalance-v1";
 import { buildFftFigure } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -67,7 +67,7 @@ import {
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
 } from "../fft/related-history.js?v=fft-and-trend-history-v1";
-import { fetchRelatedHistory } from "../api/history.js?v=cms-history-v1";
+import { fetchRelatedHistory } from "../api/history.js?v=demo-unbalance-v1";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {
@@ -96,7 +96,7 @@ function buildReportRequest() {
 }
 
 function resetReportActionsFor(fft) {
-  const available = Boolean(fft?.recordId);
+  const available = Boolean(fft?.recordId) && !getDashboardData()?.meta?.demoPresentation;
   resetPptExport();
   resetEmailDraft();
   setPptExportAvailable(available);
@@ -227,6 +227,10 @@ async function runAiAnalysis(force) {
       force,
     });
     if (requestId !== aiAnalysisRequest) return;
+    if (payload.demoPresentation) {
+      renderAiAnalysis(payload, baseline);
+      return;
+    }
     const representativeId = payload.analysis.fftReferenceRecordIds?.[0];
     let representative = null;
     if (representativeId) {
@@ -313,6 +317,10 @@ export async function loadDashboard(datasetId) {
   try {
     const dashboardData = await fetchDashboard(datasetId, requestedUntil(), requestedStart());
     setDashboardData(dashboardData);
+    const aiCard = document.querySelector(".ai-analysis-card");
+    const historySection = document.getElementById("fft-related-history");
+    if (dashboardData.meta?.demoPresentation) historySection.after(aiCard);
+    else historySection.before(aiCard);
     if (dashboardData.fft) {
       const { records, ...selectedRecord } = dashboardData.fft;
       cacheFftRecord(selectedRecord.recordId, selectedRecord);

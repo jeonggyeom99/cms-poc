@@ -1,5 +1,5 @@
-import { fetchDatasetSummaries } from "../api/dashboard.js";
-import { fetchHistory } from "../api/history.js";
+import { fetchDatasetSummaries } from "../api/dashboard.js?v=demo-unbalance-v1";
+import { fetchHistory } from "../api/history.js?v=demo-unbalance-v1";
 
 const esc = (value) => String(value ?? "-").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 

@@ -1,3 +1,5 @@
+import { isDemoDataset, demoAiAnalysis } from "../demo.js";
+
 async function responseError(response) {
   let payload;
   try {
@@ -18,6 +20,7 @@ async function responseError(response) {
 }
 
 export async function fetchAiAnalysis(datasetId, request) {
+  if (isDemoDataset(datasetId)) return demoAiAnalysis();
   const response = await fetch(
     `/api/dashboard/${encodeURIComponent(datasetId)}/ai-analysis`,
     {
