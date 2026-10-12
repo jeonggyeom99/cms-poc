@@ -818,3 +818,5 @@
   line-height: 1.8;
   color: #465d6d;
 }
+
+[data-cms-operations].dashboard2 .dataset-select-wrap { display: none; }

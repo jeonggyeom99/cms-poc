@@ -67,7 +67,7 @@ def operations_page(page: str) -> str:
     page = page.replace("<body", "<body data-cms-operations", 1)
     page = page.replace(
         "</head>",
-        '<link rel="stylesheet" href="/static/cms-operations.css?v=equipment-title-v3"></head>',
+        '<link rel="stylesheet" href="/static/cms-operations.css?v=hidden-equipment-select-v4"></head>',
         1,
     )
     return page.replace(
