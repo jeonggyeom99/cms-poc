@@ -126,8 +126,8 @@ export function renderRelatedHistory(tag, items) {
   list.replaceChildren(...relatedHistory.map(relatedHistoryCard));
   if (relatedHistory.some((item) => item.demoRelated)) {
     const analysis = element("section", "graph-ai-analysis");
-    analysis.setAttribute("aria-label", "연관 과거 이력 AI 분석");
-    analysis.append(element("h3", null, "AI 분석"), element("p", null,
+    analysis.setAttribute("aria-label", "AI 연관과거 이력 분석");
+    analysis.append(element("h3", null, "AI 연관과거 이력 분석"), element("p", null,
       "Fume Exhaust Fan의 Unbalance 사례에서는 회전체 부착물을 제거하고 임펠러를 청소한 뒤 밸런싱을 실시했습니다. 체결 상태를 보완하고 동일 운전 조건에서 진동을 재측정하여 조치 후 상태를 확인했습니다."));
     list.append(analysis);
   }
