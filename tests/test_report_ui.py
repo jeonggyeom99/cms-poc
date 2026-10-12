@@ -50,8 +50,8 @@ def test_equipment_ai_diagnosis_is_pinned_until_manual_reanalysis() -> None:
     assert 'class="equipment-ai-diagnosis"' in equipment
     assert 'id="ai-analysis-description"' in equipment
     assert 'id="ai-analysis-details"' not in equipment
-    assert 'class="card ai-analysis-card"' in html
-    assert 'id="ai-analysis-details-title"' in html
+    assert 'class="card ai-analysis-card"' not in html
+    assert 'id="ai-analysis-details-title"' not in html
 
     selection = controller[
         controller.index("async function selectFftRecord"):

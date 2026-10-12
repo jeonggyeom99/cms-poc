@@ -2,15 +2,15 @@ import {
   fetchDashboard,
   fetchDatasetSummaries,
   fetchFftRecord,
-} from "../api/dashboard.js?v=demo-related-v4";
-import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-related-v4";
+} from "../api/dashboard.js?v=demo-summary-v5";
+import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-summary-v5";
 import {
   bindAiAnalysis,
   renderAiAnalysis,
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=demo-related-v4";
+} from "../analysis/ai.js?v=demo-summary-v5";
 import {
   bindEmailDraft,
   resetEmailDraft,
@@ -49,7 +49,7 @@ import {
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-related-v4";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-summary-v5";
 import { buildFftFigure } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -66,8 +66,8 @@ import {
   bindRelatedHistory,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=demo-related-v4";
-import { fetchRelatedHistory } from "../api/history.js?v=demo-related-v4";
+} from "../fft/related-history.js?v=demo-summary-v5";
+import { fetchRelatedHistory } from "../api/history.js?v=demo-summary-v5";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {
@@ -317,10 +317,6 @@ export async function loadDashboard(datasetId) {
   try {
     const dashboardData = await fetchDashboard(datasetId, requestedUntil(), requestedStart());
     setDashboardData(dashboardData);
-    const aiCard = document.querySelector(".ai-analysis-card");
-    const historySection = document.getElementById("fft-related-history");
-    if (dashboardData.meta?.demoPresentation) historySection.after(aiCard);
-    else historySection.before(aiCard);
     if (dashboardData.fft) {
       const { records, ...selectedRecord } = dashboardData.fft;
       cacheFftRecord(selectedRecord.recordId, selectedRecord);

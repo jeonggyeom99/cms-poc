@@ -872,8 +872,8 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert 'type="module" src="/static/app.js?v=weekly-layout-v1"' in response.text
-    assert 'controller.js?v=weekly-layout-v1' in app_module
+    assert 'type="module" src="/static/app.js?v=demo-summary-v5"' in response.text
+    assert 'controller.js?v=demo-summary-v5' in app_module
     assert 'id="dataset-select"' in response.text
     assert 'class="dashboard-home-link" href="/"' in response.text
     assert 'class="equipment-overview"' in response.text
@@ -897,7 +897,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert 'class="trend-analysis-column"' in chart_grid
     assert 'id="trend-direction-details" aria-live="polite" aria-busy="true"' in chart_grid
     assert 'class="card diagnosis-card"' not in chart_grid
-    diagnosis = response.text[response.text.index('<article class="card diagnosis-card"'):response.text.index('<article class="card ai-analysis-card"')]
+    diagnosis = response.text[response.text.index('<article class="card diagnosis-card"'):response.text.index('<section class="related-history-section"')]
     assert 'id="fft-expand"' in diagnosis
     assert 'id="trend-expand"' in response.text
     assert 'id="fft-expand"' in response.text
@@ -920,9 +920,9 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     assert '<h2 id="ai-analysis-title">AI 분석</h2>' in response.text
     assert 'id="ai-analysis-description"' in response.text
     assert 'id="ai-analysis-run"' in response.text
-    assert 'id="ai-analysis-details"' in response.text
+    assert 'id="ai-analysis-details"' not in response.text
     assert 'id="ai-analysis-reference"' not in response.text
-    assert 'id="ai-analysis-details-title"' in response.text
+    assert 'id="ai-analysis-details-title"' not in response.text
     assert 'id="chat-panel"' in response.text
     assert 'id="chat-open"' in response.text
     assert 'id="chat-form"' in response.text
@@ -933,7 +933,7 @@ def test_dashboard_page_is_served(tmp_path: Path) -> None:
     ]
     assert equipment_card.index('id="overview-fft-measured-at"') < equipment_card.index('class="equipment-ai-diagnosis"')
     assert 'id="ai-analysis-details"' not in equipment_card
-    assert 'class="card ai-analysis-card"' in response.text
+    assert 'class="card ai-analysis-card"' not in response.text
     assert 'id="fft-analysis-description"' not in response.text
 
 

@@ -812,3 +812,18 @@
     gap: 12px;
   }
 }
+
+/* Use the same type scale for each AI analysis panel. */
+[data-cms-operations].dashboard2 #ai-analysis-title,
+[data-cms-operations].dashboard2 .graph-ai-analysis h3 {
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+[data-cms-operations].dashboard2 #ai-analysis-description,
+[data-cms-operations].dashboard2 .graph-ai-analysis p {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.8;
+  color: #465d6d;
+}

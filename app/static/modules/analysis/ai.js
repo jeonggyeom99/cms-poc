@@ -29,6 +29,7 @@ function setAction(run, label, disabled, completed = false) {
 }
 
 function placeholder(details, heading, detail) {
+  if (!details) return;
   details.className = "analysis-placeholder ai-analysis-placeholder";
   details.removeAttribute("aria-busy");
   details.replaceChildren(
@@ -149,7 +150,7 @@ export function setAiAnalysisLoading(baseline) {
     "AI 분석 중",
     "AI가 필요한 추세·주파수·과거 이력을 조회해 설비 분석을 작성하고 있습니다.",
   );
-  details.setAttribute("aria-busy", "true");
+  details?.setAttribute("aria-busy", "true");
 }
 
 export function renderAiAnalysis(payload, baseline = null) {
@@ -166,6 +167,7 @@ export function renderAiAnalysis(payload, baseline = null) {
   graphSummaries(analysis.trendSummary, analysis.fftSummary, payload.demoPresentation ? "" : dates + references + measuredAt);
   setAction(run, "다시 분석", false, true);
 
+  if (!details) return;
   const content = element("div", "ai-analysis-details");
   const groups = [
     payload.demoPresentation ? null : limitationSection(baseline),
