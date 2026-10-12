@@ -38,7 +38,7 @@ export function demoAiAnalysis() {
     fftReferenceRecordIds: [],
     trendFindings: [{ heading: "우상향 판정: true", detail: "속도 알람과 진동 상승 경향이 동시에 나타나므로 반복 측정을 통해 상승의 지속 여부를 확인할 필요가 있습니다." }],
     fftFindings: [{ heading: "속도 알람 · Unbalance", detail: "회전 주파수 성분이 지배적인 불평형 패턴입니다. 1X 우세만으로 축 정렬 불량을 단정하지 않으며, 정렬 점검은 2X·3X와 운전 조건을 함께 확인한 뒤 판단합니다." }],
-    historyFindings: [{ heading: "유사 설비의 Unbalance 진단 이력", detail: "2번 데이터셋의 유사 설비 Unbalance 사례를 비교 근거로 제공합니다. 이전 점검·조치 내용과 현재 운전 조건을 비교해 재발 가능성과 조치 효과를 확인하는 것이 필요합니다." }],
+    historyFindings: [{ heading: "유사 설비의 Unbalance 진단 이력", detail: "Fume Exhaust Fan의 Unbalance 사례에서는 회전체 부착물 제거와 임펠러 청소 후 밸런싱을 실시했습니다. 체결 상태를 보완하고 동일 운전 조건에서 진동을 재측정하여 조치 후 상태를 확인했습니다." }],
     likelyCauses: [{ cause: "회전체 질량 불균형(Unbalance)", confidence: "medium", rationale: "속도 알람, 우상향 경향, 유사 설비의 동일 유형 진단 이력이 함께 나타나는 시나리오입니다. 부착물, 마모 또는 밸런스 변화가 가능한 원인이지만 현장 확인이 필요합니다." }],
     counterEvidence: ["속도 진동은 회전수·부하·체결 상태의 변화에도 영향을 받습니다. 동일 운전 조건의 재측정과 현장 점검 없이 불평형 원인을 확정할 수 없습니다."],
     recommendedActions: [

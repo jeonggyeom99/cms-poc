@@ -128,7 +128,7 @@ export function renderRelatedHistory(tag, items) {
     const analysis = element("section", "graph-ai-analysis");
     analysis.setAttribute("aria-label", "연관 과거 이력 AI 분석");
     analysis.append(element("h3", null, "AI 분석"), element("p", null,
-      "2번 데이터셋의 Fume Exhaust Fan에서도 Unbalance를 점검한 유사 사례가 있습니다. 현재 1번 설비의 속도 알람과 우상향 경향을 고려하면 회전체 부착물·마모·밸런스 상태를 우선 확인하는 것이 적절합니다. 설비와 운전 조건이 다르므로 과거 사례의 원인이나 조치 효과를 그대로 적용하지 않고, 동일 조건의 재측정으로 확인해야 합니다."));
+      "Fume Exhaust Fan의 Unbalance 사례에서는 회전체 부착물을 제거하고 임펠러를 청소한 뒤 밸런싱을 실시했습니다. 체결 상태를 보완하고 동일 운전 조건에서 진동을 재측정하여 조치 후 상태를 확인했습니다."));
     list.append(analysis);
   }
 }
