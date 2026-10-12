@@ -35,7 +35,11 @@ assert.strictEqual(demoSummary(otherSummary),otherSummary);
 const history=[{datasetId:'1',fault:'축',faultType:'Unbalance',date:'2026-04-03'},
  {datasetId:'2',fault:'축',faultType:'Unbalance',date:'2026-04-02'},
  {datasetId:'1',fault:'축',faultType:'Misalignment',date:'2026-04-01'}];
-assert.deepEqual(demoRelatedHistory(history),[history[0]]);
+const demoHistory=demoRelatedHistory(history);
+assert.equal(demoHistory[0].datasetId,"2");
+assert.equal(demoHistory[0].faultType,"Unbalance");
+assert.match(demoHistory[0].equipmentName,/Fume Exhaust Fan/);
+assert.equal(history[0].datasetId,"1");
 assert.deepEqual(demoRelatedHistory(history,'2026-04-02'),[]);
 const requests=[];
 globalThis.fetch=async (url,options)=>{
@@ -52,7 +56,7 @@ assert.equal((await fetchAiAnalysis('2',{})).analysis.headline,'live');
 assert.equal(requests.at(-1).options.method,'POST');
 assert.equal((await fetchDashboard('1')).meta.demoPresentation,true);
 assert.equal((await fetchDatasetSummaries())[0].status,'caution');
-assert.deepEqual((await fetchRelatedHistory('1',2)).items,[history[0]]);
+assert.deepEqual((await fetchRelatedHistory('1',2)).items,demoHistory);
 assert.equal(requests.at(-1).url,'/api/history');
 await fetchRelatedHistory('2',2);
 assert.match(requests.at(-1).url,/\/api\/dashboard\/2\/related-history/);

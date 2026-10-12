@@ -47,10 +47,11 @@ function createGraphButton(item) {
   const graph = element("button", "related-history-graph-button", "그래프 보기");
   graph.type = "button";
   graph.disabled = !item.datasetId;
-  graph.title = item.datasetId ? "진단일 기준 그래프 보기" : "연결된 대시보드 데이터가 없습니다.";
+  const graphLabel = item.demoRelated ? "2번 데이터셋 최신 그래프 보기" : "진단일 기준 그래프 보기";
+  graph.title = item.datasetId ? graphLabel : "연결된 대시보드 데이터가 없습니다.";
   graph.dataset.relatedDashboardDataset = item.datasetId ?? "";
   graph.dataset.relatedHistoryId = item.id;
-  graph.setAttribute("aria-label", item.datasetId ? "진단일 기준 그래프 보기" : "연결된 그래프 데이터가 없습니다.");
+  graph.setAttribute("aria-label", item.datasetId ? graphLabel : "연결된 그래프 데이터가 없습니다.");
   return graph;
 }
 
@@ -123,6 +124,13 @@ export function renderRelatedHistory(tag, items) {
     return;
   }
   list.replaceChildren(...relatedHistory.map(relatedHistoryCard));
+  if (relatedHistory.some((item) => item.demoRelated)) {
+    const analysis = element("section", "graph-ai-analysis");
+    analysis.setAttribute("aria-label", "연관 과거 이력 AI 분석");
+    analysis.append(element("h3", null, "AI 분석"), element("p", null,
+      "2번 데이터셋의 Fume Exhaust Fan에서도 Unbalance를 점검한 유사 사례가 있습니다. 현재 1번 설비의 속도 알람과 우상향 경향을 고려하면 회전체 부착물·마모·밸런스 상태를 우선 확인하는 것이 적절합니다. 설비와 운전 조건이 다르므로 과거 사례의 원인이나 조치 효과를 그대로 적용하지 않고, 동일 조건의 재측정으로 확인해야 합니다."));
+    list.append(analysis);
+  }
 }
 
 export function bindRelatedHistory() {
@@ -131,7 +139,9 @@ export function bindRelatedHistory() {
     if (graphButton && !graphButton.disabled) {
       const item = relatedHistory.find((entry) => entry.id === graphButton.dataset.relatedHistoryId);
       if (item?.datasetId) {
-        window.location.href = `/dashboard2?dataset=${encodeURIComponent(item.datasetId)}&until=${encodeURIComponent(item.date)}`;
+        const query = new URLSearchParams({ dataset: item.datasetId });
+        if (!item.demoRelated && item.date) query.set("until", item.date);
+        window.location.href = `/dashboard2?${query}`;
       }
       return;
     }
