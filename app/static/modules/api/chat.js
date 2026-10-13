@@ -1,3 +1,5 @@
+import { demoChatReply } from "../demo.js?v=demo-chat-v1";
+
 async function responseError(response) {
   let payload;
   try {
@@ -17,6 +19,7 @@ async function responseError(response) {
 }
 
 export async function sendDashboardChat(datasetId, request) {
+  if (String(datasetId) === "1") return demoChatReply(request.message);
   const response = await fetch(`/api/dashboard/${encodeURIComponent(datasetId)}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

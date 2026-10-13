@@ -11,6 +11,7 @@ def test_demo_display_and_api_boundaries():
     script = r"""
 import assert from 'node:assert/strict';
 import { demoDashboard, demoSummary, demoRelatedHistory, demoFftRecord } from './app/static/modules/demo.js';
+import { sendDashboardChat } from './app/static/modules/api/chat.js';
 import { fetchEmailDraft } from './app/static/modules/api/email-draft.js';
 import { fetchAiAnalysis } from './app/static/modules/api/ai-analysis.js';
 import { fetchRelatedHistory } from './app/static/modules/api/history.js';
@@ -54,6 +55,25 @@ globalThis.fetch=async (url,options)=>{
  url.includes('/ai-analysis')?{analysis:{headline:'live'}}:url.includes('/related-history')?{items:[]} :source;
  return {ok:true,json:async()=>body};
 };
+for (const [question, expected] of [
+ ['가장 먼저 볼 항목은?', /재측정/], ['판단 근거를 설명해줘', /2X·3X/],
+ ['과거 이력은?', /Fume Exhaust Fan/], ['추세는?', /우상향/],
+ ['FFT 1X 설명해줘', /회전 1X/], ['안녕', /점검 우선순위/],
+]) {
+ const reply=await sendDashboardChat('1',{message:question,history:[],recordId:3});
+ assert.equal(reply.message.role,'assistant');
+ assert.equal(reply.demoPresentation,true);
+ assert.match(reply.message.content,expected);
+ assert.match(reply.message.content,/데모 답변/);
+ assert.equal(requests.length,0);
+}
+for (const datasetId of ['2','5']) {
+ await sendDashboardChat(datasetId,{message:'점검',recordId:3,history:[]});
+ assert.equal(requests.at(-1).url,`/api/dashboard/${datasetId}/chat`);
+ assert.equal(requests.at(-1).options.method,'POST');
+ assert.equal(JSON.parse(requests.at(-1).options.body).message,'점검');
+}
+requests.length=0;
 const draft=await fetchEmailDraft('1',{demoPresentation:true});
 assert.match(draft.draft.subject,/Unbalance/);
 assert.match(draft.draft.fft,/Unbalance/);

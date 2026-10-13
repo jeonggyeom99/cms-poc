@@ -1,6 +1,28 @@
 // Presentation-only scenario for the demo branch. API responses and CSVs stay intact.
 export const isDemoDataset = (id) => ["1", "5"].includes(String(id));
 
+export function demoChatReply(message) {
+  const analysis = demoAiAnalysis("1").analysis;
+  const question = String(message ?? "").trim().toLowerCase();
+  const actions = analysis.recommendedActions
+    .map((item, index) => `${index + 1}. ${item.action}: ${item.rationale}`).join("\n\n");
+  let content;
+  if (/이력|과거|유사|사례|비교/.test(question)) {
+    content = `${analysis.historyFindings[0].detail}\n\n2번 Fume Exhaust Fan의 유사 사례를 참고해 회전체 상태와 체결 상태를 점검하고, 조치 전후 진동을 동일 조건에서 비교하세요. 연관 과거 이력의 ‘그래프 보기’에서 2번 데이터셋을 확인할 수 있습니다.`;
+  } else if (/근거|판단|원인|왜|불평형|unbalance|정렬/.test(question)) {
+    content = `${analysis.headline}\n\n${analysis.fftSummary}\n\n${analysis.fftFindings[0].detail}\n\n${analysis.counterEvidence[0]}`;
+  } else if (/추세|상승|우상향|trend/.test(question)) {
+    content = `${analysis.trendSummary}\n\n회전수·부하와 측정 위치를 맞춰 반복 측정하고, 상승이 지속되는지와 회전 1X 성분의 변화를 함께 확인하세요.`;
+  } else if (/주파수|fft|1x|2x|3x/.test(question)) {
+    content = `${analysis.fftSummary}\n\n${analysis.fftFindings[0].detail}\n\n${analysis.counterEvidence[0]}`;
+  } else if (/먼저|우선|점검|조치|정비|청소|밸런싱/.test(question)) {
+    content = `먼저 동일 회전수·부하에서 진동을 재측정해 초기 결함과 상승 경향이 반복되는지 확인하세요. 이어서 다음 순서로 점검하는 것이 좋습니다.\n\n${actions}`;
+  } else {
+    content = `${analysis.headline}\n\n${analysis.trendSummary}\n\n점검 우선순위, 판단 근거, FFT 패턴, 유사 설비 이력에 대해 질문해 주세요.`;
+  }
+  return { demoPresentation: true, message: { role: "assistant", content: `1번 설비 데모 답변입니다.\n\n${content}` }, toolCalls: [] };
+}
+
 export function demoSummary(item) {
   if (String(item.id) === "5") return { ...item, status: "caution", statusLabel: "속도 알람 · 베어링 내륜(BPFI)",
     statusDescription: "진동 상승과 내륜 결함 주파수 피크가 확인되어 센서 및 베어링 점검이 필요합니다.", statusColor: "#f1a526" };

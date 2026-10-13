@@ -76,7 +76,7 @@ import {
   renderTrend,
 } from "../trend/chart.js?v=korean-ui-v2";
 import { bindTrendMetricSelector } from "../trend/metrics.js";
-import { syncDashboardChatContext } from "../chat/controller.js?v=fft-current-history-v1";
+import { syncDashboardChatContext } from "../chat/controller.js?v=demo-chat-v1";
 
 let aiAnalysisRequest = 0;
 let relatedHistoryRequest = 0;

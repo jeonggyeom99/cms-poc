@@ -1,4 +1,4 @@
-import { sendDashboardChat } from "../api/chat.js?v=dashboard-chat-v1";
+import { sendDashboardChat } from "../api/chat.js?v=demo-chat-v1";
 import { getDashboardData, getSelectedBearingFaultType, getSelectedFftRecord } from "../core/state.js?v=fft-current-history-v1";
 
 const STORAGE_PREFIX = "cms-dashboard-chat-v1:";
