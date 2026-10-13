@@ -51,7 +51,7 @@ export function demoAiAnalysis(datasetId = "1") {
   if (String(datasetId) === "5") return { demoPresentation: true, analysis: {
     headline: "NO.1 DUST COLLECT FAN의 속도 알람과 우상향 경향, 베어링 내륜(BPFI) 주파수 피크가 함께 확인됩니다. 내륜 손상 가능성을 우선 점검하고, 센서 상태 확인과 동일 운전 조건의 재측정 후 베어링 정비 여부를 판단하는 것이 적절합니다.",
     trendSummary: "2026년 5월 26일 최신 진동 속도는 8.88 mm/s로 현재 CSV의 주의 기준 6 mm/s를 초과하며 위험 기준 12 mm/s 미만입니다. 5월 24일부터 우상향 경향이 검출되었고 최신 가속도는 5.37 g입니다. 동일 회전수·부하에서 속도와 가속도 추세를 함께 확인해야 합니다.",
-    fftSummary: "5월 25일 가속도 ENV에서 BPFI 이론 주파수 143.21 Hz 부근인 141.25 Hz에 0.788 g 피크가 확인됩니다. 최근 7일 BPFI 이상은 2건·2점으로 BPFO·BSF·FTF 각 1건·1점보다 많아 대표 원인은 내륜, 등급은 초기 결함입니다. 2026년 4월 27일 진단 PPT의 내륜 141.5 Hz·2.1 g 및 센서·베어링 점검/교체 권고는 과거 진단 근거이며 현재 피크값과 구분해야 합니다. 고조파 일부 누락이 있어 전체 손상 확대나 즉시 교체를 이번 FFT만으로 확정할 수 없습니다.",
+    fftSummary: "5월 25일 가속도 ENV에서 BPFI 이론 주파수 143.21 Hz 부근인 141.25 Hz에 0.788 g 피크가 확인됩니다. 최근 7일 BPFI 이상은 2건·2점으로 BPFO·BSF·FTF 각 1건·1점보다 많아 대표 원인은 내륜, 등급은 초기 결함입니다.",
     fftReferenceRecordIds: [],
     trendFindings: [{ heading: "속도 주의 알람 · 우상향", detail: "최신 속도 8.88 mm/s와 5월 24일 상승 검출을 근거로 반복 알람 및 상승 지속 여부를 확인합니다." }],
     fftFindings: [{ heading: "베어링 내륜(BPFI) · 초기 결함", detail: "ENV 141.25 Hz의 0.788 g 피크가 BPFI 이론값 부근에 있으며, 주간 발생 횟수와 누적 점수도 내륜이 가장 높습니다." }],

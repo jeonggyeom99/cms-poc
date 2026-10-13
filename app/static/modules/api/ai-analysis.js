@@ -1,4 +1,4 @@
-import { isDemoDataset, demoAiAnalysis } from "../demo.js?v=demo-datasets-v7";
+import { isDemoDataset, demoAiAnalysis } from "../demo.js?v=demo-datasets-v8";
 
 async function responseError(response) {
   let payload;
