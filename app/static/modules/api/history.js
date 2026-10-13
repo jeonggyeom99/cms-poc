@@ -1,4 +1,4 @@
-import { isDemoDataset, demoRelatedHistory } from "../demo.js?v=demo-related-v4";
+import { demoRelatedHistory } from "../demo.js?v=demo-datasets-v5";
 
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -20,7 +20,7 @@ export function fetchHistory() {
 }
 
 export function fetchRelatedHistory(datasetId, recordId, selectedFaultType, until) {
-  if (isDemoDataset(datasetId)) {
+  if (String(datasetId) === "1") {
     return fetchHistory().then(({ items }) => ({ faultTag: { fault: "축", faultType: "Unbalance" }, items: demoRelatedHistory(items, until) }));
   }
   const query = new URLSearchParams({ record_id: recordId });

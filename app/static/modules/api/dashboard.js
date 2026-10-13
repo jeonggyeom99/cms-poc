@@ -1,4 +1,4 @@
-import { demoSummary, demoDashboard, demoFftRecord, isDemoDataset } from "../demo.js?v=demo-velocity-v7";
+import { demoSummary, demoDashboard, demoFftRecord } from "../demo.js?v=demo-datasets-v5";
 
 async function fetchJson(url) {
   // CSV data is loaded when the API application starts. Avoid reusing a
@@ -19,7 +19,7 @@ export async function fetchDashboard(datasetId, until, start) {
   if (start) params.set("start", start);
   const query = params.size ? `?${params}` : "";
   const data = await fetchJson(`/api/dashboard/${encodeURIComponent(datasetId)}${query}`);
-  if (isDemoDataset(datasetId) && data.fft) {
+  if (String(datasetId) === "1" && data.fft) {
     const velocity = data.fft.records?.find((record) => record.measureMode?.code === "3");
     if (velocity && velocity.id !== data.fft.recordId) {
       const fft = await fetchFftRecord(datasetId, velocity.id, until, start);

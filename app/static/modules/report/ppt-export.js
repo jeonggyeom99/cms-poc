@@ -77,7 +77,7 @@ async function exportDiagnosticPpt() {
       ].map(([label, id]) => `<h2>${label}</h2><p>${escape(document.getElementById(id)?.textContent)}</p>`).join('');
       const html = `<!doctype html><html lang="ko"><meta charset="utf-8"><title>${title} 진단 보고서</title><style>body{max-width:1000px;margin:40px auto;padding:24px;font-family:sans-serif;color:#233c4c;line-height:1.8}h1{font-size:30px}h2{font-size:20px;color:#138580}img{width:100%;border:1px solid #e1eaf1;border-radius:12px}</style><h1>${title}</h1><p>설비 진단 보고서 · 데모</p>${sections}<h2>추세 그래프</h2><img alt="추세 그래프" src="${trendImageDataUrl}"><h2>주파수 그래프</h2><img alt="주파수 그래프" src="${fftImageDataUrl}"></html>`;
       const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
-      const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'diagnostic-demo-1.html'; anchor.click();
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `diagnostic-demo-${request.datasetId}.html`; anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus('데모 진단 보고서를 저장했습니다.', 'success');
       return;

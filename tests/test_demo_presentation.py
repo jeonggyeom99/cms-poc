@@ -1,4 +1,4 @@
-"""Demo display preserves measurement inputs and bypasses live AI only for #1."""
+"""Demo display preserves measurement inputs and bypasses live AI for #1 and #5."""
 import shutil
 import subprocess
 from pathlib import Path
@@ -77,6 +77,40 @@ assert.deepEqual((await fetchRelatedHistory('1',2)).items,demoHistory);
 assert.equal(requests.at(-1).url,'/api/history');
 await fetchRelatedHistory('2',2);
 assert.match(requests.at(-1).url,/\/api\/dashboard\/2\/related-history/);
+
+// #5 keeps real FFT selection, weekly evidence and related history.
+const fan={...source,meta:{datasetId:'5'},equipment:{id:'V191'},
+ fft:{...velocity,recordId:2,metadata:{measureMode:{code:'2'}},records:[{id:2,measureMode:{code:'2'}},{id:3,measureMode:{code:'3'}}]},
+ fftWeeklyDiagnosis:{representative:{cause:'BPFI',grade:'초기 결함'}}};
+const fanOriginal=structuredClone(fan);
+const fanDemo=demoDashboard(fan);
+assert.equal(fanDemo.meta.demoPresentation,true);
+assert.equal(fanDemo.equipment.id,'V191');
+assert.match(fanDemo.equipment.statusLabel,/BPFI/);
+assert.strictEqual(fanDemo.fft,fan.fft);
+assert.strictEqual(fanDemo.trend,fan.trend);
+assert.strictEqual(fanDemo.fftWeeklyDiagnosis,fan.fftWeeklyDiagnosis);
+assert.strictEqual(demoFftRecord(velocity,'5'),velocity);
+assert.deepEqual(fan,fanOriginal);
+const beforeFanAi=requests.length;
+const fanAi=await fetchAiAnalysis('5',{force:true});
+const fanDraft=await fetchEmailDraft('5',{demoPresentation:true});
+assert.equal(requests.length,beforeFanAi);
+assert.match(fanAi.analysis.headline,/내륜/);
+assert.match(fanAi.analysis.fftSummary,/141\.25 Hz/);
+assert.match(fanAi.analysis.fftSummary,/0\.788 g/);
+assert.match(fanAi.analysis.historyFindings[0].detail,/외륜/);
+assert.match(fanDraft.draft.subject,/DUST COLLECT FAN.*BPFI/);
+assert.equal(fanDraft.draft.fft,fanAi.analysis.fftSummary);
+const fanRequests=[];
+globalThis.fetch=async(url)=>{
+ fanRequests.push(url);
+ return {ok:true,json:async()=>url.includes('/related-history')?{items:[{datasetId:'5',faultType:'BPFO'}]}:fan};
+};
+assert.equal((await fetchDashboard('5')).fft.recordId,2);
+assert.equal(fanRequests.length,1);
+assert.equal((await fetchRelatedHistory('5',2)).items[0].faultType,'BPFO');
+assert.match(fanRequests.at(-1),/\/api\/dashboard\/5\/related-history/);
 """
     subprocess.run(
         ["node", "--input-type=module", "-e", script],
