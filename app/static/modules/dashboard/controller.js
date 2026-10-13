@@ -424,6 +424,13 @@ export function initializeDashboardApplication() {
   bindPptExport(buildReportRequest);
   bindEmailDraft(buildReportRequest);
   bindWorkOrder(getDashboardData);
+  const equipmentToggle = document.getElementById("dataset-select-toggle");
+  equipmentToggle.addEventListener("click", () => {
+    const expanded = equipmentToggle.getAttribute("aria-expanded") !== "true";
+    equipmentToggle.setAttribute("aria-expanded", String(expanded));
+    equipmentToggle.setAttribute("aria-label", expanded ? "설비 선택 목록 숨기기" : "설비 선택 목록 표시");
+    if (expanded) document.getElementById("dataset-select").focus();
+  });
   document.getElementById("fft-analysis-details").addEventListener("click", (event) => {
     const button = event.target.closest("[data-bearing-fault]");
     if (!button) return;

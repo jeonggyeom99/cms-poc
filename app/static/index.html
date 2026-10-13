@@ -7,7 +7,7 @@
     <title>설비 진단 화면</title>
     <link rel="stylesheet" href="/static/styles.css?v=work-order-v1">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
-    <script type="module" src="/static/app.js?v=demo-actions-v10"></script>
+    <script type="module" src="/static/app.js?v=equipment-toggle-v11"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,8 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
           <span>설비 현황</span>
         </a>
-        <div class="dataset-select-wrap">
+        <button type="button" id="dataset-select-toggle" aria-label="설비 선택 목록 표시" aria-controls="dataset-select-panel" aria-expanded="false"></button>
+        <div class="dataset-select-wrap" id="dataset-select-panel">
           <label for="dataset-select">설비</label>
           <select id="dataset-select" disabled>
             <option>CSV 목록을 불러오는 중...</option>
