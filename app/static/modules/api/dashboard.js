@@ -1,4 +1,4 @@
-import { demoSummary, demoDashboard, demoFftRecord } from "../demo.js?v=demo-datasets-v5";
+import { demoSummary, demoDashboard, demoFftRecord } from "../demo.js?v=demo-datasets-v6";
 
 async function fetchJson(url) {
   // CSV data is loaded when the API application starts. Avoid reusing a

@@ -21,6 +21,9 @@ export function demoDashboard(data) {
   if (String(data.meta.datasetId) === "5") return { ...data,
     meta: { ...data.meta, demoPresentation: true },
     equipment: { ...data.equipment, ...demoSummary({ ...data.equipment, id: "5" }), id: data.equipment.id },
+    fftWeeklyDiagnosis: { ...data.fftWeeklyDiagnosis,
+      demoStats: [["측정 유형", "가속도 ENV"], ["알람 상태", "발생"], ["원인 판정", "베어링 내륜(BPFI)"]],
+    },
   };
   return { ...data, meta: { ...data.meta, demoPresentation: true },
     equipment: { ...data.equipment, ...demoSummary({ ...data.equipment, id: "1" }), id: data.equipment.id },

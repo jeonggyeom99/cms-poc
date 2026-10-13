@@ -3,25 +3,25 @@ import {
   fetchDashboard,
   fetchDatasetSummaries,
   fetchFftRecord,
-} from "../api/dashboard.js?v=demo-datasets-v5";
-import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-datasets-v5";
+} from "../api/dashboard.js?v=demo-datasets-v6";
+import { fetchAiAnalysis } from "../api/ai-analysis.js?v=demo-datasets-v6";
 import {
   bindAiAnalysis,
   renderAiAnalysis,
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=demo-datasets-v5";
+} from "../analysis/ai.js?v=demo-datasets-v6";
 import {
   bindEmailDraft,
   resetEmailDraft,
   setEmailDraftAvailable,
-} from "../report/email-draft.js?v=demo-datasets-v5";
+} from "../report/email-draft.js?v=demo-datasets-v6";
 import {
   bindPptExport,
   resetPptExport,
   setPptExportAvailable,
-} from "../report/ppt-export.js?v=demo-datasets-v5";
+} from "../report/ppt-export.js?v=demo-datasets-v6";
 import { renderLevelAnalysis } from "../analysis/level.js?v=korean-ui-v1";
 import { renderTrendDirection } from "../analysis/trend-direction.js?v=fft-and-trend-history-v1";
 import {
@@ -50,7 +50,7 @@ import {
 } from "../core/state.js?v=fft-current-history-v1";
 import { renderPlot, setPlotEmpty } from "../core/plot.js?v=plot-zoom-bounds";
 import { availabilityLabel } from "../core/format.js?v=fft-current-history-v2";
-import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-datasets-v5";
+import { renderFftAnalysis, renderOverviewFftResult } from "../fft/analysis.js?v=demo-datasets-v6";
 import { buildFftFigure } from "../fft/chart.js?v=korean-ui-v2";
 import { buildTimeWaveFigure, renderTimeWaveChart } from "../timewave/chart.js?v=korean-ui-v2";
 import {
@@ -67,8 +67,8 @@ import {
   bindRelatedHistory,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=demo-datasets-v5";
-import { fetchRelatedHistory } from "../api/history.js?v=demo-datasets-v5";
+} from "../fft/related-history.js?v=demo-datasets-v6";
+import { fetchRelatedHistory } from "../api/history.js?v=demo-datasets-v6";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
 import {

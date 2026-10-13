@@ -21,11 +21,11 @@ export function renderOverviewFftResult(fft, weekly = null) {
     : "최근 7일 측정 근거 없음";
   const stats = document.getElementById("overview-fft-stats");
   if (stats) {
-    const values = weekly?.demoPresentation
+    const values = weekly?.demoStats ?? (weekly?.demoPresentation
       ? [["측정 유형", "속도"], ["알람 상태", "발생"], ["원인 판정", "Unbalance"]]
       : representative ? [["이상 발생", `${representative.count}건`], ["누적 점수", `${representative.totalScore}점`],
       ["최고 진폭", `${formatNumber(representative.maxAmplitude, 4)} ${representative.unit}`]]
-      : [["평가 기록", `${weekly?.evaluatedRecordCount || 0}건`]];
+      : [["평가 기록", `${weekly?.evaluatedRecordCount || 0}건`]]);
     stats.replaceChildren(...values.map(([label, value]) => {
       const row = document.createElement("div");
       const term = document.createElement("dt");

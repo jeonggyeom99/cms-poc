@@ -89,7 +89,7 @@ assert.equal(fanDemo.equipment.id,'V191');
 assert.match(fanDemo.equipment.statusLabel,/BPFI/);
 assert.strictEqual(fanDemo.fft,fan.fft);
 assert.strictEqual(fanDemo.trend,fan.trend);
-assert.strictEqual(fanDemo.fftWeeklyDiagnosis,fan.fftWeeklyDiagnosis);
+assert.strictEqual(fanDemo.fftWeeklyDiagnosis.representative,fan.fftWeeklyDiagnosis.representative);
 assert.strictEqual(demoFftRecord(velocity,'5'),velocity);
 assert.deepEqual(fan,fanOriginal);
 const beforeFanAi=requests.length;
