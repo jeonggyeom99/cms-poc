@@ -25,7 +25,7 @@ assert.equal(result.equipment.status,'caution');
 assert.equal(result.trend.analysis.isRising,true);
 assert.equal(result.trend.analysis.status,'rising');
 assert.equal(result.fftWeeklyDiagnosis.representative.causeLabel,'Unbalance');
-assert.equal(result.fftWeeklyDiagnosis.representative.grade,'속도 알람');
+assert.equal(result.fftWeeklyDiagnosis.representative.grade,'초기 결함');
 assert.deepEqual(source,original);
 assert.strictEqual(result.fft,source.fft);
 assert.strictEqual(result.trend.points,source.trend.points);

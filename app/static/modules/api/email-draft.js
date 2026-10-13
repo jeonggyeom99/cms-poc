@@ -1,4 +1,4 @@
-import { demoAiAnalysis, isDemoDataset } from "../demo.js?v=demo-datasets-v6";
+import { demoAiAnalysis, isDemoDataset } from "../demo.js?v=demo-datasets-v7";
 
 async function responseError(response) {
   let payload;
@@ -24,7 +24,7 @@ export async function fetchEmailDraft(datasetId, request) {
     const analysis = demoAiAnalysis(datasetId).analysis;
     const innerRace = String(datasetId) === "5";
     return { draft: {
-      subject: innerRace ? "[설비 점검 요청] NO.1 DUST COLLECT FAN · 베어링 내륜(BPFI)" : "[설비 점검 요청] Direct Cooling Pump DS · 속도 알람 / Unbalance",
+      subject: innerRace ? "[설비 점검 요청] NO.1 DUST COLLECT FAN · 베어링 내륜(BPFI)" : "[설비 점검 요청] Direct Cooling Pump DS · 초기 결함 / Unbalance",
       greeting: "설비보전 담당자님, 안녕하세요.", status: analysis.headline,
       trend: analysis.trendSummary, fft: analysis.fftSummary,
       priorityActions: analysis.recommendedActions,

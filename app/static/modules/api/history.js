@@ -1,4 +1,4 @@
-import { demoRelatedHistory } from "../demo.js?v=demo-datasets-v6";
+import { demoRelatedHistory } from "../demo.js?v=demo-datasets-v7";
 
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
