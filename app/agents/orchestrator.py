@@ -10,6 +10,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
+from urllib.parse import quote
 
 from pydantic import Field, ValidationError
 
@@ -339,19 +340,26 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
                 "\n\n".join(item["markdown"] for item in report["handoffs"])
                 or "전문 Agent Hand-off가 생성되지 않았습니다.",
             ]).rstrip() + "\n"
-            for extension, content in (
-                ("json", json.dumps(report, ensure_ascii=False, indent=2) + "\n"),
-                ("md", markdown),
-            ):
+            files = [
+                (self._trace_dir / f"{request_id}.json", json.dumps(report, ensure_ascii=False, indent=2) + "\n"),
+                (self._trace_dir / f"{request_id}.md", markdown),
+            ]
+            dataset_folder = quote(str(report['dataset_id']), safe="").replace(".", "%2E")
+            for item in report["handoffs"]:
+                name = item["json"]["agent_name"]
+                content = (f"<!-- Dataset: {report['dataset_id']}; Request ID: {request_id} -->\n\n"
+                           + item["markdown"].rstrip() + "\n")
+                files.append((self._trace_dir / dataset_folder / f"{name}.md", content))
+            for destination, content in files:
                 temporary = None
                 try:
-                    self._trace_dir.mkdir(parents=True, exist_ok=True)
-                    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self._trace_dir, delete=False) as output:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=destination.parent, delete=False) as output:
                         temporary = Path(output.name)
                         output.write(content)
-                    temporary.replace(self._trace_dir / f"{request_id}.{extension}")
+                    temporary.replace(destination)
                 except OSError:
-                    logger.warning("Failed to save multi-agent trace request_id=%s format=%s", request_id, extension)
+                    logger.warning("Failed to save multi-agent trace request_id=%s file=%s", request_id, destination.name)
                 finally:
                     if temporary is not None:
                         try:

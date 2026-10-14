@@ -111,6 +111,10 @@ def test_three_llm_calls_are_parallel_and_synthesis_uses_json_and_markdown(tmp_p
     assert '- LLM calls: 4' in markdown
     for item in report['handoffs']:
         assert item['markdown'] in markdown
+        agent_file = tmp_path / str(report['dataset_id']) / f"{item['json']['agent_name']}.md"
+        agent_markdown = agent_file.read_text(encoding='utf-8')
+        assert report['request_id'] in agent_markdown
+        assert agent_markdown.endswith(item['markdown'].rstrip() + '\n')
 
 
 @pytest.mark.parametrize('mutation,code', [
