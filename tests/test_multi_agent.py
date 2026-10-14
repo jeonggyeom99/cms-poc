@@ -104,6 +104,13 @@ def test_three_llm_calls_are_parallel_and_synthesis_uses_json_and_markdown(tmp_p
     assert len(report['metrics']['completions']) == 4
     assert report['metrics']['tool_calls'] == 0
     assert report['metrics']['fallback'] is False
+    markdown_path = next(tmp_path.glob('*.md'))
+    assert markdown_path.stem == report['request_id']
+    markdown = markdown_path.read_text(encoding='utf-8')
+    assert f"- Dataset: {report['dataset_id']}" in markdown
+    assert '- LLM calls: 4' in markdown
+    for item in report['handoffs']:
+        assert item['markdown'] in markdown
 
 
 @pytest.mark.parametrize('mutation,code', [

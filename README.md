@@ -150,7 +150,7 @@ RPM, 제조사 또는 형번이 없거나 베어링 마스터에 일치하는 �
 
 전문 Agent의 형식/근거 오류는 한 번 교정하고, 계속 실패하면 실패 코드가 있는 원본 근거만 전달합니다. 다른 영역으로 종합을 계속하며 실패 영역을 결과에 표시합니다. Synthesis 교정은 최대 두 번입니다. 전문 분석 전체 또는 종합 검증 실패 시 기존 single 경로로 fallback하며, 전체 시간 예산은 `10 × OPENAI_TIMEOUT_SECONDS` 안에 유지합니다. 공통 제공자 장애·인증·할당량 문제에는 비효율적인 fallback을 반복하지 않습니다.
 
-`AI_AGENT_TRACE_DIR`를 지정하면 요청별 검증된 Hand-off JSON·Markdown, Agent별 시간·상태, 실패/성공을 포함한 LLM 호출 수·토큰, Tool 수와 fallback을 기록합니다. 제공자가 usage를 반환하지 않으면 토큰은 `null`입니다. 거부된 원문 AI 응답·원본 측정 배열·API Key는 저장하지 않습니다. 추적 파일 보관/정리는 운영자가 관리합니다.
+`AI_AGENT_TRACE_DIR`를 지정하면 같은 요청 ID의 `<request_id>.json`과 사람이 읽을 수 있는 `<request_id>.md`를 각각 저장합니다. Markdown 파일에는 데이터셋 ID·요청 ID·실행 지표와 각 전문 Agent의 검증된 Hand-off가 포함됩니다. 요청별 검증된 Hand-off JSON·Markdown, Agent별 시간·상태, 실패/성공을 포함한 LLM 호출 수·토큰, Tool 수와 fallback을 기록합니다. 제공자가 usage를 반환하지 않으면 토큰은 `null`입니다. 거부된 원문 AI 응답·원본 측정 배열·API Key는 저장하지 않습니다. 추적 파일 보관/정리는 운영자가 관리합니다.
 
 실제 비교에는 설정된 API Key가 사용되고 과금될 수 있습니다.
 

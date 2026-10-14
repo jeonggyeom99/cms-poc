@@ -328,21 +328,36 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
         logger.info("Multi-agent finished request_id=%s dataset_id=%s seconds=%s llm_calls=%s tool_calls=%s fallback=%s",
                     request_id, context.get("datasetId"), metrics.get("seconds"), len(metrics["completions"]), metrics.get("tool_calls"), metrics.get("fallback"))
         if self._trace_dir:
-            temporary = None
-            try:
-                self._trace_dir.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self._trace_dir, delete=False) as output:
-                    temporary = Path(output.name)
-                    json.dump(report, output, ensure_ascii=False, indent=2)
-                temporary.replace(self._trace_dir / f"{request_id}.json")
-            except OSError:
-                logger.warning("Failed to save multi-agent trace request_id=%s", request_id)
-            finally:
-                if temporary is not None:
-                    try:
-                        temporary.unlink(missing_ok=True)
-                    except OSError:
-                        logger.warning("Failed to remove agent trace temporary file request_id=%s", request_id)
+            markdown = "\n".join([
+                "# CMS Multi-Agent Hand-off", "",
+                f"- Dataset: {report['dataset_id']}", f"- Request ID: {request_id}",
+                f"- Agent version: {AGENT_VERSION}",
+                f"- Duration: {metrics.get('seconds')} seconds",
+                f"- LLM calls: {len(metrics['completions'])}",
+                f"- Tool calls: {metrics.get('tool_calls')}",
+                f"- Single-agent fallback: {metrics.get('fallback')}", "",
+                "\n\n".join(item["markdown"] for item in report["handoffs"])
+                or "전문 Agent Hand-off가 생성되지 않았습니다.",
+            ]).rstrip() + "\n"
+            for extension, content in (
+                ("json", json.dumps(report, ensure_ascii=False, indent=2) + "\n"),
+                ("md", markdown),
+            ):
+                temporary = None
+                try:
+                    self._trace_dir.mkdir(parents=True, exist_ok=True)
+                    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self._trace_dir, delete=False) as output:
+                        temporary = Path(output.name)
+                        output.write(content)
+                    temporary.replace(self._trace_dir / f"{request_id}.{extension}")
+                except OSError:
+                    logger.warning("Failed to save multi-agent trace request_id=%s format=%s", request_id, extension)
+                finally:
+                    if temporary is not None:
+                        try:
+                            temporary.unlink(missing_ok=True)
+                        except OSError:
+                            logger.warning("Failed to remove agent trace temporary file request_id=%s", request_id)
 
     async def analyze(self, context: dict, execute: Any = None) -> AiDiagnosis:
         if not context.get("equipmentAnalysis"):
