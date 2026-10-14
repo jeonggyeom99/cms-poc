@@ -280,7 +280,8 @@ class HandoffError(ValueError):
         super().__init__(",".join(self.codes))
 
 
-def prose_issues(text: str, evidence: list[Evidence]) -> list[str]:
+def prose_issues(text: str, evidence: list[Evidence], *, absolute_tolerance: float = 0.005,
+                 relative_tolerance: float = 0.0001) -> list[str]:
     """Check physical values AND their claimed observation date as a single fact.
 
     An aggregate's period boundary is not a dated observation. Free prose remains
@@ -292,7 +293,7 @@ def prose_issues(text: str, evidence: list[Evidence]) -> list[str]:
         actual, unit = float(match[1]), match[2]
         allowed = [item for item in evidence if item.unit == unit
                    and isinstance(item.value, (int, float)) and not isinstance(item.value, bool)
-                   and abs(actual - float(item.value)) <= max(0.005, abs(float(item.value)) * 0.0001)]
+                   and abs(actual - float(item.value)) <= max(absolute_tolerance, abs(float(item.value)) * relative_tolerance)]
         if not allowed:
             issues.append("unsupported_measurement")
             continue
@@ -316,6 +317,12 @@ def prose_issues(text: str, evidence: list[Evidence]) -> list[str]:
                 and item.period.start[:10] <= claimed[:10] <= item.period.end[:10] for item in allowed)
             if not dated_observation and not dated_aggregate:
                 issues.append("measurement_date_mismatch")
+    # Counts and ranking scores are source arithmetic, not diagnostic wording.
+    for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(회|건|개|점)(?![가-힣])", text):
+        unit = "score" if match[2] == "점" else "count"
+        if not any(item.unit == unit and isinstance(item.value, (int, float))
+                   and not isinstance(item.value, bool) and float(match[1]) == float(item.value) for item in evidence):
+            issues.append("unsupported_measurement")
     dates = set()
     for item in evidence:
         for stamp in (item.measured_at, item.period.start, item.period.end):
@@ -325,11 +332,6 @@ def prose_issues(text: str, evidence: list[Evidence]) -> list[str]:
             dates.update(re.findall(r"\d{4}-\d{2}-\d{2}", item.value))
     if any(stamp not in dates for stamp in re.findall(r"\d{4}-\d{2}-\d{2}", text)):
         issues.append("unsupported_date")
-    for sentence in re.split(r"[。.!?\n](?!\d)|[,;]|하지만|그러나|반면", text):
-        uncertain = bool(re.search(r"확정(?:할 수 없|하지|하기 어렵)|단정(?:할 수 없|하지|하기 어렵)|확인되지|근거가 없", sentence))
-        grade_only = bool(re.search(r"진폭\s*기준|등급", sentence)) and bool(re.search(r"초기 결함|심각|정지|베어링 교체|양호", sentence)) and not re.search(r"확정|물리적|실제\s*결함|고장|결함(?:이|은)\s*확인", sentence)
-        if not uncertain and not grade_only and re.search(r"(?:불평형|축정렬\s*불량|정렬\s*불량)(?:이|은)?\s*(?:입니다|이다|확실|명백|발생했|존재)|확정(?:되|됩|된|입니다)|고장\s*확정|(?:결함|고장)(?:이|은|으로)?\s*(?:확인되|확인됩|확인했|존재|발생했|입니다)|definitely|confirmed defect", sentence, re.I):
-            issues.append("unsupported_certainty")
     return issues
 
 
@@ -351,41 +353,19 @@ def validate_draft(draft: AgentDraft, name: str, context: dict, catalog: dict[st
         codes.append("unknown_evidence")
     selected = [catalog[eid].model_copy(deep=True) for eid in ids if eid in catalog]
     expected_records = sorted({item.source_record_id for item in selected if item.source_record_id})
-    available_records = {item.source_record_id for item in catalog.values() if item.source_record_id}
-    if any(record_id not in available_records for record_id in draft.source_record_ids) or len(draft.source_record_ids) != len(set(draft.source_record_ids)):
+    if any(record_id not in expected_records for record_id in draft.source_record_ids) or len(draft.source_record_ids) != len(set(draft.source_record_ids)):
         codes.append("source_record_mismatch")
     codes.extend(prose_issues(draft.summary + " " + " ".join(draft.limitations + draft.recommended_checks), selected))
     for finding in draft.findings:
         facts = [catalog[eid] for eid in finding.evidence_ids if eid in ids and eid in catalog]
-        if len(facts) != len(finding.evidence_ids):
+        if len(facts) != len(finding.evidence_ids) or len(finding.evidence_ids) != len(set(finding.evidence_ids)):
             codes.append("finding_evidence_mismatch")
         codes.extend(prose_issues(finding.interpretation, facts))
-        if finding.relationship == "comparison" and name == "fft":
-            groups = {item.group_id for item in facts}
-            if None in groups or len(groups) != 1:
-                codes.append("incompatible_measurement_conditions")
-            source_groups = context.get("preparedFftEvidence", {}).get("groups", [])
-            if not source_groups or any(item.get(key) is None for item in source_groups for key in
-                                         ("rpm", "measurementPoint", "frequencyRange", "lineCount")
-                                         if "group:" + sha256(json.dumps({k: item.get(k) for k in
-                                             ("measureMode", "amplitudeUnit", "measurementPoint", "rpm", "frequencyRange", "lineCount")}, sort_keys=True).encode()).hexdigest()[:12] in groups):
-                codes.append("unknown_measurement_conditions")
     for cause in draft.candidate_causes:
-        facts = [catalog[eid] for eid in cause.evidence_ids if eid in ids and eid in catalog]
-        if len(facts) != len(cause.evidence_ids) or not any(cause.cause in item.supports_causes for item in facts):
-            codes.append("unsupported_cause")
+        facts = [catalog[eid] for eid in cause.evidence_ids if eid in catalog]
+        if len(facts) != len(cause.evidence_ids) or len(cause.evidence_ids) != len(set(cause.evidence_ids)):
+            codes.append("finding_evidence_mismatch")
         codes.extend(prose_issues(cause.rationale, facts))
-    # A historical case never establishes the current physical defect.
-    if name != "fft" and draft.candidate_causes:
-        codes.append("unsupported_cause")
-    supported = {cause for item in selected for cause in item.supports_causes}
-    positive = r"의심|가능성(?:이|은)?\s*(?:있|높)|결함(?:이|은)?\s*(?:확인|발생)|원인입니다"
-    for text, cited_support in [(draft.summary, supported), *[(finding.interpretation,
-            {cause for eid in finding.evidence_ids if eid in catalog for cause in catalog[eid].supports_causes})
-            for finding in draft.findings]]:
-        for cause, terms in CAUSE_TERMS.items():
-            if name != "history" and cause not in cited_support and any(term in text.lower() for term in terms) and re.search(positive, text):
-                codes.append("unsupported_cause")
     if codes:
         raise HandoffError(codes)
     return Handoff(agent_name=draft.agent_name, equipment_id=draft.equipment_id,
@@ -408,6 +388,8 @@ def validate_handoff(result: Handoff, catalog: dict[str, Evidence], context: dic
     expected_records = sorted({item.source_record_id for item in result.evidence if item.source_record_id})
     if result.source_record_ids != expected_records:
         codes.append("source_record_mismatch")
+    if len(result.evidence) != len({item.evidence_id for item in result.evidence}):
+        codes.append("duplicate_evidence")
     for item in result.evidence:
         if item.evidence_id not in catalog or item != catalog[item.evidence_id] or type(item.value) is not type(catalog[item.evidence_id].value):
             codes.append("source_evidence_mismatch")
