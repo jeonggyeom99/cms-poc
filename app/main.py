@@ -96,8 +96,16 @@ def create_app(
         except (FileNotFoundError, OSError, ValueError):
             application.state.history = {"items": []}
         settings = OpenAISettings.from_environment()
+        from app.agents.orchestrator import MultiAgentAnalysisGateway, analysis_configuration
+        mode = os.environ.get("AI_ANALYSIS_MODE", "multi")
+        if mode not in {"multi", "single"}:
+            raise ValueError("AI_ANALYSIS_MODE must be multi or single")
+        application.state.ai_analysis_mode = mode
+        application.state.ai_analysis_configuration = analysis_configuration(mode, settings.model)
+        trace_dir = os.environ.get("AI_AGENT_TRACE_DIR")
         application.state.ai_analysis_service = AiAnalysisService(
-            ai_gateway or OpenAIAnalysisGateway(settings),
+            ai_gateway or (MultiAgentAnalysisGateway(settings, trace_dir=Path(trace_dir) if trace_dir else None)
+                           if mode == "multi" else OpenAIAnalysisGateway(settings)),
             settings.model,
             cache_dir=(
                 ai_cache_dir if ai_cache_dir is not None
@@ -416,7 +424,9 @@ def create_app(
             # Legacy record IDs are accepted but never determine equipment analysis scope.
             if analysis_request.record_id is not None:
                 load_fft_record(filtered.get("fft") or {}, analysis_request.record_id)
-            context = build_equipment_context(dataset_id, filtered, history_from(request), analysis_request.until)
+            context = build_equipment_context(dataset_id, filtered, history_from(request), analysis_request.until,
+                                              force=analysis_request.force)
+            context["agentConfiguration"] = request.app.state.ai_analysis_configuration.copy()
             execute_analysis_tool = build_equipment_tool_executor(
                 dataset_id, filtered, history_from(request), analysis_request.until, context
             )

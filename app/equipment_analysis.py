@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import calendar
+import copy
+from collections import OrderedDict
+from threading import RLock
+from time import monotonic
 import json
 import math
 import re
@@ -19,6 +23,21 @@ from app.data_loader import load_fft_record
 
 
 PAGE_SIZE = 50
+_PREFETCH_CACHE: OrderedDict[str, tuple[float, dict]] = OrderedDict()
+_PREFETCH_LOCK = RLock()
+_PREFETCH_LIMIT = 32
+
+
+def _source_fingerprint(dataset_id: str, dataset: dict, history: list[dict], until: date | None) -> str:
+    fft = dataset.get("fft") or {}
+    source = {"datasetId": dataset_id, "until": str(until), "version": "prefetch-source-v2",
+              "trend": dataset.get("trend"), "fft": fft.get("_recordsById", fft),
+              "rpm": fft.get("_rpm"), "bearing": fft.get("_bearing"),
+              "history": [item for item in history if _same_equipment(item, dataset.get("equipment"), dataset_id)],
+              "equipment": dataset.get("equipment"), "level": dataset.get("levelAnalysis"),
+              "warning": dataset.get("_warningStatus")}
+    return sha256(json.dumps(source, ensure_ascii=False, sort_keys=True, default=str).encode()).hexdigest()
+
 
 
 def recent_trend_evidence(dataset: dict[str, Any]) -> dict[str, Any]:
@@ -34,6 +53,13 @@ def recent_trend_evidence(dataset: dict[str, Any]) -> dict[str, Any]:
                        and not isinstance(point["value"], bool) and math.isfinite(point["value"])]
     trend = {**source, "points": points, "analysis": analyze_velocity_trend(velocity_points)}
     result = _trend_summary({**dataset, "trend": trend})
+    dated_sorted = sorted(dated, key=lambda item: item[0])
+    intervals = [(right[0] - left[0]).total_seconds() / 3600 for left, right in zip(dated_sorted, dated_sorted[1:])
+                 if left[0] >= start and right[0] > left[0]]
+    result["sampling"] = {"assumedIntervalHours": 1, "minimumIntervalHours": min(intervals) if intervals else None,
+                          "maximumIntervalHours": max(intervals) if intervals else None,
+                          "hourlyAssumptionMet": bool(intervals) and all(abs(value - 1) < 1e-6 for value in intervals),
+                          "operationStateAvailable": False}
     result["window"] = {"days": 90, "start": start.isoformat(sep=" "), "end": end.isoformat(sep=" ")}
     for metric in result["metrics"]:
         definition = next((item for item in source.get("metrics", []) if item.get("key") == metric["key"]), {})
@@ -58,12 +84,16 @@ def recent_trend_evidence(dataset: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def build_equipment_context(dataset_id: str, dataset: dict[str, Any], history: list[dict], until: date | None) -> dict:
+def build_equipment_context(dataset_id: str, dataset: dict[str, Any], history: list[dict], until: date | None, *, force: bool = False) -> dict:
+    fingerprint = _source_fingerprint(dataset_id, dataset, history, until)
+    with _PREFETCH_LOCK:
+        cached = _PREFETCH_CACHE.get(fingerprint)
+        if not force and cached and monotonic() - cached[0] < 86400:
+            _PREFETCH_CACHE.move_to_end(fingerprint)
+            return copy.deepcopy(cached[1])
     fft = dataset.get("fft") or {}
     context = build_ai_context(dataset_id, dataset, fft, history, None, until)
     from app.services.fft_status import weekly_fft_diagnosis, weekly_explanation_facts
-    context["fftWeeklyDiagnosis"] = weekly_fft_diagnosis(fft)
-    context["weeklyExplanationFacts"] = weekly_explanation_facts(context["fftWeeklyDiagnosis"])
     context["equipmentAnalysis"] = True
     context["datasetId"] = dataset_id
     context["scope"] = "설비 전체 이력을 바탕으로 한 CMS 보조 분석"
@@ -82,22 +112,26 @@ def build_equipment_context(dataset_id: str, dataset: dict[str, Any], history: l
         },
         "pageSize": PAGE_SIZE,
     }
-    # All source records participate in invalidation, including records not yet queried.
-    source = {"trend": dataset.get("trend"), "fft": fft.get("_recordsById", fft),
-              "history": [item for item in history if _same_equipment(item, dataset.get("equipment"), dataset_id)],
-              "equipment": dataset.get("equipment"), "warning": dataset.get("_warningStatus")}
-    context["sourceFingerprint"] = sha256(json.dumps(source, ensure_ascii=False, sort_keys=True, default=str).encode()).hexdigest()
+    context["sourceFingerprint"] = fingerprint
     context["dataQuality"]["notes"] = [note for note in context["dataQuality"]["notes"] if "Trend" not in note]
     if not context["trend"].get("available"):
         context["dataQuality"]["notes"].append("최근 3개월 추세 데이터가 없습니다.")
     from app.equipment_evidence import prepare_fft_evidence
-    context["preparedFftEvidence"] = prepare_fft_evidence(dataset_id, dataset, history, until)
+    decoded_records: dict[int, dict] = {}
+    context["preparedFftEvidence"] = prepare_fft_evidence(dataset_id, dataset, history, until, records_cache=decoded_records)
+    context["fftWeeklyDiagnosis"] = weekly_fft_diagnosis(fft, records_cache=decoded_records)
+    context["weeklyExplanationFacts"] = weekly_explanation_facts(context["fftWeeklyDiagnosis"])
     context["requiredCounterEvidence"] = list(dict.fromkeys(
         item["diagnosticLimitation"]["label"] for item in
         context["preparedFftEvidence"]["representativeRecords"] if item.get("diagnosticLimitation")
     ))
     if context["preparedFftEvidence"]["unavailableRecordIds"]:
         context["requiredCounterEvidence"].append("일부 FFT 기록을 해석하지 못해 이력 비교에 제한이 있습니다.")
+    with _PREFETCH_LOCK:
+        _PREFETCH_CACHE[fingerprint] = (monotonic(), copy.deepcopy(context))
+        _PREFETCH_CACHE.move_to_end(fingerprint)
+        while len(_PREFETCH_CACHE) > _PREFETCH_LIMIT:
+            _PREFETCH_CACHE.popitem(last=False)
     return context
 
 

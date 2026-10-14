@@ -1,7 +1,19 @@
+// Translate model enum/field labels at presentation time; preserve API evidence and numbers.
+export function formatAiText(value) {
+  if (typeof value !== "string") return value;
+  const terms = {
+    thresholdstate: "기준값 대비 상태", isrising: "상승 판정", normalmean: "정상 범위 평균",
+    samplecount: "측정 표본 수", stable: "안정", rising: "상승 경향", caution: "주의",
+    danger: "위험", normal: "양호", unknown: "판정 불가", unavailable: "자료 없음",
+  };
+  return value.replace(/(?<![A-Za-z])(thresholdState|isRising|normalMean|sampleCount|unavailable|unknown|caution|danger|normal|stable|rising)(?![A-Za-z])/gi,
+    (term) => terms[term.toLowerCase()]);
+}
+
 function element(tagName, className, text) {
   const node = document.createElement(tagName);
   if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  if (text !== undefined) node.textContent = formatAiText(text);
   return node;
 }
 
@@ -16,8 +28,8 @@ function elements() {
 function graphSummaries(trendText, fftText, periodText = "", busy = false) {
   const trend = document.getElementById("trend-ai-summary");
   const fft = document.getElementById("fft-ai-summary");
-  trend.textContent = trendText;
-  fft.textContent = fftText;
+  trend.textContent = formatAiText(trendText);
+  fft.textContent = formatAiText(fftText);
   [trend, fft].forEach((node) => node.setAttribute("aria-busy", String(busy)));
   document.getElementById("fft-ai-period").textContent = periodText;
 }
@@ -156,7 +168,7 @@ export function setAiAnalysisLoading(baseline) {
 export function renderAiAnalysis(payload, baseline = null) {
   const { description, run, details } = elements();
   const analysis = payload.analysis;
-  description.textContent = analysis.headline;
+  description.textContent = formatAiText(analysis.headline);
   const period = analysis.fftAnalysisPeriod;
   const dates = period?.start && period?.end
     ? `비교 기간: ${period.start.replace("T", " ")} ~ ${period.end.replace("T", " ")}`

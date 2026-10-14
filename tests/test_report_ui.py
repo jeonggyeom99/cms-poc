@@ -106,7 +106,7 @@ def test_ai_analysis_shows_generated_diagnosis_in_overview() -> None:
         analysis.index("export function bindAiAnalysis(")
     ]
 
-    assert "description.textContent = analysis.headline;" in ready
+    assert "description.textContent = formatAiText(analysis.headline);" in ready
     assert "conciseSummary" not in analysis
     assert 'placeholder(details, "AI 진단 실패", message);' in error
     assert 'description.textContent = "AI 진단을 불러오지 못했습니다. 다시 시도해 주세요.";' in error

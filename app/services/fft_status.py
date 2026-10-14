@@ -7,7 +7,7 @@ from app.analysis.fft_severity import assess_fft_harmonics, grade_criterion
 from app.data_loader import load_fft_record
 
 
-def weekly_fft_diagnosis(fft: dict | None) -> dict:
+def weekly_fft_diagnosis(fft: dict | None, *, records_cache: dict | None = None) -> dict:
     records = (fft or {}).get("records") or []
     result = {"start": None, "end": None, "recordCount": 0, "evaluatedRecordCount": 0,
               "excludedRecordCount": 0, "partialRecordCount": 0, "causes": [], "representative": None,
@@ -22,7 +22,8 @@ def weekly_fft_diagnosis(fft: dict | None) -> dict:
     causes = {}
     for item in window:
         try:
-            assessments = assess_fft_harmonics(load_fft_record(fft, item["id"]))
+            record = records_cache[item["id"]] if records_cache is not None and item["id"] in records_cache else load_fft_record(fft, item["id"])
+            assessments = assess_fft_harmonics(record)
         except (KeyError, ValueError, OSError, SyntaxError, TypeError):
             assessments = []
         valid = [entry for entry in assessments if entry["score"] is not None]

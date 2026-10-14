@@ -285,6 +285,7 @@ def _metric_summary(metric: dict[str, Any], points: list[Any]) -> dict[str, Any]
         "unit": _text(metric.get("unit"), 30),
         "sampleCount": len(values),
         "latestValue": latest_value,
+        "latestAt": _timestamp_text(samples[-1][0]) if samples else None,
         "minimum": _rounded(feature.get("min")) if feature else (_rounded(min(values)) if values else None),
         "maximum": _rounded(feature.get("max")) if feature else (_rounded(max(values)) if values else None),
         "mean": _rounded(feature.get("mean")) if feature else (_rounded(sum(values) / len(values)) if values else None),
@@ -332,6 +333,9 @@ def _trend_summary(dataset: dict[str, Any]) -> dict[str, Any]:
             "isRising": source_analysis.get("isRising") if isinstance(source_analysis.get("isRising"), bool) else None,
             "slope": _rounded(source_analysis.get("slope")),
             "slopeThreshold": _rounded(source_analysis.get("threshold")),
+            "slopeUnit": source_analysis.get("thresholdUnit"),
+            "ruleId": source_analysis.get("ruleId"),
+            "rulesetVersion": source_analysis.get("rulesetVersion"),
             "detectedAt": _timestamp_text(source_analysis.get("detectedAt")),
             "usedPoints": source_analysis.get("usedPoints") if isinstance(source_analysis.get("usedPoints"), int) else None,
             "requiredPoints": source_analysis.get("requiredPoints") if isinstance(source_analysis.get("requiredPoints"), int) else None,
@@ -523,6 +527,7 @@ def _history_cutoff(fft: dict[str, Any], until: date | None) -> date | None:
 def _history_item_summary(item: dict[str, Any], relation: str) -> dict[str, Any]:
     return {
         "relation": relation,
+        "sourceRecordId": str(item["id"]) if item.get("id") is not None else None,
         "recordNumber": item.get("number") if isinstance(item.get("number"), int) else None,
         "date": _text(item.get("date"), 40),
         "equipmentName": _text(item.get("equipmentName"), 180),
@@ -897,7 +902,7 @@ class OpenAIAnalysisGateway:
     def __init__(self, settings: OpenAISettings) -> None:
         self._settings = settings
 
-    async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
+    async def analyze(self, context: dict[str, Any], execute: Any = None, *, observer: Any = None) -> AiDiagnosis:
         if not self._settings.api_key:
             raise AiConfigurationError()
 
@@ -969,6 +974,7 @@ class OpenAIAnalysisGateway:
                             max_tool_calls=4 if equipment_analysis else 8,
                             prioritize_required=equipment_analysis,
                             diagnostics=diagnostics,
+                            observer=observer,
                         )
                         if attempt == 0:
                             trace = current_trace

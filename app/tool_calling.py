@@ -6,6 +6,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
+from time import perf_counter
 
 from app.ai_analysis import AiResponseError
 
@@ -36,6 +37,7 @@ async def complete_with_tools(
     max_tool_calls: int = MAX_TOOL_CALLS,
     prioritize_required: bool = False,
     diagnostics: dict[str, Any] | None = None,
+    observer: Callable[[dict], None] | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run model-selected server tools and return final text plus an audit trace."""
     required = set(required_tools or ())
@@ -76,7 +78,27 @@ async def complete_with_tools(
             params["reasoning_effort"] = "none"
         if response_format is not None and not waiting_for_required:
             params["response_format"] = response_format
-        response = await client.chat.completions.create(**params)
+        if not offered_tools:
+            for key in ("tools", "tool_choice", "parallel_tool_calls"):
+                params.pop(key, None)
+        started = perf_counter()
+        try:
+            response = await client.chat.completions.create(**params)
+        except BaseException as error:
+            if observer is not None:
+                observer({"agent": diagnostics.get("agent", "single"), "attempt": diagnostics.get("attempt"),
+                          "seconds": round(perf_counter() - started, 6), "input_tokens": None,
+                          "output_tokens": None, "total_tokens": None, "finish_reason": None,
+                          "error_type": type(error).__name__})
+            raise
+        if observer is not None:
+            usage = getattr(response, "usage", None)
+            observer({"agent": diagnostics.get("agent", "single"), "attempt": diagnostics.get("attempt"),
+                      "seconds": round(perf_counter() - started, 6),
+                      "input_tokens": getattr(usage, "prompt_tokens", None),
+                      "output_tokens": getattr(usage, "completion_tokens", None),
+                      "total_tokens": getattr(usage, "total_tokens", None),
+                      "finish_reason": getattr(response.choices[0], "finish_reason", None) if response.choices else None})
         finish_reason = getattr(response.choices[0], "finish_reason", None) if response.choices else None
         diagnostics.update(finish_reason=finish_reason,
                            provider_request_id=getattr(response, "_request_id", None))

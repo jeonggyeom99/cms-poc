@@ -1,0 +1,69 @@
+{
+  "agents": {
+    "history": {
+      "seconds": 0.0019142750006722054,
+      "status": "unavailable"
+    },
+    "trend": {
+      "seconds": 7.346789,
+      "status": "limited"
+    },
+    "fft": {
+      "seconds": 7.595994,
+      "status": "limited"
+    },
+    "synthesis": {
+      "seconds": 22.492797
+    }
+  },
+  "completions": [
+    {
+      "agent": "trend",
+      "attempt": 1,
+      "seconds": 7.341718,
+      "input_tokens": 11587,
+      "output_tokens": 682,
+      "total_tokens": 12269,
+      "finish_reason": "stop"
+    },
+    {
+      "agent": "fft",
+      "attempt": 1,
+      "seconds": 7.584168,
+      "input_tokens": 13393,
+      "output_tokens": 795,
+      "total_tokens": 14188,
+      "finish_reason": "stop"
+    },
+    {
+      "agent": "synthesis",
+      "attempt": 1,
+      "seconds": 12.52808,
+      "input_tokens": 13279,
+      "output_tokens": 1185,
+      "total_tokens": 14464,
+      "finish_reason": "stop"
+    },
+    {
+      "agent": "synthesis",
+      "attempt": 2,
+      "seconds": 9.918677,
+      "input_tokens": 14548,
+      "output_tokens": 1284,
+      "total_tokens": 15832,
+      "finish_reason": "stop"
+    }
+  ],
+  "fallback": false,
+  "validation_failures": [
+    {
+      "agent": "synthesis",
+      "codes": [
+        "unsupported_measurement",
+        "unsupported_measurement:likelyCauses[0].rationale"
+      ]
+    }
+  ],
+  "seconds": 30.158782,
+  "tool_calls": 0
+}

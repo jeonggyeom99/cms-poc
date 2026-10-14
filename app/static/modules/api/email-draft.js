@@ -1,5 +1,3 @@
-import { demoAiAnalysis, isDemoDataset } from "../demo.js?v=demo-datasets-v8";
-
 async function responseError(response) {
   let payload;
   try {
@@ -20,18 +18,6 @@ async function responseError(response) {
 }
 
 export async function fetchEmailDraft(datasetId, request) {
-  if (request.demoPresentation && isDemoDataset(datasetId)) {
-    const analysis = demoAiAnalysis(datasetId).analysis;
-    const innerRace = String(datasetId) === "5";
-    return { draft: {
-      subject: innerRace ? "[설비 점검 요청] NO.1 DUST COLLECT FAN · 베어링 내륜(BPFI)" : "[설비 점검 요청] Direct Cooling Pump DS · 초기 결함 / Unbalance",
-      greeting: "설비보전 담당자님, 안녕하세요.", status: analysis.headline,
-      trend: analysis.trendSummary, fft: analysis.fftSummary,
-      priorityActions: analysis.recommendedActions,
-      limitations: ["고정 데모 분석을 바탕으로 작성한 점검 요청입니다."],
-      closing: innerRace ? "센서 및 베어링 점검과 동일 운전 조건의 재측정 일정을 확인해 주시기 바랍니다." : "회전체 점검과 동일 운전 조건의 재측정 일정을 확인해 주시기 바랍니다.",
-    } };
-  }
   const response = await fetch(
     `/api/dashboard/${encodeURIComponent(datasetId)}/email-draft`,
     {

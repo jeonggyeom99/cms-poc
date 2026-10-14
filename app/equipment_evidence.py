@@ -50,7 +50,8 @@ def _extrema(samples: list[dict]) -> dict:
             "maximum": max(samples, key=lambda item: item["amplitude"])}
 
 
-def prepare_fft_evidence(dataset_id: str, dataset: dict, history: list[dict], until: Any) -> dict:
+def prepare_fft_evidence(dataset_id: str, dataset: dict, history: list[dict], until: Any, *, records_cache: dict | None = None) -> dict:
+    decoded = records_cache if records_cache is not None else {}
     fft = dataset.get("fft") or {}
     inventory = sorted(fft.get("records", []), key=lambda item: (item["measuredAt"], item["id"]))
     grouped: dict[tuple, list[dict]] = defaultdict(list)
@@ -60,6 +61,7 @@ def prepare_fft_evidence(dataset_id: str, dataset: dict, history: list[dict], un
     for item in inventory:
         try:
             raw = load_fft_record(fft, item["id"])
+            decoded[item["id"]] = raw
             # Build the full compact evidence for aggregation, before pruning
             # insignificant faults from the representative records.
             evidence = _fft_summary(raw)
@@ -99,7 +101,7 @@ def prepare_fft_evidence(dataset_id: str, dataset: dict, history: list[dict], un
                     candidates.append(max(samples, key=lambda item: item[1]["amplitude"])[0])
         selected = list(dict.fromkeys(record["recordId"] for record in candidates))[:6]
         for record_id in selected:
-            representatives[record_id] = compact_record(load_fft_record(fft, record_id))
+            representatives[record_id] = compact_record(decoded[record_id])
         groups.append({
             "measureMode": mode, "amplitudeUnit": unit, "measurementPoint": point,
             "rpm": rpm, "frequencyRange": frequency_range,
@@ -115,7 +117,7 @@ def prepare_fft_evidence(dataset_id: str, dataset: dict, history: list[dict], un
             "representativeRecordIds": selected,
         })
     related = [{"recordId": record_id, "relatedHistory": _related_history_summary(
-        dataset_id, dataset, load_fft_record(fft, record_id), history, None, until
+        dataset_id, dataset, decoded[record_id], history, None, until
     )} for record_id in representatives]
     return {"recordCount": len(inventory), "inspectedCount": len(inspected_ids),
             "unavailableRecordIds": unavailable, "groups": groups,

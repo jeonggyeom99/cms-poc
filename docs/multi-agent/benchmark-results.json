@@ -1,0 +1,171 @@
+{
+  "dataset_id": "1",
+  "model": "gpt-5.6-luna",
+  "single": {
+    "runs": [
+      {
+        "status": "failed",
+        "code": "invalid_response",
+        "seconds": 39.49884384100005,
+        "prefetch_seconds": 0.9332265929997448,
+        "llm_calls": 3,
+        "evidence_lookups": 0,
+        "tokens": {
+          "input_tokens": 139300,
+          "output_tokens": 4855,
+          "total_tokens": 144155
+        }
+      },
+      {
+        "status": "failed",
+        "code": "invalid_response",
+        "seconds": 37.05628109099962,
+        "prefetch_seconds": 0.9933352239995656,
+        "llm_calls": 3,
+        "evidence_lookups": 0,
+        "tokens": {
+          "input_tokens": 138947,
+          "output_tokens": 4860,
+          "total_tokens": 143807
+        }
+      },
+      {
+        "status": "failed",
+        "code": "invalid_response",
+        "seconds": 36.55113254000025,
+        "prefetch_seconds": 0.962816512000245,
+        "llm_calls": 3,
+        "evidence_lookups": 0,
+        "tokens": {
+          "input_tokens": 138636,
+          "output_tokens": 4211,
+          "total_tokens": 142847
+        }
+      }
+    ],
+    "cache_runs": [],
+    "median_seconds": null,
+    "cache_median_seconds": null
+  },
+  "multi": {
+    "runs": [
+      {
+        "seconds": 27.832531267000377,
+        "prefetch_seconds": 0.9308723340000142,
+        "llm_calls": 4,
+        "evidence_lookups": 0,
+        "tool_calls": 0,
+        "tokens": {
+          "input_tokens": 52396,
+          "output_tokens": 3710,
+          "total_tokens": 56106
+        },
+        "agent_times": {
+          "history": {
+            "seconds": 0.0019028630003958824,
+            "status": "unavailable"
+          },
+          "trend": {
+            "seconds": 6.813843,
+            "status": "limited"
+          },
+          "fft": {
+            "seconds": 15.758634,
+            "status": "failed"
+          },
+          "synthesis": {
+            "seconds": 10.943472
+          }
+        },
+        "fallback": false,
+        "status": "ready"
+      },
+      {
+        "seconds": 26.893816347999746,
+        "prefetch_seconds": 1.0312534949998735,
+        "llm_calls": 4,
+        "evidence_lookups": 0,
+        "tool_calls": 0,
+        "tokens": {
+          "input_tokens": 52391,
+          "output_tokens": 3396,
+          "total_tokens": 55787
+        },
+        "agent_times": {
+          "history": {
+            "seconds": 0.001976442000341194,
+            "status": "unavailable"
+          },
+          "trend": {
+            "seconds": 6.798491,
+            "status": "limited"
+          },
+          "fft": {
+            "seconds": 14.830911,
+            "status": "failed"
+          },
+          "synthesis": {
+            "seconds": 11.017391
+          }
+        },
+        "fallback": false,
+        "status": "ready"
+      },
+      {
+        "seconds": 19.267606671000067,
+        "prefetch_seconds": 1.0041830489999484,
+        "llm_calls": 3,
+        "evidence_lookups": 0,
+        "tool_calls": 0,
+        "tokens": {
+          "input_tokens": 39911,
+          "output_tokens": 2904,
+          "total_tokens": 42815
+        },
+        "agent_times": {
+          "history": {
+            "seconds": 0.0019144950001646066,
+            "status": "unavailable"
+          },
+          "trend": {
+            "seconds": 7.567998,
+            "status": "limited"
+          },
+          "fft": {
+            "seconds": 7.967258,
+            "status": "limited"
+          },
+          "synthesis": {
+            "seconds": 10.282296
+          }
+        },
+        "fallback": false,
+        "status": "ready"
+      }
+    ],
+    "cache_runs": [
+      {
+        "seconds": 0.15009309300057794,
+        "cached": true
+      },
+      {
+        "seconds": 0.14902743000038754,
+        "cached": true
+      },
+      {
+        "seconds": 0.14852850299939746,
+        "cached": true
+      },
+      {
+        "seconds": 0.1489280409996354,
+        "cached": true
+      },
+      {
+        "seconds": 0.13266880199989828,
+        "cached": true
+      }
+    ],
+    "median_seconds": 26.893816347999746,
+    "cache_median_seconds": 0.1489280409996354
+  }
+}
