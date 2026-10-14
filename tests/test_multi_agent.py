@@ -542,3 +542,14 @@ def test_synthesis_keeps_previous_rounding_allowance():
     facts=list(evidence_catalog('trend',context()).values())
     assert synthesis_prose_issues('진동 1.25 mm/s',facts) == []
     assert 'unsupported_measurement' in synthesis_prose_issues('진동 9 mm/s',facts)
+
+
+def test_numeric_failure_reports_field_value_unit_and_citations():
+    from app.agents.handoff import prose_issues
+    details = []
+    assert prose_issues('진폭은 9999 g입니다.', [], field='findings[0].interpretation', details=details) == ['unsupported_measurement']
+    assert details == [{'code': 'unsupported_measurement', 'field': 'findings[0].interpretation', 'value': '9999', 'unit': 'g', 'evidence_ids': []}]
+
+
+def test_candidate_schema_allows_new_physical_hypotheses():
+    assert Candidate(cause='윤활 불량', confidence='low', rationale='윤활 상태를 추가 점검하세요.', evidence_ids=['f:1']).cause == '윤활 불량'

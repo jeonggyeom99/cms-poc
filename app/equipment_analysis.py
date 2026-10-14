@@ -272,15 +272,15 @@ Keep all summaries and findings concise so the complete JSON fits the output bud
 Do not expose internal field names such as thresholdState, change30Days or recordId in prose.
 Translate states into Korean and describe changes explicitly as 변화량, 증가 or 감소.
 Round displayed readings to one or two decimals; retain the correct units and direction.
-Only describe bearing faults supported by significant acceleration harmonics and shaft faults
-supported by velocity evidence. Mention missing bearing metadata in counterEvidence when observed.
+Express physical cause candidates as hypotheses, with additional checks. Do not restrict
+hypotheses to deterministic supported cause codes. Mention missing bearing metadata in counterEvidence when observed.
 Include every requiredCounterEvidence limitation explicitly in counterEvidence; keep the
 provided limitation labels so missing bearing 모델/제조사/형번 or 마스터/계수 remains clear.
 Keep each findings list and recommendedActions to one or two essential items.
 For changes, cite change30Days/change90Days or monthlyAverages.changeFromPreviousMonth from
 the supplied Trend evidence; do not invent derived amounts. For FFT, report observed endpoints and the direction
 of change rather than computing new differences or averages. Absence of a fault peak is a negative
-finding, not a supported cause candidate; state that explicitly without naming it as a likely cause.
+finding; explain its limits when proposing a physical cause hypothesis.
 
 Style example only (fictional evidence; never copy its numbers or conclusions):
 Trend has three full months with velocity means 3.5, 4.0, 4.5 mm/s. A velocity FFT has
@@ -308,14 +308,6 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
             for item in payload.get("records", []):
                 inspected[item["recordId"]] = item["fft"]
     refs = result.fft_reference_record_ids
-    if prepared.get("unavailableRecordIds") and not any(
-        term in " ".join(result.counter_evidence) for term in ("해석", "읽지", "손상", "누락", "일부 FFT", "일부 주파수")
-    ):
-        issues.append("해석하지 못한 FFT 기록의 제한을 counterEvidence에 명시하세요.")
-    if len(result.headline) > 140:
-        issues.append("종합 요약은 핵심 변화와 점검 행동을 140자 이내로 작성하세요.")
-    if not any(word in result.headline for word in ("확인", "점검", "재측정", "검토")):
-        issues.append("종합 요약에 실행 가능한 확인 또는 점검 행동을 포함하세요.")
     if len(refs) != len(set(refs)) or any(record_id not in inspected for record_id in refs):
         issues.append("fftReferenceRecordIds는 실제로 조회한 FFT 기록만 중복 없이 지정하세요.")
     period = result.fft_analysis_period
@@ -342,103 +334,6 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
             )
     elif refs or period.start is not None or period.end is not None:
         issues.append("FFT 근거가 없으면 기간은 null, 참조 ID는 빈 배열로 작성하세요.")
-    supported_causes: set[str] = set()
-    for group in groups:
-        supported_causes.update(cause for cause, count in group["supportedCauses"].items() if count > 0)
-    for fft in inspected.values():
-        diagnosis = fft.get("diagnosis") or {}
-        mode = ((fft.get("measurement") or {}).get("measureMode") or {}).get("code")
-        if diagnosis.get("status") != "analyzed":
-            continue
-        if mode == "3" and diagnosis.get("diagnosis") in {"unbalance", "misalignment"}:
-            supported_causes.add(diagnosis["diagnosis"])
-        if mode in {"0", "2"}:
-            supported_causes.update(fault["type"] for fault in diagnosis.get("faults", [])
-                                    if any(item.get("significant") for item in fault.get("harmonics", [])))
-    amplitude_grades: dict[str, set[str]] = {}
-    for fft in inspected.values():
-        for assessment in fft.get("severityAssessments", []):
-            if assessment.get("score") is not None:
-                amplitude_grades.setdefault(assessment["cause"], set()).add(assessment["grade"])
-    for cause in context.get("fftWeeklyDiagnosis", {}).get("causes", []):
-        amplitude_grades.setdefault(cause["cause"], set()).add(cause["grade"])
-    cause_terms = {
-        "unbalance": ("unbalance", "불평형", "언밸런스"),
-        "misalignment": ("misalignment", "축정렬 불량", "축정렬 상태 불량", "정렬 불량", "미스얼라인"),
-        "BPFI": ("bpfi", "내륜", "inner race"), "BPFO": ("bpfo", "외륜", "outer race"),
-        "BSF": ("bsf", "전동체", "볼 결함", "rolling element"),
-        "FTF": ("ftf", "케이지", "cage"),
-    }
-    diagnostic_texts = [("headline", result.headline), ("fftSummary", result.fft_summary),
-                        *[(f"fftFindings[{index}]", f"{item.heading} {item.detail}") for index, item in enumerate(result.fft_findings)],
-                        *[(f"likelyCauses[{index}]", f"{item.cause} {item.rationale}") for index, item in enumerate(result.likely_causes)]]
-    limitation_phrases = ("판정 불가", "단정할 수 없", "추정할 수 없", "판단할 수 없", "확정할 수 없",
-                          "근거가 없", "확인되지", "여부를 확인", "여부는 추가", "판단하기 어렵",
-                          "단정하기 어렵", "확정하기 어렵", "판정할 수 없", "확인할 수 없",
-                          "확정하지", "단정하지", "지지하지")
-    trend = context.get("trend") or {}
-    velocity = next((metric for metric in trend.get("metrics", []) if metric.get("key") == "velocity"), None)
-    insufficient_trend = trend.get("available") is False or (
-        velocity is not None and velocity.get("sampleCount", 2) < 2
-    )
-    if insufficient_trend:
-        shortage_terms = ("없", "부족", "불가", "어렵", "판단할 수", "제한", "충분하지")
-        if not any(term in result.trend_summary for term in shortage_terms):
-            issues.append("추세 자료가 없거나 비교 표본이 부족하다는 사유를 trendSummary에 명시하세요.")
-        for text in [result.headline, result.trend_summary, *[item.detail for item in result.trend_findings]]:
-            for sentence in re.split(r"[.!?\n](?!\d)", text):
-                if any(term in sentence for term in ("상승", "증가", "감소", "하락", "우상향", "악화")) and not any(
-                    term in sentence for term in (*limitation_phrases, "판단할 수 없", "판정할 수 없", "확인할 수 없", "자료가 부족")
-                ):
-                    issues.append("추세 비교 근거가 부족하므로 상승·하락 또는 상태 악화를 단정하지 마세요.")
-    negative_findings = ("검출되지", "관측되지", "발견되지", "유의하지", "피크 없음", "피크가 없", "미만", "뚜렷하지")
-    positive_claim = re.compile(
-        r"가능성(?:이|은)?\s*(?:있|높|크|우선)|불량(?:이|은)?\s*우선|"
-        r"의심(?:됩|된|돼|되므로|스럽)|추정(?:됩|된|되므로)|"
-        r"후보(?:입니다|로|가\s*있|를\s*지지)|결함(?:이|은)\s*(?:확인되|확인됩|발생했|존재)|"
-        r"(?:외륜|내륜|케이지|전동체|bpfo|bpfi|ftf|bsf|물리적)\s*결함입니다|"
-        r"원인(?:입니다|일\s*가능|으로\s*판단)"
-    )
-    inspection_request = re.compile(r"(?:의\s*)?(?:여부|상태)(?:를|는|에\s*대한)?\s*(?:(?:추가|우선)\s*)?(?:확인|점검|검사)")
-    for field, text in diagnostic_texts:
-        for sentence in re.split(r"[.!?\n](?!\d)", text.lower()):
-            # A negated support clause is a limitation, while later positive claims
-            # in the same sentence must still be rejected.
-            claim_text = re.sub(
-                r"후보를\s*지지(?:하는)?[^,;]{0,80}?근거가\s*없",
-                "", sentence,
-            )
-            claim_text = re.sub(r"원인으로\s*판단할\s*수\s*없", "", claim_text)
-            for cause, terms in cause_terms.items():
-                mentions = [match for term in terms
-                            for match in re.finditer(re.escape(term).replace(r"\ ", r"\s*"), sentence)]
-                if not mentions:
-                    continue
-                if any(term in sentence for term in ("확실", "확정되", "명백", "고장 확정")):
-                    issues.append("고장 원인을 확정하지 말고 근거에 따른 가능성과 확인 행동으로 작성하세요.")
-                elif cause not in supported_causes:
-                    # Amplitude classification does not assert a physical fault cause.
-                    grade_only = (not field.startswith("likelyCauses")
-                                  and any(label in sentence for label in amplitude_grades.get(cause, set()))
-                                  and any(word in sentence for word in ("진폭 기준", "등급", "주간 기준"))
-                                  and not positive_claim.search(claim_text))
-                    weekly_fact = (not field.startswith("likelyCauses")
-                                   and cause in {item["cause"] for item in context.get("fftWeeklyDiagnosis", {}).get("causes", [])}
-                                   and any(word in sentence for word in ("발생", "집계", "선정", "최고값", "진폭 등급이 반복"))
-                                   and not positive_claim.search(claim_text))
-                    observed_harmonic = (not field.startswith("likelyCauses")
-                                         and re.search(r"(?:bpfi|bpfo|bsf|ftf)\s*[123]x", sentence)
-                                         and re.search(r"\d\s*g(?![a-z])", sentence)
-                                         and any(word in sentence for word in ("관찰", "관측", "증가", "감소"))
-                                         and not positive_claim.search(claim_text))
-                    if grade_only or weekly_fact or observed_harmonic:
-                        continue
-                    limited = any(phrase in sentence for phrase in (*limitation_phrases, *negative_findings))
-                    direct_inspection = any(inspection_request.match(sentence[mention.end():].lstrip())
-                                            for mention in mentions)
-                    if (limited or direct_inspection) and not positive_claim.search(claim_text):
-                        continue
-                    issues.append(f"{cause} 원인 후보를 지지하는 조회 FFT 근거가 없습니다. 판단 제한을 명시하세요. ({field})")
     # Compare measurements within their physical units, rather than any numeric field.
     trend_values: dict[str, list[float]] = {}
     trend_changes: dict[str, list[float]] = {}
@@ -474,13 +369,6 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
                 collect_fft(child, unit)
     for fft in inspected.values():
         collect_fft(fft, fft.get("amplitudeUnit"))
-        limitation = (fft.get("diagnosticLimitation") or {}).get("code")
-        required_terms = {
-            "bearing_not_configured": ("모델", "제조사", "형번"),
-            "bearing_not_found": ("마스터", "계수"),
-        }.get(limitation)
-        if required_terms and not any(term in " ".join(result.counter_evidence) for term in required_terms):
-            issues.append("조회한 가속도 FFT의 베어링 정보 제한을 counterEvidence에 명시하세요.")
     for group in groups:
         for month in group["monthlyComponents"]:
             for component in month["components"].values():
@@ -493,24 +381,27 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
             fft_values.setdefault(peak["unit"], []).append(peak["amplitude"])
         if peak.get("frequency") is not None:
             fft_values["Hz"].append(peak["frequency"])
+    from app.agents.handoff import evidence_catalog
+    for name in ("trend", "fft", "history"):
+        for fact in evidence_catalog(name, context, [call["result"] for call in trace]).values():
+            if fact.unit in {"rpm", "mm/s/hour"} and isinstance(fact.value, (int, float)):
+                (trend_values if name == "trend" else fft_values).setdefault(fact.unit, []).append(fact.value)
     combined_values = {unit: list(values) for unit, values in trend_values.items()}
     for unit, values in fft_values.items():
         combined_values.setdefault(unit, []).extend(values)
-    trend_parts = [("trendSummary", result.trend_summary), *[(f"trendFindings[{index}].detail", item.detail) for index, item in enumerate(result.trend_findings)]]
-    fft_parts = [("fftSummary", result.fft_summary), *[(f"fftFindings[{index}].detail", item.detail) for index, item in enumerate(result.fft_findings)]]
-    cause_parts = [("headline", result.headline), *[(f"likelyCauses[{index}].rationale", item.rationale) for index, item in enumerate(result.likely_causes)]]
-    fft_text = " ".join(text for _, text in fft_parts)
-    for sentence in re.split(r"[.!?\n](?!\d)", fft_text):
-        if "mm/s" in sentence and re.search(r"\d\s*g(?![A-Za-z])", sentence) and any(
-            word in sentence for word in ("증가", "감소", "상승", "하락")
-        ):
-            issues.append("서로 다른 측정 단위의 수치를 같은 변화 추세로 비교하지 마세요.")
+    trend_parts = [("trendSummary", result.trend_summary), *[(f"trendFindings[{index}].detail", item.heading + " " + item.detail) for index, item in enumerate(result.trend_findings)]]
+    fft_parts = [("fftSummary", result.fft_summary), *[(f"fftFindings[{index}].detail", item.heading + " " + item.detail) for index, item in enumerate(result.fft_findings)]]
+    cause_parts = [("headline", result.headline), ("riskLabel", result.risk_label),
+                   *[(f"likelyCauses[{index}]", item.cause + " " + item.rationale) for index, item in enumerate(result.likely_causes)],
+                   *[(f"counterEvidence[{index}]", text) for index, text in enumerate(result.counter_evidence)],
+                   *[(f"recommendedActions[{index}]", item.action + " " + item.rationale) for index, item in enumerate(result.recommended_actions)],
+                   *[(f"historyFindings[{index}]", item.heading + " " + item.detail) for index, item in enumerate(result.history_findings)]]
     for label, parts, values_by_unit in (("추세", trend_parts, trend_values),
                                         ("주파수", fft_parts, fft_values),
                                         ("원인", cause_parts, combined_values)):
         for field, summary in parts:
             for sentence in re.split(r"[.!?\n](?!\d)", summary):
-                for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(mm/s|Hz|g)(?![A-Za-z])", sentence):
+                for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(mm/s/hour|mm/s|Hz|rpm|g)(?![A-Za-z])", sentence):
                     value = float(match[1])
                     candidates = list(values_by_unit.get(match[2], []))
                     # Explicit criterion bounds are policy values, not observations.
@@ -545,10 +436,20 @@ def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dic
         for record_id in refs:
             if record_id in inspected and not period.start.date() <= _timestamp(inspected[record_id]["measuredAt"]).date() <= period.end.date():
                 issues.append("대표 FFT 기록은 비교 기간 안에 있어야 합니다.")
-    if inspected and not any(word in " ".join(item.action for item in result.recommended_actions)
-                             for word in ("확인", "점검", "재측정", "측정", "검사")):
-        issues.append("권장 점검에 실행 가능한 확인 또는 재측정 조치를 포함하세요.")
-    issues.extend(weekly_summary_issues(context, result.fft_summary))
+    # Dates and counts are checked against source facts, independently of wording.
+    from app.agents.handoff import evidence_catalog, prose_issues
+    catalogs = {name: list(evidence_catalog(name, context, [call["result"] for call in trace]).values())
+                for name in ("trend", "fft", "history")}
+    all_facts = [fact for facts in catalogs.values() for fact in facts]
+    for field, text, facts in [*[(field, text, catalogs["trend"]) for field, text in trend_parts],
+                               *[(field, text, catalogs["fft"]) for field, text in fft_parts],
+                               *[(field, text, all_facts) for field, text in cause_parts]]:
+        details = []
+        codes = prose_issues(text, facts, absolute_tolerance=0.055, relative_tolerance=0.01,
+                            field=field, details=details)
+        for detail in details:
+            if detail["code"] in {"unsupported_date", "measurement_date_mismatch"} or detail["unit"] in {"count", "score"}:
+                issues.append("source_fact_mismatch:" + json.dumps(detail, ensure_ascii=False))
     return list(dict.fromkeys(issues))
 
 
@@ -558,8 +459,8 @@ def equipment_issue_codes(issues: list[str]) -> list[str]:
         ("140자", "headline_length"), ("종합 요약에", "headline_action"),
         ("fftReferenceRecordIds", "reference_records"), ("대표 FFT 기록 ID", "reference_records"),
         ("fftAnalysisPeriod", "observation_period"), ("비교 기간 안", "reference_period"),
-        ("FFT 근거가 없으면", "missing_fft_evidence"), ("고장 원인을 확정", "definitive_cause"),
-        ("원인 후보를 지지", "unsupported_cause"), ("추세 자료", "insufficient_trend"),
+        ("FFT 근거가 없으면", "missing_fft_evidence"),
+        ("추세 자료", "insufficient_trend"),
         ("추세 비교 근거", "unsupported_trend"), ("근거가 없는", "unsupported_measurement"),
         ("다른 측정 단위", "mixed_units"), ("베어링 정보 제한", "bearing_limitation"),
         ("권장 점검", "recommended_action"),
@@ -567,8 +468,8 @@ def equipment_issue_codes(issues: list[str]) -> list[str]:
     )
     codes = {next((code for token, code in rules if token in issue), "evidence_policy") for issue in issues}
     for issue in issues:
-        if "원인 후보를 지지" in issue:
-            codes.add("unsupported_cause:" + issue.split(" ", 1)[0])
+        if issue.startswith("source_fact_mismatch:"):
+            codes.add(json.loads(issue.split(":", 1)[1])["code"])
         if "근거가 없는" in issue:
             field = re.search(r"\(([A-Za-z0-9\[\].]+)\)", issue)
             if field:

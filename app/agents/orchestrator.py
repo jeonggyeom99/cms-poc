@@ -29,7 +29,7 @@ from app.agents.handoff import (
 )
 
 AGENT_VERSION = "cms-multi-agent-v3"
-VALIDATION_POLICY_VERSION = "source-facts-only-v1"
+VALIDATION_POLICY_VERSION = "source-facts-only-v2"
 HANDOFF_VERSION = "source-linked-handoff-v5"
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def synthesis_prose_issues(text: str, evidence: list) -> list[str]:
 
 
 SPECIALIST_INSTRUCTIONS = {
-    "trend": "Interpret the latest 90-day Trend, monthly changes, moving-average rising rule, slope and current/recommended Level. The legacy slope assumes hourly sample indices; describe irregular sampling/non-operation limits, never reinterpret it as a newly computed time slope. No current defect candidates from Trend alone.",
+    "trend": "Interpret the latest 90-day Trend, monthly changes, moving-average rising rule, slope and current/recommended Level. The legacy slope assumes hourly sample indices; describe irregular sampling/non-operation limits, never reinterpret it as a newly computed time slope. Express cause candidates as hypotheses with additional checks.",
     "fft": "Interpret shaft 1X/2X/3X and BPFO/BPFI/BSF/FTF, weekly grades and past/current spectra. Compare only within one known condition group (RPM/mode/unit/point/band/resolution). Missing RPM, bearing coefficients or sampling limit diagnosis. Amplitude grade is distinct from a physical cause. Keep interpretations uncertain and cite source facts.",
     "history": "Interpret only retrieved same-equipment AND same-fault strictly pre-measurement cases (5 per reference FFT). Compare symptoms and actual recorded actions/feedback. Never broaden this policy, invent a case or infer today's physical cause from history. Keep current cause interpretations uncertain.",
 }
@@ -129,6 +129,8 @@ Echo agent_name, equipment_id, analysis_period exactly. Interpret briefly in Kor
 Keep prose QUALITATIVE: do not restate numeric measurements, counts or dates in summary,
 findings, limitations or recommendations. The server will attach immutable numeric facts.
 Harmonic names (1X/2X/3X, BPFO/BPFI/BSF/FTF) are allowed.
+Separate findings (observations), candidate_causes (physical hypotheses), and limitations.
+Do not restrict hypotheses to supports_causes; propose additional checks.
 Focus ONLY on your specialty; explain measurement-condition limits and uncertainty.
 Evidence IDs are the FIRST column in evidence_catalog.rows; do not confuse them with FFT
 record IDs or source paths. Select at most 20 evidence IDs, including your most important
@@ -188,8 +190,8 @@ initial evidence suffices. At most one tool round is permitted; no tools during 
                     if isinstance(error, ValidationError):
                         correction = [".".join(str(part) for part in item["loc"]) + ":" + item["type"]
                                       for item in error.errors(include_input=False, include_context=False)]
-                    metrics.setdefault("validation_failures", []).append({"agent": name, "codes": failure_codes})
-                    logger.warning("Agent rejected request_id=%s agent=%s attempt=%s codes=%s", request_id, name, attempt + 1, correction if isinstance(error, ValidationError) else failure_codes)
+                    metrics.setdefault("validation_failures", []).append({"agent": name, "codes": failure_codes, "details": getattr(error, "details", [])})
+                    logger.warning("Agent rejected request_id=%s agent=%s attempt=%s codes=%s details=%s", request_id, name, attempt + 1, correction if isinstance(error, ValidationError) else failure_codes, getattr(error, "details", []))
                     if attempt == 0:
                         if 'content' in locals() and content:
                             messages.append({"role": "assistant", "content": content})
@@ -225,8 +227,8 @@ Integrate server-authored weeklyExplanationFacts exactly enough to retain counts
 these are amplitude criteria, not proof of a physical defect. Keep headline <=140 characters
 and explain measurement-condition limits and uncertainty. fftReferenceOptions lists allowed integer record IDs.
 Use qualitative prose in fftSummary and fftFindings; do not restate numeric counts, dates
-or measurements. The server prepends exact weekly facts after validation. Connect the facts to the specialist's interpretation and recommended checks. Never derive
-physical FTF/other causes from the weekly ranking's grade. Retain fftReferenceRecordIds only
+or measurements. The server prepends exact weekly facts after validation. Connect the facts to the specialist's interpretation and recommended checks. Express physical causes as hypotheses requiring additional checks. Weekly amplitude
+grades alone do not establish or confirm a physical fault. Retain fftReferenceRecordIds only
 from source_record_id fft:<id> entries in handoff JSON, including degraded handoffs.
 Do not infer missing FFT or history analysis from Trend statements. A failed specialty has
 source-only facts, so describe its existing rule facts and explicitly limit LLM interpretation.
@@ -269,6 +271,10 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
                         if len(result.fft_summary) > 1200:
                             raise HandoffError(["fft_summary_too_long"])
                     issues = []
+                    details = []
+                    def check(text, evidence, field):
+                        return prose_issues(text, evidence, absolute_tolerance=0.055,
+                                            relative_tolerance=0.01, field=field, details=details)
                     if any(rid not in record_ids for rid in result.fft_reference_record_ids):
                         issues.append("unsupported_synthesis_reference")
                     trend_facts = [item for item in facts.values() if item.evidence_id.startswith("t:")]
@@ -277,11 +283,12 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
                     # Weekly explanations are server-owned criteria, not fresh LLM evidence.
                     allowed_fft = fft_facts + [item for item in evidence_catalog("fft", context).values()
                                              if item.source.startswith(("fft.weekly", "fft.criteria"))]
-                    issues.extend(synthesis_prose_issues(result.fft_summary + " " + " ".join(item.heading + " " + item.detail for item in result.fft_findings), allowed_fft))
-                    issues.extend(synthesis_prose_issues(" ".join([result.headline, result.risk_label, *result.counter_evidence,
-                        *[item.rationale + " " + item.cause for item in result.likely_causes],
-                        *[item.action + " " + item.rationale for item in result.recommended_actions]]),
-                        list(facts.values()) + allowed_fft))
+                    issues.extend(check(result.fft_summary, allowed_fft, "fftSummary"))
+                    for field, text in [("headline", result.headline), ("riskLabel", result.risk_label),
+                        *[(f"counterEvidence[{i}]", v) for i, v in enumerate(result.counter_evidence)],
+                        *[(f"likelyCauses[{i}]", v.cause + " " + v.rationale) for i, v in enumerate(result.likely_causes)],
+                        *[(f"recommendedActions[{i}]", v.action + " " + v.rationale) for i, v in enumerate(result.recommended_actions)]]:
+                        issues.extend(check(text, list(facts.values()) + allowed_fft, field))
                     fft_period = next(item.analysis_period for item in handoffs if item.agent_name == "fft")
                     from app.ai_analysis import AiAnalysisPeriod
                     expected_period = AiAnalysisPeriod(**fft_period.model_dump())
@@ -289,8 +296,12 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
                         issues.append("analysis_period_mismatch")
                     if len(result.fft_reference_record_ids) != len(set(result.fft_reference_record_ids)):
                         issues.append("duplicate_source_record")
-                    issues.extend(synthesis_prose_issues(result.trend_summary + " " + " ".join(item.heading + " " + item.detail for item in result.trend_findings), trend_facts))
-                    issues.extend(synthesis_prose_issues(" ".join(item.heading + " " + item.detail for item in result.history_findings), history_facts))
+                    issues.extend(check(result.trend_summary, trend_facts, "trendSummary"))
+                    for field, items, evidence in (("trendFindings", result.trend_findings, trend_facts),
+                                                  ("fftFindings", result.fft_findings, allowed_fft),
+                                                  ("historyFindings", result.history_findings, history_facts)):
+                        for i, item in enumerate(items):
+                            issues.extend(check(item.heading + " " + item.detail, evidence, f"{field}[{i}]"))
                     if result.history_findings and not any(item.source_record_id for item in history_facts):
                         issues.append("unsupported_history_claim")
                     failed = [item.agent_name.upper() for item in handoffs if not item.llm_success]
@@ -307,15 +318,18 @@ source-only facts, so describe its existing rule facts and explicitly limit LLM 
                             if len(result.fft_summary) > 1200:
                                 issues.append("fft_summary_too_long")
                     if issues:
-                        raise HandoffError(issues)
+                        raise HandoffError(issues, details or [{"field": "diagnosis.source_selection",
+                            "value": {"period": result.fft_analysis_period.model_dump(mode="json"),
+                                      "record_ids": result.fft_reference_record_ids},
+                            "unit": None, "evidence_ids": draft.evidence_ids}])
                     metrics["synthesis"] = {"status": "validated", "failure_codes": [], "diagnosis": result.model_dump(mode="json", by_alias=True)}
                     return result
                 except (ValidationError, HandoffError, AiResponseError) as error:
                     if isinstance(error, AiResponseError) and error.reason not in {"empty_response", "response_truncated"}:
                         raise
                     issues = error.codes if isinstance(error, HandoffError) else ["schema_validation" if isinstance(error, ValidationError) else error.reason]
-                    logger.warning("Synthesis rejected request_id=%s attempt=%s codes=%s", request_id, attempt + 1, validation_codes(issues))
-                    metrics.setdefault("validation_failures", []).append({"agent": "synthesis", "codes": validation_codes(issues)})
+                    logger.warning("Synthesis rejected request_id=%s attempt=%s codes=%s details=%s", request_id, attempt + 1, validation_codes(issues), getattr(error, "details", []))
+                    metrics.setdefault("validation_failures", []).append({"agent": "synthesis", "codes": validation_codes(issues), "details": getattr(error, "details", [])})
                     if attempt == 1:
                         return self._limited_diagnosis(context, handoffs, metrics)
                     if 'content' in locals() and content:

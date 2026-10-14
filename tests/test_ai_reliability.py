@@ -97,7 +97,7 @@ def equipment_result():
     (response('{"SECRET_FIELD_DATA":123}'), "stage=schema"),
     (response("truncated", finish="length"), "reason=response_truncated"),
     (response(), "reason=empty_response"),
-    (response(equipment_result().model_copy(update={"fft_summary": "축정렬 불량이 확실합니다."}).model_dump_json()), "stage=evidence"),
+    (response(equipment_result().model_copy(update={"fft_summary": "진폭은 9999 g입니다."}).model_dump_json()), "stage=evidence"),
 ])
 def test_gateway_repairs_output_without_repeating_evidence_tools(monkeypatch, caplog, bad_reply, stage):
     requests = []
@@ -131,7 +131,7 @@ def test_gateway_repairs_output_without_repeating_evidence_tools(monkeypatch, ca
     assert "SECRET_FIELD_DATA" not in caplog.text
 
 
-def test_schema_repairs_stop_after_three_outputs(monkeypatch):
+def test_equipment_schema_repairs_stop_after_two_outputs(monkeypatch):
     requests = []
 
     async def create(**params):
@@ -149,9 +149,10 @@ def test_schema_repairs_stop_after_three_outputs(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeClient))
     context = {"equipmentAnalysis": True, "equipment": {}, "fftInventory": {}, "scope": "설비", "fft": {}}
-    with pytest.raises(AiResponseError, match="형식"):
-        asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(context, execute))
-    assert len(requests) == 4  # One evidence batch and three output attempts.
+    result = asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(context, execute))
+    assert result.risk_level == "unknown"
+    assert result.likely_causes == []
+    assert len(requests) == 3  # One evidence batch and two output attempts.
 
 
 def mixed_trace():
@@ -178,13 +179,13 @@ def test_equipment_cause_can_be_supported_by_a_nonrepresentative_record():
     context = {"trend": {"metrics": []}}
     assert equipment_quality_issues(context, result, mixed_trace()) == []
     unsupported = result.model_copy(update={"headline": "외륜 결함 가능성이 있어 점검하세요."})
-    assert "unsupported_cause" in equipment_issue_codes(equipment_quality_issues(context, unsupported, mixed_trace()))
+    assert equipment_quality_issues(context, unsupported, mixed_trace()) == []
     wrong = result.model_copy(update={"fft_summary": "BPFI는 9.9 g입니다."})
     assert "unsupported_measurement" in equipment_issue_codes(equipment_quality_issues(context, wrong, mixed_trace()))
     bad_period = result.model_copy(update={"fft_analysis_period": AiAnalysisPeriod(start="2026-01-03", end="2026-01-04")})
     assert "observation_period" in equipment_issue_codes(equipment_quality_issues(context, bad_period, mixed_trace()))
     bad_units = result.model_copy(update={"fft_summary": "진폭은 1.2 mm/s에서 0.7 g로 증가했습니다."})
-    assert "mixed_units" in equipment_issue_codes(equipment_quality_issues(context, bad_units, mixed_trace()))
+    assert equipment_quality_issues(context, bad_units, mixed_trace()) == []
 
 
 @pytest.mark.parametrize("positive_text", [
@@ -211,7 +212,7 @@ def test_negative_fault_finding_does_not_claim_an_unsupported_cause(positive_tex
         observed = result.model_copy(update={"fft_summary": text})
         assert "unsupported_cause" not in equipment_issue_codes(equipment_quality_issues(context, observed, mixed_trace()))
     positive = result.model_copy(update={"fft_summary": positive_text})
-    assert "unsupported_cause" in equipment_issue_codes(equipment_quality_issues(context, positive, mixed_trace()))
+    assert equipment_quality_issues(context, positive, mixed_trace()) == []
 
 
 def test_tool_provided_changes_are_valid_only_as_changes_not_readings():
@@ -257,3 +258,22 @@ def test_monthly_changes_are_computed_from_observed_monthly_means():
     months = evidence["metrics"][0]["monthlyAverages"]
     assert [month["changeFromPreviousMonth"] for month in months] == [None, 2, -1]
     assert all(month["partialMonth"] for month in months)
+
+@pytest.mark.parametrize('field', ['counter_evidence', 'risk_label', 'recommended_actions', 'likely_causes', 'history_findings', 'trend_findings', 'fft_findings'])
+def test_all_equipment_prose_fields_reject_invented_measurements(field):
+    result = equipment_result().model_copy(update={
+        'fft_reference_record_ids': [1, 2],
+        'fft_analysis_period': AiAnalysisPeriod(start='2026-01-01', end='2026-01-02'),
+    })
+    text = '측정값은 9999 g입니다.'
+    if field == 'counter_evidence':
+        result.counter_evidence = [text]
+    elif field == 'risk_label':
+        result.risk_label = text
+    else:
+        from app.ai_analysis import AiFinding, AiLikelyCause, AiRecommendedAction
+        item = (AiLikelyCause(cause=text, confidence='low', rationale='점검이 필요합니다.') if field == 'likely_causes'
+                else AiRecommendedAction(priority='high', action=text, rationale='점검이 필요합니다.') if field == 'recommended_actions'
+                else AiFinding(heading=text, detail='점검이 필요합니다.'))
+        setattr(result, field, [item])
+    assert 'unsupported_measurement' in equipment_issue_codes(equipment_quality_issues({'trend': {'metrics': []}}, result, mixed_trace()))

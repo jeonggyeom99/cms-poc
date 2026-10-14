@@ -48,7 +48,7 @@ class Finding(Contract):
 
 
 class Candidate(Contract):
-    cause: Literal["unbalance", "misalignment", "BPFO", "BPFI", "BSF", "FTF"]
+    cause: str = Field(min_length=1, max_length=120)
     confidence: Literal["low", "medium", "high"]
     rationale: str = Field(min_length=1, max_length=400)
     evidence_ids: list[str] = Field(min_length=1, max_length=8)
@@ -275,19 +275,26 @@ def catalog_prompt(catalog: dict[str, Evidence]) -> dict:
 
 
 class HandoffError(ValueError):
-    def __init__(self, codes: list[str]):
+    def __init__(self, codes: list[str], details: list[dict] | None = None):
+        self.details = details or []
         self.codes = sorted(set(codes))
         super().__init__(",".join(self.codes))
 
 
 def prose_issues(text: str, evidence: list[Evidence], *, absolute_tolerance: float = 0.005,
-                 relative_tolerance: float = 0.0001) -> list[str]:
+                 relative_tolerance: float = 0.0001, field: str = "prose",
+                 details: list[dict] | None = None) -> list[str]:
     """Check physical values AND their claimed observation date as a single fact.
 
     An aggregate's period boundary is not a dated observation. Free prose remains
     secondary to exact structured citations; uncertain/negative clauses are allowed.
     """
     issues = []
+    def reject(code, value, unit=None):
+        issues.append(code)
+        if details is not None:
+            details.append({"code": code, "field": field, "value": value, "unit": unit,
+                            "evidence_ids": [item.evidence_id for item in evidence]})
     measurements = list(re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(mm/s/hour|mm/s|Hz|rpm|g)(?![A-Za-z])", text))
     for match in measurements:
         actual, unit = float(match[1]), match[2]
@@ -295,7 +302,7 @@ def prose_issues(text: str, evidence: list[Evidence], *, absolute_tolerance: flo
                    and isinstance(item.value, (int, float)) and not isinstance(item.value, bool)
                    and abs(actual - float(item.value)) <= max(absolute_tolerance, abs(float(item.value)) * relative_tolerance)]
         if not allowed:
-            issues.append("unsupported_measurement")
+            reject("unsupported_measurement", match[1], unit)
             continue
         # Associate the value with the nearest preceding date in its sentence.
         boundaries = list(re.finditer(r"[。.!?\n](?!\d)", text[:match.start()]))
@@ -316,13 +323,13 @@ def prose_issues(text: str, evidence: list[Evidence], *, absolute_tolerance: flo
                 item.kind in {"aggregate", "rule"} and item.period.start and item.period.end
                 and item.period.start[:10] <= claimed[:10] <= item.period.end[:10] for item in allowed)
             if not dated_observation and not dated_aggregate:
-                issues.append("measurement_date_mismatch")
+                reject("measurement_date_mismatch", claimed, unit)
     # Counts and ranking scores are source arithmetic, not diagnostic wording.
     for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(회|건|개|점)(?![가-힣])", text):
         unit = "score" if match[2] == "점" else "count"
         if not any(item.unit == unit and isinstance(item.value, (int, float))
                    and not isinstance(item.value, bool) and float(match[1]) == float(item.value) for item in evidence):
-            issues.append("unsupported_measurement")
+            reject("unsupported_measurement", match[1], unit)
     dates = set()
     for item in evidence:
         for stamp in (item.measured_at, item.period.start, item.period.end):
@@ -330,14 +337,16 @@ def prose_issues(text: str, evidence: list[Evidence], *, absolute_tolerance: flo
                 dates.add(stamp[:10])
         if isinstance(item.value, str):
             dates.update(re.findall(r"\d{4}-\d{2}-\d{2}", item.value))
-    if any(stamp not in dates for stamp in re.findall(r"\d{4}-\d{2}-\d{2}", text)):
-        issues.append("unsupported_date")
+    for stamp in re.findall(r"\d{4}-\d{2}-\d{2}", text):
+        if stamp not in dates:
+            reject("unsupported_date", stamp)
     return issues
 
 
 def validate_draft(draft: AgentDraft, name: str, context: dict, catalog: dict[str, Evidence],
                    period: Period | None = None) -> Handoff:
     codes = []
+    details = []
     if draft.agent_name != name or draft.equipment_id != str(context.get("equipment", {}).get("id") or context.get("datasetId")):
         codes.append("identity_mismatch")
     if draft.analysis_period != (period or analysis_period(name, context)):
@@ -355,19 +364,25 @@ def validate_draft(draft: AgentDraft, name: str, context: dict, catalog: dict[st
     expected_records = sorted({item.source_record_id for item in selected if item.source_record_id})
     if any(record_id not in expected_records for record_id in draft.source_record_ids) or len(draft.source_record_ids) != len(set(draft.source_record_ids)):
         codes.append("source_record_mismatch")
-    codes.extend(prose_issues(draft.summary + " " + " ".join(draft.limitations + draft.recommended_checks), selected))
-    for finding in draft.findings:
+    for field, text in [("summary", draft.summary), *[(f"limitations[{i}]", v) for i, v in enumerate(draft.limitations)],
+                        *[(f"recommended_checks[{i}]", v) for i, v in enumerate(draft.recommended_checks)]]:
+        codes.extend(prose_issues(text, selected, field=field, details=details))
+    for index, finding in enumerate(draft.findings):
         facts = [catalog[eid] for eid in finding.evidence_ids if eid in ids and eid in catalog]
         if len(facts) != len(finding.evidence_ids) or len(finding.evidence_ids) != len(set(finding.evidence_ids)):
             codes.append("finding_evidence_mismatch")
-        codes.extend(prose_issues(finding.interpretation, facts))
-    for cause in draft.candidate_causes:
+        codes.extend(prose_issues(finding.interpretation, facts, field=f"findings[{index}].interpretation", details=details))
+    for index, cause in enumerate(draft.candidate_causes):
         facts = [catalog[eid] for eid in cause.evidence_ids if eid in catalog]
         if len(facts) != len(cause.evidence_ids) or len(cause.evidence_ids) != len(set(cause.evidence_ids)):
             codes.append("finding_evidence_mismatch")
-        codes.extend(prose_issues(cause.rationale, facts))
+        codes.extend(prose_issues(cause.cause + " " + cause.rationale, facts, field=f"candidate_causes[{index}]", details=details))
     if codes:
-        raise HandoffError(codes)
+        if not details:
+            details = [{"field": "source_selection", "value": {"equipment_id": draft.equipment_id,
+                        "analysis_period": draft.analysis_period.model_dump(), "source_record_ids": draft.source_record_ids},
+                        "unit": None, "evidence_ids": ids}]
+        raise HandoffError(codes, details)
     return Handoff(agent_name=draft.agent_name, equipment_id=draft.equipment_id,
         analysis_period=draft.analysis_period, status=draft.status, summary=draft.summary,
         findings=draft.findings, evidence=selected, source_record_ids=expected_records,
@@ -424,8 +439,9 @@ def handoff_markdown(result: Handoff) -> str:
     for item in result.evidence:
         lines.append(f"- [{item.evidence_id}] {clean(item.source)}: {clean(item.value)} {item.unit or ''}; "
                      f"record={item.source_record_id}; measured={item.measured_at}; period={item.period.start}~{item.period.end}; group={item.group_id}")
-    lines += ["", "### Interpretation"]
+    lines += ["", "### Observations"]
     lines += [f"- {clean(item.interpretation)} [{', '.join(item.evidence_ids)}]" for item in result.findings]
+    lines += ["", "### Cause Hypotheses"]
     lines += [f"- {item.cause} ({item.confidence}): {clean(item.rationale)} [{', '.join(item.evidence_ids)}]" for item in result.candidate_causes]
     lines += ["", "### Limitations", *[f"- {clean(item)}" for item in result.limitations],
               "", "### Recommended Checks", *[f"- {clean(item)}" for item in result.recommended_checks]]

@@ -858,8 +858,8 @@ classifications, separate from fault-cause certainty. Use their Korean grade lab
 harmonics. Describe these classifications explicitly as 진폭 기준 or 등급; they
 do not independently establish a physical fault cause. Weekly ranking uses abnormal occurrence count, then summed grade points.
 For grade-only bearing statements use the explicit Korean phrase 진폭 기준 초기 결함 등급
-(or the supplied grade). A grade alone must not put a bearing fault in likelyCauses.
-Only significant diagnostic harmonics support physical bearing-cause hypotheses.
+(or the supplied grade). Express physical cause candidates as hypotheses and propose additional checks.
+Do not restrict hypotheses to deterministic supported cause codes.
 Do not present grade scores as measured amplitudes or introduce threshold numbers
 as observations. Detailed per-harmonic grades are rendered separately by the server.
 """
@@ -959,7 +959,7 @@ class OpenAIAnalysisGateway:
 
                 response_format = {"type": "json_schema", "json_schema": {"name": "cms_dashboard_ai_diagnosis", "strict": True, "schema": AiDiagnosis.model_json_schema()}}
                 trace: list[dict] = []
-                for attempt in range(3):
+                for attempt in range(2 if equipment_analysis else 3):
                     content = None
                     diagnostics = {"request_id": request_id, "attempt": attempt + 1}
                     failure: AiAnalysisError | None = None
@@ -1017,8 +1017,20 @@ class OpenAIAnalysisGateway:
                                 return result
                             logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=%s stage=evidence rules=%s",
                                            request_id, self._settings.model, context.get("datasetId"), attempt + 1, codes)
+                            if equipment_analysis:
+                                from app.agents.handoff import evidence_catalog
+                                evidence_ids = [eid for name in ("trend", "fft", "history")
+                                                for eid in evidence_catalog(name, context, [call["result"] for call in trace])]
+                                logger.warning("AI evidence details request_id=%s issues=%s reference_ids=%s evidence_ids=%s", request_id, issues, result.fft_reference_record_ids, evidence_ids)
                             failure = AiEvidenceError()
-                    if attempt == 2:
+                    if attempt == (1 if equipment_analysis else 2):
+                        if equipment_analysis:
+                            from app.agents.handoff import evidence_catalog, limited_handoff
+                            from app.agents.orchestrator import MultiAgentAnalysisGateway
+                            codes = equipment_issue_codes(issues) if isinstance(failure, AiEvidenceError) else [failure.reason]
+                            handoffs = [limited_handoff(name, context, evidence_catalog(name, context, [call["result"] for call in trace]), codes)
+                                        for name in ("trend", "fft", "history")]
+                            return MultiAgentAnalysisGateway._limited_diagnosis(self, context, handoffs, {})
                         raise failure
                     if content:
                         messages.append({"role": "assistant", "content": content})
