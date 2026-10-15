@@ -263,15 +263,36 @@ def offered_catalog(name: str, catalog: dict[str, Evidence], limit: int = 128) -
             if bucket and len(chosen) < limit:
                 fact = bucket.pop(0)
                 chosen[fact.evidence_id] = fact
+    # Preserve citable measurement conditions alongside selected peaks. Conditions
+    # are mandatory dependencies, so the base limit never silently drops them.
+    records = {item.source_record_id for item in chosen.values() if item.source_record_id}
+    groups = {item.group_id for item in chosen.values() if item.group_id}
+    for eid, fact in catalog.items():
+        condition = fact.source.endswith((".rpm", ".measureMode.code", ".amplitudeUnit", ".frequencyUnit",
+                                          ".frequencyRange", ".frequencyResolution", ".lineCount"))
+        if condition and ((fact.source_record_id and fact.source_record_id in records)
+                          or (fact.group_id and fact.group_id in groups)):
+            chosen[eid] = fact
     return chosen
 
 
 def catalog_prompt(catalog: dict[str, Evidence]) -> dict:
-    """Compact tabular encoding of immutable facts, with explicit column names."""
-    return {"columns": ["evidence_id", "source", "value", "unit", "source_record_id", "measured_at", "period", "group_id", "supports_causes"],
-            "rows": [[item.evidence_id, item.source, item.value, item.unit, item.source_record_id,
-                      item.measured_at, [item.period.start, item.period.end], item.group_id, item.supports_causes]
-                     for item in catalog.values()]}
+    """Lossless table: factor repeated source prefixes, periods and conditions."""
+    contexts, periods, rows = [], [], []
+    for item in catalog.values():
+        prefix, _, field = item.source.rpartition(".")
+        period = [item.period.start, item.period.end]
+        if period not in periods:
+            periods.append(period)
+        context = [prefix, periods.index(period), item.group_id]
+        if context not in contexts:
+            contexts.append(context)
+        rows.append([item.evidence_id, item.value, item.unit, item.source_record_id,
+                     item.measured_at, contexts.index(context), field, item.supports_causes, item.kind])
+    return {"columns": ["evidence_id", "value", "unit", "source_record_id", "measured_at",
+                        "context_id", "field", "supports_causes", "kind"],
+            "context_columns": ["source_prefix", "period_id", "group_id"],
+            "contexts": contexts, "periods": periods, "rows": rows}
 
 
 class HandoffError(ValueError):
@@ -378,10 +399,10 @@ def validate_draft(draft: AgentDraft, name: str, context: dict, catalog: dict[st
             codes.append("finding_evidence_mismatch")
         codes.extend(prose_issues(cause.cause + " " + cause.rationale, facts, field=f"candidate_causes[{index}]", details=details))
     if codes:
-        if not details:
-            details = [{"field": "source_selection", "value": {"equipment_id": draft.equipment_id,
+        if any(code not in {"unsupported_measurement", "measurement_date_mismatch", "unsupported_date"} for code in codes):
+            details.append({"field": "source_selection", "value": {"equipment_id": draft.equipment_id,
                         "analysis_period": draft.analysis_period.model_dump(), "source_record_ids": draft.source_record_ids},
-                        "unit": None, "evidence_ids": ids}]
+                        "expected_source_record_ids": expected_records, "unit": None, "evidence_ids": ids})
         raise HandoffError(codes, details)
     return Handoff(agent_name=draft.agent_name, equipment_id=draft.equipment_id,
         analysis_period=draft.analysis_period, status=draft.status, summary=draft.summary,
@@ -430,7 +451,7 @@ def limited_handoff(name: AgentName, context: dict, catalog: dict[str, Evidence]
 
 
 def handoff_markdown(result: Handoff) -> str:
-    """Pure rendering of validated JSON; also used verbatim as synthesis input."""
+    """Human-readable rendering of validated JSON for trace artifacts."""
     def clean(value: Any) -> str:
         return str(value).replace("\n", " ").replace("|", "\\|")
     lines = [f"## {result.agent_name.title()} Agent Result", "", "### Summary", f"- {clean(result.summary)}",

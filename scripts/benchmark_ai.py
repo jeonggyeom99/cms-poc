@@ -67,7 +67,14 @@ async def benchmark(args):
                     'tool_calls': metrics.get('tool_calls',len(calls)),
                     'tokens': {key: sum(c[key] for c in completions) if all(c.get(key) is not None for c in completions) else None
                               for key in ('input_tokens','output_tokens','total_tokens')},
+                    'request_id': trace['request_id'] if mode == 'multi' else None,
                     'agent_times': metrics['agents'], 'fallback': metrics['fallback'], 'status':'ready',
+                    'synthesis_status': trace.get('synthesis', {}).get('status') if mode == 'multi' else None,
+                    'validation_failures': metrics.get('validation_failures', []),
+                    'phase_seconds': {'preparation': prefetch,
+                        'specialist_parallel': metrics.get('specialist_parallel_seconds'),
+                        'synthesis': metrics.get('agents', {}).get('synthesis', {}).get('seconds'),
+                        'postprocessing_and_save': max(0, perf_counter() - start - prefetch - metrics['seconds']) if 'seconds' in metrics else None},
                     'result':result.model_dump(mode='json',by_alias=True)})
                 print(json.dumps({'mode':mode,'run':index+1,**{k:v for k,v in runs[-1].items() if k!='result'}},ensure_ascii=False),flush=True)
             except AiAnalysisError as error:

@@ -40,16 +40,11 @@ def draft(name, value, catalog=None):
 
 
 def synthesis(payload):
-    refs = sorted({int(fact["source_record_id"].split(":")[1]) for item in payload["handoffs"]
-                   for fact in item["json"]["evidence"] if (fact["source_record_id"] or "").startswith("fft:")})
-    value = equipment_result().model_copy(update={
-        "fft_reference_record_ids": refs,
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01", end="2026-01-02") if refs else AiAnalysisPeriod(start=None, end=None),
-        "fft_summary": "조회 근거를 바탕으로 동일 조건의 재측정이 필요합니다.",
-        "likely_causes": [], "history_findings": [],
-    })
-    return SynthesisDraft(diagnosis=value, used_agents=[item["json"]["agent_name"] for item in payload["handoffs"]],
-                          evidence_ids=[fact["evidence_id"] for item in payload["handoffs"] for fact in item["json"]["evidence"]][:96])
+    value = equipment_result()
+    return SynthesisDraft(headline=value.headline, risk_level=value.risk_level, risk_label=value.risk_label,
+        likely_causes=[], counter_evidence=value.counter_evidence, recommended_actions=value.recommended_actions,
+        used_agents=[item["agent_name"] for item in payload["handoffs"]],
+        evidence_ids=[row[0] for row in payload["evidence_catalog"]["rows"]][:96])
 
 
 class FakeClient:
@@ -66,7 +61,7 @@ def gateway(create, tmp_path):
     return MultiAgentAnalysisGateway(OpenAISettings("fake", "test", 2), client_factory=lambda **_: client, trace_dir=tmp_path), client
 
 
-def test_three_llm_calls_are_parallel_and_synthesis_uses_json_and_markdown(tmp_path):
+def test_three_llm_calls_are_parallel_and_synthesis_uses_deduplicated_json(tmp_path):
     value = context()
     requests, entered = [], set()
     original = copy.deepcopy(value)
@@ -85,9 +80,10 @@ def test_three_llm_calls_are_parallel_and_synthesis_uses_json_and_markdown(tmp_p
                 result = draft(name, value)
             else:
                 assert entered == {"trend", "fft", "history"}
-                for item in payload["handoffs"]:
-                    assert item["markdown"] == handoff_markdown(__import__('app.agents.handoff', fromlist=['Handoff']).Handoff.model_validate(item["json"]))
-                    assert '### Evidence' in item["markdown"]
+                assert "markdown" not in json.dumps(payload)
+                assert all("evidence" not in item and "evidence_ids" in item for item in payload["handoffs"])
+                ids = [row[0] for row in payload["evidence_catalog"]["rows"]]
+                assert len(ids) == len(set(ids))
                 result = synthesis(payload)
             return response(result.model_dump_json())
         agent, client = gateway(create, tmp_path)
@@ -173,9 +169,9 @@ def test_partial_failure_is_explicit_and_not_forwarded_as_a_valid_interpretation
         payload=json.loads(params['messages'][1]['content']); calls.append(payload.get('agent_name','synthesis'))
         if payload.get('agent_name') == 'history': return response('{}')
         if 'agent_name' in payload: return response(draft(payload['agent_name'],value).model_dump_json())
-        history=next(item for item in payload['handoffs'] if item['json']['agent_name']=='history')
-        assert history['json']['status']=='failed' and not history['json']['llm_success']
-        assert history['json']['findings']==[] and 'Validation Failures' in history['markdown']
+        history=next(item for item in payload['handoffs'] if item['agent_name']=='history')
+        assert history['status']=='failed' and not history['llm_success']
+        assert history['findings']==[] and history['failure_codes']
         return response(synthesis(payload).model_dump_json())
     agent,_=gateway(create,tmp_path)
     result=asyncio.run(agent.analyze(value))
@@ -245,11 +241,11 @@ def test_synthesis_cannot_introduce_a_number_absent_from_handoffs(tmp_path):
         if 'agent_name' in payload: return response(draft(payload['agent_name'],value).model_dump_json())
         result=synthesis(payload); synthesis_calls.append(params)
         if len(synthesis_calls)==1:
-            result.diagnosis.fft_summary='진폭 999 mm/s입니다.'
+            result.headline='진폭 999 mm/s입니다.'
         return response(result.model_dump_json())
     agent,_=gateway(create,tmp_path)
     result=asyncio.run(agent.analyze(value))
-    assert '999' not in result.fft_summary and len(synthesis_calls)==2
+    assert '999' not in result.headline and len(synthesis_calls)==2
 
 
 def test_empty_domain_skips_its_llm_and_mentions_limit(tmp_path):
@@ -413,11 +409,11 @@ def test_specialist_calls_existing_fft_tool_and_hands_queried_evidence_to_main(t
                     content=None,refusal=None,tool_calls=[types.SimpleNamespace(id='extra',type='function',function=types.SimpleNamespace(
                         name='get_fft_evidence',arguments=json.dumps({'record_id':3})))]))])
             tool_payload=json.loads(next(msg['content'] for msg in params['messages'] if isinstance(msg,dict) and msg.get('role')=='tool'))
-            eid=next(row[0] for row in tool_payload['evidence_catalog']['rows'] if row[4]=='fft:3')
+            eid=next(row[0] for row in tool_payload['evidence_catalog']['rows'] if row[3]=='fft:3')
             result=draft('fft',value);result.evidence_ids.append(eid)
             return response(result.model_dump_json())
         if 'agent_name' in payload: return response(draft(payload['agent_name'],value).model_dump_json())
-        assert any(fact['source_record_id']=='fft:3' for h in payload['handoffs'] for fact in h['json']['evidence'])
+        assert any(row[3]=='fft:3' for row in payload['evidence_catalog']['rows'])
         return response(synthesis(payload).model_dump_json())
     agent,_=gateway(create,tmp_path)
     result=asyncio.run(agent.analyze(value,execute))
@@ -488,20 +484,15 @@ def test_failed_specialists_do_not_invoke_legacy_tools(monkeypatch,tmp_path):
     assert trace['metrics']['tool_calls']==0
 
 
-@pytest.mark.parametrize('field', ['headline', 'risk_label', 'trend_heading', 'fft_heading', 'history_heading'])
+@pytest.mark.parametrize('field', ['headline', 'risk_label'])
 def test_synthesis_persistent_failure_is_limited_after_one_repair(tmp_path, field):
     value=context(); calls=[]
     async def create(**params):
         payload=json.loads(params['messages'][1]['content'])
         name=payload.get('agent_name','synthesis'); calls.append(name)
         if name != 'synthesis': return response(draft(name,value).model_dump_json())
-        from app.ai_analysis import AiFinding
         result=synthesis(payload)
-        if field.endswith('_heading'):
-            setattr(result.diagnosis, field.replace('_heading', '_findings'),
-                    [AiFinding(heading='진폭 999 mm/s', detail='원본을 확인하세요.')])
-        else:
-            setattr(result.diagnosis, field, '진폭 999 mm/s')
+        setattr(result, field, '진폭 999 mm/s')
         return response(result.model_dump_json())
     agent,_=gateway(create,tmp_path)
     result=asyncio.run(agent.analyze(value))
@@ -553,3 +544,112 @@ def test_numeric_failure_reports_field_value_unit_and_citations():
 
 def test_candidate_schema_allows_new_physical_hypotheses():
     assert Candidate(cause='윤활 불량', confidence='low', rationale='윤활 상태를 추가 점검하세요.', evidence_ids=['f:1']).cause == '윤활 불량'
+
+
+def test_compact_catalog_preserves_every_source_fact():
+    from app.agents.handoff import catalog_prompt
+    catalog = evidence_catalog('fft', context())
+    table = catalog_prompt(catalog)
+    for row in table['rows']:
+        eid, value, unit, record, stamp, cid, field, support, kind = row
+        prefix, pid, group = table['contexts'][cid]
+        source = f'{prefix}.{field}' if prefix else field
+        original = catalog[eid]
+        assert (source, value, unit, record, stamp, group, support, kind) == (
+            original.source, original.value, original.unit, original.source_record_id,
+            original.measured_at, original.group_id, original.supports_causes, original.kind)
+        assert table['periods'][pid] == [original.period.start, original.period.end]
+
+
+def test_bounded_fft_catalog_keeps_citable_condition_dependencies():
+    from app.agents.handoff import Evidence, offered_catalog
+    base = dict(source_record_id='fft:1', value=1.0, unit='g', measured_at='2026-01-01',
+                period=Period(start=None, end=None), group_id='group:a', kind='measurement', supports_causes=[])
+    catalog = {f'f:{i}': Evidence(evidence_id=f'f:{i}', source=f'fft.representativeRecords[0].peak{i}.amplitude', **base) for i in range(150)}
+    rpm = Evidence(evidence_id='f:rpm', source='fft.representativeRecords[0].diagnosis.rpm', **(base | {'value': 1780.0, 'unit': 'rpm'}))
+    catalog[rpm.evidence_id] = rpm
+    selected = offered_catalog('fft', catalog, limit=1)
+    assert len(selected) == 2 and selected['f:rpm'] == rpm
+
+
+def test_rpm_repair_identifies_field_value_and_correct_record_citation(tmp_path):
+    value = context()
+    value['preparedFftEvidence']['representativeRecords'][0]['diagnosis']['rpm'] = 1780
+    catalog = evidence_catalog('fft', value)
+    rpm = next(f for f in catalog.values() if f.unit == 'rpm')
+    calls = []
+    async def create(**params):
+        payload = json.loads(params['messages'][1]['content'])
+        if payload.get('agent_name') == 'fft':
+            calls.append(params)
+            result = draft('fft', value)
+            result.summary = '동일 조건 1780 rpm에서 추가 확인이 필요합니다.'
+            result.evidence_ids = [eid for eid in result.evidence_ids if eid != rpm.evidence_id]
+            if len(calls) == 2:
+                correction = json.loads(params['messages'][-1]['content'])
+                assert any(d['field'] == 'summary' and d['value'] == '1780' and d['unit'] == 'rpm' for d in correction['details'])
+                assert 'SAME record/condition' in correction['instruction']
+                result.evidence_ids.append(rpm.evidence_id)
+            return response(result.model_dump_json())
+        return response((draft(payload['agent_name'], value) if 'agent_name' in payload else synthesis(payload)).model_dump_json())
+    agent, _ = gateway(create, tmp_path)
+    result = asyncio.run(agent.analyze(value))
+    assert len(calls) == 2
+    assert '1780 rpm' in result.fft_summary
+    trace = json.loads(next(tmp_path.glob('*.json')).read_text())
+    assert next(h['json']['llm_success'] for h in trace['handoffs'] if h['json']['agent_name'] == 'fft')
+    assert trace['metrics']['agents']['fft']['repair_seconds'] >= 0
+
+
+def test_server_assembly_preserves_domain_findings_and_all_limitations():
+    from app.agents.orchestrator import assemble_diagnosis
+    value = context()
+    value['requiredCounterEvidence'] = [f'필수 제한 {i}' for i in range(8)]
+    handoffs = []
+    for name in ('trend', 'fft', 'history'):
+        proposed = draft(name, value)
+        proposed.findings = [Finding(interpretation='전문 관측 결과입니다.', evidence_ids=proposed.evidence_ids[:1], relationship='conflict')]
+        handoffs.append(validate_draft(proposed, name, value, evidence_catalog(name, value)))
+    integrated = SynthesisDraft(headline='통합 판단입니다.', risk_level='caution', risk_label='주의',
+        likely_causes=[], counter_evidence=['종합 제한'], recommended_actions=[], used_agents=['trend', 'fft', 'history'], evidence_ids=['t:1'])
+    result = assemble_diagnosis(value, handoffs, integrated)
+    assert result.trend_summary == handoffs[0].summary
+    assert result.trend_findings[0].detail == handoffs[0].findings[0].interpretation
+    assert result.trend_findings[0].heading == '상충 근거'
+    assert len(result.counter_evidence) <= 4
+    text = '\n'.join(result.counter_evidence)
+    for note in value['requiredCounterEvidence'] + ['종합 제한']:
+        assert note in text
+    limited = assemble_diagnosis(value, handoffs, None, ['test_failure'])
+    assert limited.risk_level == 'unknown' and limited.fft_findings == result.fft_findings
+    assert limited.trend_summary == result.trend_summary
+
+
+def test_integration_schema_cannot_override_server_domain_fields():
+    result = SynthesisDraft(headline='점검하세요.', risk_level='unknown', risk_label='확인 필요', likely_causes=[],
+        counter_evidence=[], recommended_actions=[], used_agents=['trend'], evidence_ids=['t:1']).model_dump()
+    with pytest.raises(ValidationError):
+        SynthesisDraft.model_validate(result | {'trend_summary': '덮어쓴 설명'})
+
+
+def test_server_assembly_preserves_reference_overflow_without_breaking_public_limit():
+    from app.agents.orchestrator import assemble_diagnosis
+    value = context()
+    handoffs = [validate_draft(draft(name, value), name, value, evidence_catalog(name, value)) for name in ('trend', 'fft', 'history')]
+    fft = handoffs[1]
+    original = next(f for f in fft.evidence if f.source_record_id)
+    fft.evidence = [original.model_copy(update={'evidence_id': f'f:{i}', 'source_record_id': f'fft:{i}'}) for i in range(1, 61)]
+    result = assemble_diagnosis(value, handoffs, None)
+    assert result.fft_reference_record_ids == list(range(1, 51))
+    assert 'FFT 추가 참조 기록: ' + ', '.join(map(str, range(51, 61))) in '\n'.join(result.counter_evidence)
+
+
+def test_long_source_summary_is_preserved_instead_of_truncated():
+    from app.agents.orchestrator import assemble_diagnosis
+    value = context()
+    value['weeklyExplanationFacts'] = ['주간 원본 근거입니다.' * 100]
+    handoffs = [validate_draft(draft(name, value), name, value, evidence_catalog(name, value)) for name in ('trend', 'fft', 'history')]
+    result = assemble_diagnosis(value, handoffs, None)
+    assert value['weeklyExplanationFacts'][0] in '\n'.join(result.counter_evidence)
+    assert handoffs[1].summary in '\n'.join(result.counter_evidence)
+    assert len(result.fft_summary) <= 1200
