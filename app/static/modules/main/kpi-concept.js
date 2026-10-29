@@ -111,7 +111,7 @@ function setShellText() {
   setText(".eyebrow", new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date()));
   setText(".top h1", "오늘의 설비 운영 현황");
   setText(".top p", "공장별 설비 상태와 최근 진단 이력을 한눈에 확인합니다.");
-  setText(".actions .btn:first-child", "전체 공장⌄"); setText(".actions .btn.primary", "＋ 운영 리포트");
+  setText(".actions .btn:first-child", "KPI 1"); setText(".actions .btn.primary", "KPI 2");
 }
 
 function renderBars(items) {
@@ -149,8 +149,17 @@ function renderTable(items, history) {
   setText(".table h3", "점검 우선순위 설비"); setText(".table .panel-head span", `주의 이상 ${risk.length}대 · 전체 보기 →`);
 }
 
+function renderRecentHistory(history) {
+  const dates = [...new Set(history.map((entry) => entry.date))].sort().slice(-7);
+  const counts = dates.map((date) => history.filter((entry) => entry.date === date).length);
+  const scale = Math.max(...counts, 1);
+  q(".spark").innerHTML = dates.map((date, index) => `<i style="height:${counts[index] / scale * 100}%" title="${esc(date)} · ${counts[index]}건"></i>`).join("");
+  q(".snapshot-days").innerHTML = dates.map((date) => `<span>${esc(date.slice(5))}</span>`).join("");
+}
+
 async function init() {
   setShellText();
+  q(".hero")?.before(q(".grid"));
   try {
     const [items, historyPayload] = await Promise.all([fetchDatasetSummaries(), fetchHistory()]);
     const history = historyPayload.items || []; const counts = { normal: items.filter((x) => x.status === "normal").length, caution: items.filter((x) => x.status === "caution").length, critical: items.filter((x) => !["normal", "caution"].includes(x.status)).length };
@@ -159,10 +168,20 @@ async function init() {
     const metrics = qs(".hero-metric strong"); if (metrics[0]) metrics[0].textContent = `${normalRate}%`; if (metrics[1]) metrics[1].textContent = `${risk}대`;
     const metricLabels = qs(".hero-metric small"); if (metricLabels[0]) metricLabels[0].textContent = "정상 설비 비율"; if (metricLabels[1]) metricLabels[1].textContent = "주의 이상 설비";
     setupRiskHistoryCard(items, history);
+    renderRecentHistory(history);
     setText(".snapshot h3", "최근 진단 활동"); setText(".snapshot .empty", "최근 진단 건수"); setText(".snapshot .tag", `총 ${history.length}건`);
     const kpis = [["전체 설비", total, "↗"], ["정상 설비", counts.normal, "✓"], ["주의 설비", counts.caution, "!"], ["심각 설비", counts.critical, "!"]];
     qs(".kpi").forEach((card, index) => { const [name, value, icon] = kpis[index]; card.querySelector(".kpi-top span").textContent = name; card.querySelector(".kpi-icon").textContent = icon; card.querySelector("strong").textContent = value; card.querySelector(".delta").textContent = index === 0 ? "현재 조회 기준" : `${pct(value, total)}% · 전체 대비`; });
     renderBars(items); renderHealth(items, counts); renderTable(items, history); setText(".footnote", `마지막 조회 ${new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · CMS 설비/진단 데이터 기준`);
-  } catch (error) { setText(".hero-card h2", "데이터를 불러오지 못했습니다."); setText(".hero-card p", "CMS API 연결 상태를 확인해 주세요."); console.error(error); }
+    setText("#dashboard-status", total ? `연결된 CMS 설비 ${total}대 · 진단 이력 ${history.length}건` : "조회 조건에 해당하는 설비가 없습니다.");
+  } catch (error) {
+    setText("#dashboard-status", "데이터를 불러오지 못했습니다.");
+    setText(".hero-card h2", "데이터를 불러오지 못했습니다.");
+    setText(".hero-card p", "CMS API 연결 상태를 확인해 주세요.");
+    setText(".table tbody td", "데이터를 불러오지 못했습니다.");
+    console.error(error);
+  } finally {
+    q("main").setAttribute("aria-busy", "false");
+  }
 }
 init();

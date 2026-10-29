@@ -243,3 +243,65 @@ AI 분석은 기존 `recordId`, `selectedFaultType`을 호환용으로 받지만
 - 기존 검증 기록: `docs/validation/ai-tool-calling.md`, `docs/validation/ai-prefetched-context.md`, `docs/validation/ppt-ui-validation.md`
 
 이번 갱신은 코드와 문서의 대조를 기준으로 한다. 기존 검증 기록은 과거 수행 자료이며 이번 문서 수정에서 전체 기능 테스트·브라우저 테스트·실제 OpenAI 호출을 다시 수행했다는 의미는 아니다.
+
+## 11. Unified Design Operations
+
+Design integration addendum: 2026-10-30. This section records the current
+design-validation runtime; it does not revise the diagnosis or API policies
+described above. The Task 8 implementer performs own verification only.
+Independent reproduction by the controller-dispatched Sol reviewer is pending.
+
+### Retained Routes
+
+| Group | URLs |
+| --- | --- |
+| Primary operations | `/`, `/equipment-status2`, `/dashboard_ui6`, `/dashboard2?dataset=1`, `/history2`, `/main_ct` |
+| Compatible operations | `/dashboard?dataset=1`, `/history`, `/main_sv` |
+| Control comparisons | `/main_ct1`, `/main_ct2`, `/main_ct3`, `/main_sv1`, `/main_sv2`, `/main_sv3` |
+| Retained comparisons | `/main`, `/dashboard_ui1`, `/dashboard_ui2`, `/dashboard_ui3`, `/dashboard_ui4`, `/dashboard_ui5`, `/dashboard_ui1_canvas` |
+| Retained direct entries in the 25-route matrix | `/static/history2.html`, `/static/dashboard-ui1-fresh.html`, `/static/dashboard-lab.html` |
+| Six additional retained direct documents | `/static/main.html`, `/static/dashboard-ui1-kpi.html`, `/static/dashboard-ui1-canvas.html`, `/static/design-lab.html`, `/static/dashboard-ui5.html`, `/static/equipment-status.html` |
+
+Unknown-use comparison pages require owner confirmation before removal or
+redirection. `/history2` is rendered from the operational history document,
+not the retained direct history2 document. `/dashboard_ui2` preserves its
+comparison controls; `/dashboard_ui6` remains the operating KPI dashboard.
+Links retain each existing `dataset`/`until`/`start` policy. Do not invent an
+`as_of` alias or extend the AI/report start-date scope.
+
+### Ownership And Runtime
+
+- [../app/presentation.py](../app/presentation.py) owns assembly, using four explicit slots for operational documents and four explicit paired regions for complete retained documents. Shared assets precede page CSS and appear once.
+- [../app/static/cms-tokens.css](../app/static/cms-tokens.css) owns design values; [../app/static/cms-operations.css](../app/static/cms-operations.css) owns shared role consumers, controls and shell behavior. [../app/static/cms-sidebar-icons.css](../app/static/cms-sidebar-icons.css) owns sidebar icon rendering.
+- [../app/static/equipment-status2.css](../app/static/equipment-status2.css) owns the reference equipment page; [../app/static/styles.css](../app/static/styles.css) and [../app/static/dashboard2-shell.css](../app/static/dashboard2-shell.css) own detail layout. History/workspace/control/KPI/chart-panel and retained HTML documents keep their corresponding CSS owners. No route-generated style block or migrated JS static stylesheet injection is allowed.
+- JS retains tooltip coordinates, data-derived bar lengths, canvas drawing, Plotly configuration and exported document styles. These are not duplicate static CMS styles. Sidebar width changes only via the explicit toggle and `cms.sidebar.expanded`; storage failure remains nonblocking.
+- Safe server: <http://127.0.0.1:8010>, existing task `shell: cms-task2-safe-live-8010`. Launch only if absent: `.\.venv\Scripts\python.exe -B .superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task2-server.py`. Reuse and leave it running. Python edits need a safe-task restart; static edits are served live.
+
+### Reproduction And Debt
+
+From the repository root in PowerShell, with the existing `.venv` and portable
+Node at `.cache/node/node-v20.18.0-win-x64/node.exe`:
+
+```powershell
+$verify = '.superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py'
+.\.venv\Scripts\python.exe $verify --node task8-final-ownership.txt -q tests/test_cms_presentation.py tests/test_report_ui.py tests/test_cms_chart_typography.py tests/test_operations_ui.py
+.\.venv\Scripts\python.exe $verify --node task8-final-non-ui.txt -q
+.\.venv\Scripts\python.exe $verify task8-final-all-ui.txt -q -m ui tests/ui
+.\.venv\Scripts\python.exe $verify task8-final-reopen.txt -q -m ui tests/ui/test_cms_typography.py -k 'task8 or metadata_uses_role_typography'
+.\.venv\Scripts\python.exe -B .superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task8-evidence.py
+```
+
+The verifier disables dotenv, clears provider keys and denies external Python
+sockets. Only `--node` adds the ESM option; UI mode clears it for Playwright's
+bundled Node. Browser fixtures block external/unknown writes and supply local
+AI/chat/email/PPT success and failure states. Clipboard tests consume data in
+the page, not the OS clipboard. PPT success is a local synthetic file and is
+not paid renderer/model validation. W/O remains the existing local demo download.
+
+Final non-UI: **414 passed, 16 failed, 0 skipped**. The unchanged Task 7
+baseline has 16 failures in API/analysis/source-history expectations and a
+Windows process-group timeout test. Exact parametrized IDs and the final UI
+results belong to the [acceptance record](validation/cms-design-acceptance.md)
+and its evidence manifest; none are suppressed or repaired as design work.
+Demo/real data boundaries remain unchanged. No mobile, native-menu zoom,
+real provider/email, or exhaustive manual whole-page contrast claim is made.

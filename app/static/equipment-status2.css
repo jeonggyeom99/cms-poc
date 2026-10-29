@@ -1,0 +1,94 @@
+.equipment-status2-page {
+	--es-normal: var(--cms-color-normal);
+	--es-attention: var(--cms-color-caution);
+	--es-critical: var(--cms-color-danger);
+	--es-unknown: #66717e;
+	--es-muted: #596572;
+	--es-selected: #edf3ff;
+}
+
+.equipment-status2-page *, .equipment-status2-page *::before, .equipment-status2-page *::after { box-sizing: border-box; }
+.equipment-status2-page [hidden] { display: none; }
+.equipment-status-content { display: grid; gap: var(--cms-space-24); min-width: 0; width: 100%; }
+.equipment-status-content :is(h2, h3) { margin: 0; color: var(--cms-color-text); font-size: var(--cms-type-section); line-height: var(--cms-leading-section); font-weight: var(--cms-weight-section); }
+.equipment-status2-head, .equipment-status-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.equipment-status2-head > span { color: var(--es-muted); font-size: var(--cms-type-label); line-height: var(--cms-leading-label); }
+[data-cms-result-count] { font-size: var(--cms-type-body); font-weight: var(--cms-weight-strong); white-space: nowrap; }
+
+.equipment-status2-panel { min-width: 0; padding-bottom: 24px; border-bottom: 1px solid var(--cms-color-border); }
+.equipment-status2-chart-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 32px; min-height: 188px; }
+.equipment-status2-chart-grid article { min-width: 0; }
+.equipment-status2-chart-grid article + article { border-left: 1px solid var(--cms-color-border); padding-left: 32px; }
+.equipment-status2-plant-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 12px; color: var(--es-muted); font-size: var(--cms-type-chart); line-height: var(--cms-leading-chart); }
+.equipment-status2-plant-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.equipment-status2-plant-legend i, .equipment-status2-state-label i { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 2px; }
+.equipment-status2-plant-bars { display: grid; gap: 12px; }
+.equipment-status2-plant { display: grid; grid-template-columns: minmax(96px, 1fr) minmax(0, 3fr) 40px; align-items: center; gap: 12px; min-height: 22px; font-size: var(--cms-type-body); line-height: var(--cms-leading-body); }
+.equipment-status2-plant > span { overflow-wrap: anywhere; }
+.equipment-status2-plant b, .equipment-status2-state-row b { text-align: right; font-weight: var(--cms-weight-strong); font-variant-numeric: tabular-nums; }
+.equipment-status2-plant-track, .equipment-status2-state-track { display: flex; height: 10px; background: #e8ecf0; border-radius: 2px; overflow: hidden; }
+.equipment-status2-plant-track i, .equipment-status2-state-track i { display: block; height: 100%; }
+.equipment-status2-panel .normal, .equipment-status2-state-label.normal i { background: var(--es-normal); }
+.equipment-status2-panel :is(.issue, .caution), .equipment-status2-state-label.caution i { background: var(--es-attention); }
+.equipment-status2-panel .critical, .equipment-status2-state-label.critical i { background: var(--es-critical); }
+.equipment-status2-panel .unknown, .equipment-status2-state-label.unknown i { background: var(--es-unknown); }
+.equipment-status2-state-list { display: grid; gap: 16px; margin-top: 24px; }
+.equipment-status2-state-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 40px; gap: 12px; align-items: center; }
+.equipment-status2-state-row .equipment-status2-state-label { display: inline-flex; align-items: center; gap: 8px; background: transparent; }
+.equipment-status2-tooltip { position: fixed; z-index: 100; max-width: min(440px, calc(100vw - 16px)); padding: 8px 12px; border-radius: var(--cms-radius); background: var(--cms-color-text); color: #fff; font: 400 var(--cms-type-body)/var(--cms-leading-body) var(--cms-font-family); pointer-events: none; overflow-wrap: anywhere; }
+
+.equipment-status-search { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; align-items: end; padding-bottom: 24px; border-bottom: 1px solid var(--cms-color-border); }
+.equipment-status-search label { display: grid; min-width: 0; gap: 4px; color: var(--es-muted); font-size: var(--cms-type-label); line-height: var(--cms-leading-label); }
+.equipment-status-search :is(input, select, button) { width: 100%; min-width: 0; height: var(--cms-control-height); padding: 6px 12px; border: 1px solid var(--cms-color-border); border-radius: var(--cms-radius); background-color: #fff; color: var(--cms-color-text); font: var(--cms-weight-body) var(--cms-type-body)/var(--cms-leading-body) var(--cms-font-family); letter-spacing: 0; }
+.equipment-status-search select { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23596572' stroke-width='1.5'/%3E%3C/svg%3E"); background-position: right 10px center; background-repeat: no-repeat; }
+.equipment-status-search__name { grid-column: span 3; }
+.equipment-status-search button { cursor: pointer; font-weight: var(--cms-weight-strong); color: var(--cms-color-accent); }
+.equipment-status-search button:hover { border-color: var(--cms-color-accent); background: var(--es-selected); }
+.equipment-status-search :disabled { opacity: .65; cursor: wait; }
+.equipment-status-notice { margin: 0; padding: 12px 16px; border-left: 3px solid var(--es-attention); background: #fff7e8; color: #754300; }
+
+.equipment-status-panel { min-width: 0; }
+.equipment-status-panel__body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; border-top: 1px solid var(--cms-color-border); }
+.equipment-status-tree, .equipment-status-list { min-width: 0; height: 484px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.equipment-status-tree { padding: 8px 16px 8px 0; border-right: 1px solid var(--cms-color-border); }
+.equipment-status-tree :is(summary, button) { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; min-height: var(--cms-row-height); padding: 8px; border: 0; border-radius: 0; background: transparent; color: var(--es-muted); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; list-style: none; }
+.equipment-status-tree summary::-webkit-details-marker, .equipment-status-equipment__summary::-webkit-details-marker { display: none; }
+.equipment-status-tree summary::before { content: "+"; flex: 0 0 12px; color: var(--es-muted); text-align: center; }
+.equipment-status-tree details[open] > summary::before { content: "-"; }
+.equipment-status-tree__children { margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--cms-color-border); }
+.equipment-status-tree__health, .equipment-status-dot, .equipment-status-sensor__dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--es-normal); }
+.equipment-status-tree__health--attention, .equipment-status-dot--attention, .equipment-status-sensor__dot--attention { background: var(--es-attention); }
+.equipment-status-tree__health--critical, .equipment-status-dot--critical, .equipment-status-sensor__dot--critical { background: var(--es-critical); }
+.equipment-status-tree__health--unknown, .equipment-status-dot--unknown, .equipment-status-sensor__dot--unknown { background: var(--es-unknown); }
+.equipment-status-equipment { border-bottom: 1px solid var(--cms-color-border); }
+.equipment-status-equipment__summary { display: flex; align-items: center; gap: 12px; min-height: 72px; min-width: 0; padding: 12px; list-style: none; cursor: pointer; }
+.equipment-status-equipment__summary::after { content: "+"; flex: 0 0 16px; text-align: center; color: var(--es-muted); }
+.equipment-status-equipment[open] > summary::after { content: "-"; }
+.equipment-status-item__details { min-width: 0; flex: 1; }
+.equipment-status-item__details strong { display: block; color: var(--cms-color-text); font-size: var(--cms-type-body); line-height: var(--cms-leading-body); font-weight: var(--cms-weight-strong); overflow-wrap: anywhere; }
+.equipment-status-item__details small { display: block; margin-top: 4px; color: var(--es-muted); font-size: var(--cms-type-label); line-height: var(--cms-leading-label); overflow-wrap: anywhere; }
+.equipment-status-label, .equipment-status-sensor__state { flex: none; min-width: 44px; margin-left: auto; padding: 2px 6px; border-radius: 4px; font-size: var(--cms-type-label); line-height: var(--cms-leading-label); font-weight: var(--cms-weight-strong); font-style: normal; text-align: center; }
+.equipment-status-label--normal, .equipment-status-sensor__state--normal { background: #edf8f2; color: var(--es-normal); }
+.equipment-status-label--attention, .equipment-status-sensor__state--attention { background: #fff7e8; color: var(--es-attention); }
+.equipment-status-label--critical, .equipment-status-sensor__state--critical { background: #fff0f2; color: var(--es-critical); }
+.equipment-status-label--unknown, .equipment-status-sensor__state--unknown { background: #eef0f3; color: var(--es-unknown); }
+.equipment-status-sensors { padding: 0 12px 8px 32px; }
+.equipment-status-sensor { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: var(--cms-row-height); padding: 8px 0; color: var(--es-muted); text-decoration: none; }
+.equipment-status-sensor > span { min-width: 0; font-size: var(--cms-type-body); line-height: var(--cms-leading-body); overflow-wrap: anywhere; }
+a.equipment-status-sensor > span { color: var(--cms-color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.equipment-status-tree :is(summary, button):hover, .equipment-status-equipment__summary:hover, a.equipment-status-sensor:hover { background-color: #e9edf2; }
+.equipment-status-tree [aria-current="true"], .equipment-status-equipment__summary[aria-current="true"] { background: var(--es-selected); box-shadow: inset 3px 0 var(--cms-color-accent); color: var(--cms-color-text); }
+.equipment-status-empty { margin: 0; padding: 32px 16px; font-size: var(--cms-type-body); line-height: var(--cms-leading-body); color: var(--es-muted); text-align: center; }
+
+@media (max-width: 1000px) {
+	.equipment-status2-chart-grid { gap: 24px; }
+	.equipment-status2-chart-grid article + article { padding-left: 24px; }
+	.equipment-status-panel__body { grid-template-columns: 208px minmax(0, 1fr); gap: 16px; }
+}
+@media (max-width: 900px) {
+	.equipment-status-search { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.equipment-status-search__name { grid-column: 1 / -1; }
+	.equipment-status-panel__body, .equipment-status2-chart-grid { grid-template-columns: 1fr; }
+	.equipment-status2-chart-grid article + article { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--cms-color-border); }
+	.equipment-status-tree { height: auto; max-height: 264px; border-right: 0; border-bottom: 1px solid var(--cms-color-border); }
+}

@@ -7,10 +7,16 @@ const STATE_DETAILS = {
   unknown: { label: "판단 불가", description: "상태를 판단할 Trend 이력이 충분하지 않습니다." },
 };
 const LIVE_STATE_BY_DATASET_STATUS = { normal: "normal", caution: "attention", unknown: "unknown" };
+const STATE_PRIORITY = { normal: 0, unknown: 1, attention: 2, critical: 3 };
 const CRITICAL_EQUIPMENT = new Set(["3전기강판|3DNL|V056"]);
 const FACTORY_GROUP_ORDER = ["냉연", "전강", "전기강판", "열연", "선재", "연주", "고로", "제강", "FINEX", "APL"];
 
 let equipmentItems = [];
+let selectedGroupKey = null;
+
+function groupKey(item) {
+  return JSON.stringify([item.factory, item.process, item.equipmentType || item.type, item.name]);
+}
 
 function element(tagName, className, text) {
   const node = document.createElement(tagName);
@@ -106,7 +112,7 @@ function groupedItems(items) {
     const key = [item.factory, item.process, item.equipmentType, item.name].join("|");
     const group = groups.get(key) ?? { ...item, sensors: [], state: "normal" };
     group.sensors.push(item);
-    if (item.state === "critical" || (item.state === "attention" && group.state === "normal")) group.state = item.state;
+    if (STATE_PRIORITY[item.state] > STATE_PRIORITY[group.state]) group.state = item.state;
     groups.set(key, group);
   });
   return [...groups.values()];
@@ -126,6 +132,8 @@ function createSensor(sensor) {
 function createGroup(group) {
   const details = element("details", "equipment-status-equipment");
   const summary = element("summary", "equipment-status-equipment__summary equipment-status-item");
+  summary.dataset.groupKey = groupKey(group);
+  summary.setAttribute("aria-current", String(summary.dataset.groupKey === selectedGroupKey));
   const content = element("div", "equipment-status-item__details");
   content.append(element("strong", null, group.name), element("small", null, `${group.factory} · ${group.process} · ${group.equipmentType} · 센서 ${group.sensors.length}개`));
   summary.append(element("span", `equipment-status-dot equipment-status-dot--${group.state}`), content, element("span", `equipment-status-label equipment-status-label--${group.state}`, STATE_DETAILS[group.state].label));
@@ -138,16 +146,41 @@ function createGroup(group) {
 function renderEquipmentList() {
   const list = select("equipment-status-list");
   const groups = groupedItems(filteredItems());
+  if (groups.length === 1) selectedGroupKey = groupKey(groups[0]);
+  else if (!groups.some((group) => groupKey(group) === selectedGroupKey)) selectedGroupKey = null;
   select("equipment-status-count").textContent = `${groups.length}개 설비`;
   list.replaceChildren();
   if (!groups.length) list.append(element("p", "equipment-status-empty", "조건에 맞는 설비가 없습니다."));
   else groups.forEach((group) => list.append(createGroup(group)));
   list.removeAttribute("aria-busy");
+  syncTreeSelection();
+}
+
+function syncTreeSelection() {
+  const hasResults = Boolean(select("equipment-status-list").querySelector("details"));
+  const selected = equipmentItems.find((item) => groupKey(item) === selectedGroupKey);
+  const path = selected ? { factory: selected.factory, process: selected.process, type: selected.equipmentType, name: selected.name } : {
+    factory: select("equipment-status-factory").value,
+    process: select("equipment-status-process").value,
+    type: select("equipment-status-type").value,
+    name: select("equipment-status-name").value.trim(),
+  };
+  select("equipment-status-tree").querySelectorAll("[data-factory]").forEach((node) => {
+    const matches = hasResults && ["factory", "process", "type", "name"].every((key) => (node.dataset[key] || "") === (path[key] || ""));
+    node.setAttribute("aria-current", String(matches));
+    if (matches) {
+      let ancestor = node.tagName === "SUMMARY" ? node.parentElement.parentElement : node.parentElement;
+      while (ancestor && ancestor !== select("equipment-status-tree")) {
+        if (ancestor.tagName === "DETAILS") ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
+    }
+  });
 }
 
 function healthState(factory, process, type, name) {
   const items = equipmentItems.filter((item) => (!factory || item.factory === factory) && (!process || item.process === process) && (!type || item.equipmentType === type) && (!name || item.name === name));
-  return items.some((item) => item.state === "critical") ? "critical" : items.some((item) => item.state === "attention") ? "attention" : "normal";
+  return items.reduce((state, item) => STATE_PRIORITY[item.state] > STATE_PRIORITY[state] ? item.state : state, "normal");
 }
 
 function treeNode(label, children, depth, path = {}) {
@@ -174,7 +207,13 @@ function treeNode(label, children, depth, path = {}) {
 
 function renderTree() {
   const tree = select("equipment-status-tree");
-  const sourceTree = window.equipmentTreeData || {};
+  const sourceTree = structuredClone(window.equipmentTreeData || {});
+  equipmentItems.forEach((item) => {
+    const factory = sourceTree[item.factory] ||= {};
+    const process = factory[item.process] ||= {};
+    const names = process[item.equipmentType] ||= [];
+    if (!names.includes(item.name)) names.push(item.name);
+  });
   const factories = new Set(Object.keys(sourceTree));
   equipmentItems.forEach((item) => factories.add(item.factory));
   tree.replaceChildren(...[...factories].sort(factorySort).map((factory) => treeNode(factory, sourceTree[factory] || {}, 1)));
@@ -182,11 +221,13 @@ function renderTree() {
 
 function bindFilters() {
   const filterIds = ["equipment-status-factory", "equipment-status-process", "equipment-status-type", "equipment-status-state"];
-  filterIds.forEach((id) => select(id).addEventListener("change", renderEquipmentList));
-  select("equipment-status-name").addEventListener("input", renderEquipmentList);
+  const applyFilters = () => { selectedGroupKey = null; renderEquipmentList(); };
+  filterIds.forEach((id) => select(id).addEventListener("change", applyFilters));
+  select("equipment-status-name").addEventListener("input", applyFilters);
   select("equipment-status-reset").addEventListener("click", () => {
     filterIds.forEach((id) => { select(id).value = "all"; });
     select("equipment-status-name").value = "";
+    selectedGroupKey = null;
     renderEquipmentList();
   });
   select("equipment-status-tree").addEventListener("click", (event) => {
@@ -196,7 +237,17 @@ function bindFilters() {
     select("equipment-status-process").value = target.dataset.process || "all";
     select("equipment-status-type").value = target.dataset.type || "all";
     select("equipment-status-name").value = target.dataset.name || "";
+    selectedGroupKey = null;
     renderEquipmentList();
+  });
+  select("equipment-status-list").addEventListener("click", (event) => {
+    const summary = event.target.closest("summary[data-group-key]");
+    if (!summary) return;
+    selectedGroupKey = summary.dataset.groupKey;
+    select("equipment-status-list").querySelectorAll("summary[data-group-key]").forEach((node) => {
+      node.setAttribute("aria-current", String(node === summary));
+    });
+    syncTreeSelection();
   });
 }
 
@@ -225,6 +276,7 @@ export async function initializeEquipmentStatusPage() {
   }
   renderTree();
   renderEquipmentList();
+  document.querySelectorAll(".equipment-status-search input, .equipment-status-search select, .equipment-status-search button").forEach((node) => { node.disabled = false; });
 }
 
 window.addEventListener("DOMContentLoaded", initializeEquipmentStatusPage);

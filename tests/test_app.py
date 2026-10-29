@@ -826,11 +826,15 @@ def test_equipment_status_page_is_served(tmp_path: Path) -> None:
     response = get(create_app(make_data_dir(tmp_path)), "/")
 
     assert response.status_code == 200
-    assert '<link rel="stylesheet" href="/static/equipment-status.css?v=topbar-layout-v3">' in response.text
+    assert '<link rel="stylesheet" href="/static/equipment-status2.css?v=task4">' in response.text
+    assert 'href="/static/equipment-status.css' not in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-excel-data.js"' in response.text
     assert 'src="/static/equipment-status-demo/equipment-status-tree-data.js"' in response.text
-    assert 'src="/static/modules/equipment-status/controller.js?v=factory-filter-v2"' in response.text
-    assert "설비 현황" in response.text
+    assert 'src="/static/modules/equipment-status/controller.js?v=task4"' in response.text
+    assert "설비 알람 현황" in response.text
+    assert 'data-cms-result-count' in response.text
+    assert 'id="equipment-status-notice"' in response.text
+    assert '<style' not in response.text
     assert 'id="equipment-status-factory"' in response.text
     assert 'id="equipment-status-process"' in response.text
     assert 'id="equipment-status-type"' in response.text

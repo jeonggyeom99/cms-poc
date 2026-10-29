@@ -1,1 +1,146 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>진단 이력 | CMS Operations</title><link rel="stylesheet" href="/static/history2.css?v=20261005"></head><body><div class="shell"><aside class="side"><div class="brand"><div class="brand-mark">P</div><span>CMS Operations</span></div><div class="nav-label">CMS 운영</div><nav class="nav"><a href="/dashboard_ui6"><span>▦</span><span>대시보드</span></a><a href="/equipment-status2"><span>◈</span><span>설비 알람 현황</span></a><a class="active" href="/history2"><span>◌</span><span>진단 이력</span></a><a href="/main_ct"><span>⌁</span><span>중앙 관제</span></a></nav><div class="nav-label manage">관리</div><nav class="nav"><a href="/main_ct"><span>⚙</span><span>설정</span></a><a href="#"><span>?</span><span>도움말</span></a></nav><div class="side-bottom">CMS 운영팀</div></aside><main><header class="top"><div><div class="eyebrow">CMS DIAGNOSIS HISTORY</div><h1>진단 이력</h1></div></header><section class="history-card filters"><label>공장<select id="factory"><option value="all">전체</option></select></label><label>공정<select id="process"><option value="all">전체</option></select></label><label>검색<input id="keyword" placeholder="설비명, 장애 유형 검색"></label><button id="reset">조건 초기화</button></section><section class="summary-row"><article><span>전체 진단 건수</span><strong id="total">0</strong></article><article><span>최근 30일</span><strong id="recent">0</strong></article><article><span>조치 필요</span><strong id="action">0</strong></article><article><span>정상 완료</span><strong id="done">0</strong></article></section><section class="history-card list-card"><div class="card-head"><div><span class="kicker">DIAGNOSIS LOG</span><h2>진단 기록</h2></div><span id="count">0건</span></div><div class="history-table"><div class="table-head"><span>일시</span><span>설비</span><span>공장 · 공정</span><span>장애 유형</span><span>결과</span></div><div id="rows"></div></div></section></main></div><script type="module" src="/static/modules/history/history2.js?v=20261005"></script></body></html>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>진단 이력 | CMS Operations</title>
+    <!-- cms-static:assets -->
+    <link rel="stylesheet" href="/static/cms-tokens.css?v=20261029" />
+    <link rel="stylesheet" href="/static/cms-operations.css?v=task3" />
+    <link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006" />
+    <!-- /cms-static:assets -->
+    <link rel="stylesheet" href="/static/history2.css?v=20261005" />
+  </head>
+  <!-- cms-static:body-attributes -->
+  <body
+    class="cms-retained"
+    data-cms-operations
+    data-cms-active-page="history"
+    data-cms-nav="expanded"
+  >
+    <!-- /cms-static:body-attributes -->
+    <!-- cms-static:sidebar -->
+    <aside id="cms-sidebar" class="cms-sidebar" aria-label="CMS 메뉴">
+      <div class="cms-brand">
+        <div class="cms-brand-mark" aria-hidden="true">P</div>
+        <span class="cms-nav-text">CMS Operations</span>
+      </div>
+      <button
+        id="cms-sidebar-toggle"
+        type="button"
+        aria-controls="cms-sidebar"
+        aria-expanded="true"
+        aria-label="메뉴 접기"
+        title="메뉴 접기"
+      >
+        <span aria-hidden="true">&#9776;</span>
+      </button>
+      <div class="cms-nav-label cms-nav-text">CMS 운영</div>
+      <nav aria-label="CMS 운영">
+        <a href="/dashboard_ui6" aria-label="대시보드"
+          ><span aria-hidden="true">&#9638;</span
+          ><b class="cms-nav-text">대시보드</b></a
+        >
+        <a href="/equipment-status2" aria-label="설비 알람 현황"
+          ><span aria-hidden="true">&#9672;</span
+          ><b class="cms-nav-text">설비 알람 현황</b></a
+        >
+        <a
+          href="/history2"
+          aria-label="진단 이력"
+          aria-current="page"
+          class="active"
+          ><span aria-hidden="true">&#9676;</span
+          ><b class="cms-nav-text">진단 이력</b></a
+        >
+        <a href="/main_ct" aria-label="중앙 관제"
+          ><span aria-hidden="true">&#8769;</span
+          ><b class="cms-nav-text">중앙 관제</b></a
+        >
+      </nav>
+      <div class="cms-nav-label cms-nav-text cms-manage-label">관리</div>
+      <nav aria-label="관리">
+        <a href="/main_ct" aria-label="설정"
+          ><span aria-hidden="true">&#9881;</span
+          ><b class="cms-nav-text">설정</b></a
+        >
+        <a href="#" aria-label="도움말"
+          ><span aria-hidden="true">?</span
+          ><b class="cms-nav-text">도움말</b></a
+        >
+      </nav>
+      <small class="cms-sidebar-footer cms-nav-text">CMS 운영팀</small>
+    </aside>
+    <!-- /cms-static:sidebar -->
+
+    <div class="shell">
+      <main>
+        <header class="top">
+          <div>
+            <div class="eyebrow">CMS DIAGNOSIS HISTORY</div>
+            <h1>진단 이력</h1>
+          </div>
+        </header>
+        <section class="history-card filters">
+          <label
+            >공장<select id="factory">
+              <option value="all">전체</option>
+            </select></label
+          ><label
+            >공정<select id="process">
+              <option value="all">전체</option>
+            </select></label
+          ><label
+            >검색<input
+              id="keyword"
+              placeholder="설비명, 장애 유형 검색" /></label
+          ><button id="reset">조건 초기화</button>
+        </section>
+        <section class="summary-row">
+          <article>
+            <span>전체 진단 건수</span
+            ><strong id="total" data-cms-role="kpi">0</strong>
+          </article>
+          <article>
+            <span>최근 30일</span
+            ><strong id="recent" data-cms-role="kpi">0</strong>
+          </article>
+          <article>
+            <span>조치 필요</span
+            ><strong id="action" data-cms-role="kpi">0</strong>
+          </article>
+          <article>
+            <span>정상 완료</span
+            ><strong id="done" data-cms-role="kpi">0</strong>
+          </article>
+        </section>
+        <section class="history-card list-card">
+          <div class="card-head">
+            <div>
+              <span class="kicker">DIAGNOSIS LOG</span>
+              <h2>진단 기록</h2>
+            </div>
+            <span id="count">0건</span>
+          </div>
+          <div class="history-table">
+            <div class="table-head">
+              <span>일시</span><span>설비</span><span>공장 · 공정</span
+              ><span>장애 유형</span><span>결과</span>
+            </div>
+            <div id="rows"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script
+      type="module"
+      src="/static/modules/history/history2.js?v=20261005"
+    ></script>
+    <!-- cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/core/cms-operations.js?v=task3"
+    ></script>
+    <!-- /cms-static:scripts -->
+  </body>
+</html>

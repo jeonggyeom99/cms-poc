@@ -18,9 +18,13 @@ ROOT = Path(__file__).resolve().parents[1]
     "path, styled",
     [("/", True), ("/equipment-status2", True), ("/dashboard_ui6", True),
      ("/history2", True), ("/main_ct", True), ("/dashboard2", True),
-     ("/dashboard", False), ("/history", False), ("/dashboard_ui2", False)],
+     ("/dashboard", True), ("/history", True), ("/dashboard_ui2", True),
+    ("/main_sv", True), ("/dashboard_ui1", True), ("/main", True),
+    ("/dashboard_ui3", True), ("/dashboard_ui4", True), ("/dashboard_ui5", True),
+    ("/dashboard_ui1_canvas", True), ("/static/history2.html", True),
+    ("/static/dashboard-ui1-fresh.html", True), ("/static/dashboard-lab.html", True)],
 )
-def test_shared_presentation_is_limited_to_operating_pages(path, styled):
+def test_shared_presentation_covers_migrated_templates(path, styled):
     async def check():
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=create_app()), base_url="http://test",

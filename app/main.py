@@ -54,27 +54,13 @@ from app.services.analysis import (
     trend_tool,
 )
 from app.services.history import select_dashboard_related_history
+from app.presentation import render_operations_page, render_retained_page
 
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR.parent / "data"
 EQUIPMENT_STATUS_DEMO_DIR = BASE_DIR.parent / "equipment-status-demo"
-
-
-def operations_page(page: str) -> str:
-    """Apply the shared presentation only to the current CMS operating pages."""
-    page = page.replace("<body", "<body data-cms-operations", 1)
-    page = page.replace(
-        "</head>",
-        '<link rel="stylesheet" href="/static/cms-operations.css?v=equipment-toggle-v5"></head>',
-        1,
-    )
-    return page.replace(
-        "</body>",
-        '<script type="module" src="/static/modules/core/cms-operations.js?v=20261008"></script></body>',
-        1,
-    )
 
 
 def create_app(
@@ -138,8 +124,6 @@ def create_app(
         StaticFiles(directory=EQUIPMENT_STATUS_DEMO_DIR),
         name="equipment-status-demo",
     )
-    application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
     @application.get("/favicon.ico", include_in_schema=False)
     async def favicon() -> Response:
         return Response(
@@ -193,80 +177,64 @@ def create_app(
 
     @application.get("/main", response_class=HTMLResponse, include_in_schema=False)
     async def main_dashboard() -> str:
-        return (STATIC_DIR / "main.html").read_text(encoding="utf-8")
+        return render_retained_page(
+            (STATIC_DIR / "main.html").read_text(encoding="utf-8"), active_page="control",
+        )
 
     @application.get("/main_ct", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/main_sv", response_class=HTMLResponse, include_in_schema=False)
+    @application.get("/static/main-workspace.html", response_class=HTMLResponse, include_in_schema=False)
     async def workspace_dashboard(request: Request) -> str:
-        page = (STATIC_DIR / "main-workspace.html").read_text(encoding="utf-8").replace("ws1", "ws4")
-        if request.url.path == "/main_ct":
-            page = page.replace('<div class="sidebar-label">WORKSPACE</div><nav><a data-page="overview" href="#overview">Overview</a><a data-page="risk" href="#risk">Risk map</a><a data-page="worklist" href="#worklist">Worklist</a><a data-page="history" href="/history">Diagnosis history</a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>Data refreshed<br><b id="sidebar-time">-</b></span></div>', '<div class="sidebar-label">CMS 운영</div><nav><a data-page="overview" href="/dashboard_ui6"><span class="cms-nav-icon">▦</span><span>대시보드</span></a><a data-page="risk" href="/equipment-status2"><span class="cms-nav-icon">◈</span><span>설비 알람 현황</span></a><a data-page="history" href="/history2"><span class="cms-nav-icon">◌</span><span>진단 이력</span></a><a data-page="control" href="/main_ct"><span class="cms-nav-icon">⌁</span><span>중앙 관제</span></a></nav><div class="sidebar-label manage-label">관리</div><nav><a href="/main_ct"><span class="cms-nav-icon">⚙</span><span>설정</span></a><a href="#"><span class="cms-nav-icon">?</span><span>도움말</span></a></nav><div class="sidebar-bottom"><span class="status-pulse"></span><span>CMS 운영팀</span></div>', 1)
-            page = page.replace('href="/" class="header-link"', 'href="/equipment-status2" class="header-link"').replace('href="/history"', 'href="/history2"').replace('/dashboard?dataset=', '/dashboard2?dataset=')
-            page = page.replace('</head>', '<style>.workspace{grid-template-columns:76px minmax(0,1fr);background:#f7f8fb}.workspace-sidebar{width:76px;padding:28px 18px;background:#16263f;overflow:hidden;white-space:nowrap;transition:width .2s}.workspace:has(.workspace-sidebar:hover){grid-template-columns:244px minmax(0,1fr)}.workspace-sidebar:hover{width:244px}.workspace-logo{height:40px;gap:11px;margin:0 0 42px}.workspace-logo i{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#5ce3c0,#2f6fed);box-shadow:none;position:relative}.workspace-logo i:after{content:"P";position:absolute;inset:0;display:grid;place-items:center;color:#10223a;font-size:24px;font-style:normal;font-weight:900}.workspace-logo span,.workspace-sidebar .sidebar-label,.workspace-sidebar nav a:not(:first-child),.workspace-sidebar nav a:first-child{font-size:0}.workspace-sidebar:hover .workspace-logo span,.workspace-sidebar:hover .sidebar-label,.workspace-sidebar:hover nav a{font-size:12px}.workspace-sidebar nav a{width:52px;padding:12px 10px;margin:3px 0;color:#aebcd0;border-radius:10px}.workspace-sidebar:hover nav a{width:auto}.workspace-sidebar nav a:hover,.workspace-sidebar nav a:first-child{color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.workspace-sidebar .sidebar-label{margin:0 0 12px;padding:0 10px;color:#70809a}.workspace-sidebar .sidebar-bottom{border-top-color:#ffffff14}.workspace-main{min-width:0;padding:30px 38px 50px;background:#f7f8fb}.workspace-header{margin-bottom:24px}.workspace-header h1{font-size:28px}</style></head>', 1)
-        if request.url.path == "/main_ct":
-            page = page.replace('</head>', '<style>.workspace-main{color:#172033}.workspace-header .eyebrow,.workspace-header #role-label{color:#2f6fed!important;font-size:11px!important;letter-spacing:.14em}.workspace-header h1{font-size:28px!important;letter-spacing:-.05em}.header-actions select,.header-link{border:1px solid #e8ebf1;background:#fff;border-radius:9px}.hero-grid{background:linear-gradient(120deg,#1e4d89,#2678bd);border-radius:16px;box-shadow:0 12px 30px rgba(29,43,70,.07)}.hero-rings .ring{background:rgba(255,255,255,.12)!important;color:#fff!important;backdrop-filter:blur(2px)}.hero-rings .ring small{color:#d9ebf7!important}.summary-line{border:1px solid #e8ebf1;border-radius:14px;box-shadow:0 12px 30px rgba(29,43,70,.07);background:#fff}.workspace-panel{border:1px solid #e8ebf1;border-radius:14px;box-shadow:0 12px 30px rgba(29,43,70,.07);background:#fff}.panel-title h3{font-size:15px}.risk-cell{border-left-width:4px;border-radius:8px}.work-row{border-bottom-color:#f0f2f6}.history-panel{grid-column:2;grid-row:2}.workspace-sidebar .workspace-logo span{display:none!important}.workspace-sidebar:hover .workspace-logo span{display:block!important}.workspace-sidebar nav a{font-size:20px!important}.workspace-sidebar nav a span{display:none!important;font-size:12px!important}.workspace-sidebar:hover nav a{font-size:12px!important}.workspace-sidebar:hover nav a span{display:inline!important}.workspace-sidebar nav a:first-child{color:#aebcd0;background:transparent;box-shadow:none}.workspace-sidebar nav:nth-of-type(1) a:nth-child(4){color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.workspace-sidebar nav:nth-of-type(2) a{color:#aebcd0;background:transparent;box-shadow:none}</style></head>', 1)
-        return operations_page(page) if request.url.path == "/main_ct" else page
+        page = (STATIC_DIR / "main-workspace.html").read_text(encoding="utf-8")
+        classes = ("workspace-site",) if request.url.path == "/main_sv" else ("workspace-central",)
+        return render_operations_page(page, active_page="control", body_classes=classes)
 
     @application.get("/dashboard_ui3", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/dashboard_ui4", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_ui_lab() -> str:
-        return (STATIC_DIR / "design-lab.html").read_text(encoding="utf-8").replace("design1", "design15")
+        return render_retained_page(
+            (STATIC_DIR / "design-lab.html").read_text(encoding="utf-8"), active_page="overview",
+        )
 
     @application.get("/dashboard_ui2", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard_ui2() -> str:
+    @application.get("/dashboard_ui6", response_class=HTMLResponse, include_in_schema=False)
+    @application.get("/static/kpi-dashboard-concept.html", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_ui2(request: Request) -> str:
         page = (STATIC_DIR / "kpi-dashboard-concept.html").read_text(encoding="utf-8")
-        page = page.replace('<button class="btn">Last 30 days⌄</button><button class="btn primary">＋ Export report</button>', '<a class="btn" href="/dashboard_ui1">KPI 1</a><a class="btn primary" href="/dashboard_ui2">KPI 2</a>')
-        return page.replace('</body>', '<script type="module" src="/static/modules/main/dashboard-chart-panels.js?v=20261004"></script></body>')
+        classes = ("dashboard-ui6",) if request.url.path == "/dashboard_ui6" else ("dashboard-ui2",)
+        return render_operations_page(page, active_page="overview", body_classes=classes)
 
     @application.get("/dashboard_ui1", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_ui1() -> str:
         page = (STATIC_DIR / "dashboard-ui1-kpi.html").read_text(encoding="utf-8")
-        page = page.replace('<a href="/dashboard_ui1">KPI</a>', '<a href="/dashboard_ui1">KPI 1</a><a href="/dashboard_ui2">KPI 2</a>')
-        return page.replace('</body>', '<script type="module" src="/static/modules/main/dashboard-chart-panels.js?v=20261004"></script></body>')
+        return render_retained_page(page, active_page="overview")
 
     @application.get("/dashboard_ui1_canvas", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_ui1_canvas() -> str:
-        return (STATIC_DIR / "dashboard-ui1-canvas.html").read_text(encoding="utf-8").replace("canvas1", "canvas6")
+        return render_retained_page(
+            (STATIC_DIR / "dashboard-ui1-canvas.html").read_text(encoding="utf-8"), active_page="overview",
+        )
 
     @application.get("/dashboard_ui5", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_ui5() -> str:
-        return (STATIC_DIR / "dashboard-ui5.html").read_text(encoding="utf-8").replace("ui5-1", "ui5-2")
-
-    @application.get("/dashboard_ui6", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard_ui6() -> str:
-        page = (STATIC_DIR / "kpi-dashboard-concept.html").read_text(encoding="utf-8")
-        page = page.replace('<div class="spark">' + '<i></i>' * 8 + '</div>', '<div class="spark">' + '<i></i>' * 7 + '</div>', 1)
-        page = page.replace('<div style="display:flex;justify-content:space-between;color:#a1a9b8;font-size:10px">', '<div class="snapshot-days">', 1)
-        page = page.replace("<body>", '<body class="dashboard-ui6">').replace("/static/modules/main/kpi-concept.js?v=20261003", "/static/modules/main/kpi-concept.js?v=demo-unbalance-v1").replace("Pulseboard", "CMS Operations").replace("Pulse KPI Dashboard — Concept", "CMS Operations Dashboard").replace('href="/history"', 'href="/history2"').replace('<a href="#"><span>◌</span><span>Operations</span></a>', '<a href="/history2"><span>◌</span><span>진단 이력</span></a>')
-        page = page.replace('</head>', '<link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"></head>', 1)
-        page = page.replace('</head>', '<style>.dashboard-ui6 .shell{grid-template-columns:76px 1fr;transition:grid-template-columns .2s}.dashboard-ui6 .side{width:76px;padding:28px 18px;overflow:hidden;white-space:nowrap;transition:width .2s;z-index:2}.dashboard-ui6 .shell:has(.side:hover){grid-template-columns:244px 1fr}.dashboard-ui6 .shell:has(.side:hover) .side{width:244px}.dashboard-ui6 .brand{margin:0 0 42px}.dashboard-ui6 .brand-mark{width:40px;height:40px;border-radius:11px;flex:none}.dashboard-ui6 .brand span,.dashboard-ui6 .nav-label,.dashboard-ui6 .nav a span:last-child,.dashboard-ui6 .side-bottom{display:none}.dashboard-ui6 .shell:has(.side:hover) .brand span,.dashboard-ui6 .shell:has(.side:hover) .nav-label,.dashboard-ui6 .shell:has(.side:hover) .nav a span:last-child,.dashboard-ui6 .shell:has(.side:hover) .side-bottom{display:block}.dashboard-ui6 .nav a{justify-content:flex-start;width:52px;padding:12px 10px;gap:12px}.dashboard-ui6 .shell:has(.side:hover) .nav a{width:auto}.dashboard-ui6 .nav-label{text-transform:none;padding:0 10px}.dashboard-ui6 .side-bottom{margin-top:auto;color:#aebcd0;font-size:11px;border-top:1px solid rgba(255,255,255,.08);padding-top:18px}.dashboard-ui6 .top p{display:none!important}.dashboard-ui6 .actions{display:none!important}</style></head>', 1)
-        page = page.replace('</body>', '<script type="module" src="/static/modules/main/dashboard-chart-panels.js?v=20261008"></script></body>')
-        return operations_page(page)
+        return render_retained_page(
+            (STATIC_DIR / "dashboard-ui5.html").read_text(encoding="utf-8"), active_page="overview",
+        )
 
     @application.get("/equipment-status2", response_class=HTMLResponse, include_in_schema=False)
+    @application.get("/static/equipment-status2.html", response_class=HTMLResponse, include_in_schema=False)
     async def equipment_status2() -> str:
         page = (STATIC_DIR / "equipment-status2.html").read_text(encoding="utf-8")
-        page = page.replace('<body>', '<body class="equipment-status2-page">', 1)
-        page = page.replace('</head>', '<link rel="stylesheet" href="/static/equipment-status.css?v=tree-status-v4"><link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"></head>', 1)
-        page = page.replace('</head>', '<script src="/static/equipment-status-demo/equipment-status-excel-data.js"></script><script src="/static/equipment-status-demo/equipment-status-tree-data.js"></script></head>', 1)
-        page = page.replace('<div class="nav-label">WORKSPACE</div><nav class="nav"><a href="/dashboard_ui6">▦<span>대시보드</span></a><a class="active" href="/equipment-status2">◈<span>설비 현황</span></a><a href="/history">◌<span>진단 이력</span></a></nav><div class="nav-label" style="margin-top:32px">MANAGE</div><nav class="nav"><a href="/main_ct">⚙<span>중앙 관제</span></a></nav>', '<div class="nav-label">CMS 운영</div><nav class="nav"><a href="/dashboard_ui6"><span>▦</span><span>대시보드</span></a><a class="active" href="/equipment-status2"><span>◈</span><span>설비 알람 현황</span></a><a href="/history2"><span>◌</span><span>진단 이력</span></a><a href="/main_ct"><span>⌁</span><span>중앙 관제</span></a></nav><div class="nav-label" style="margin-top:34px">관리</div><nav class="nav"><a href="/main_ct"><span>⚙</span><span>설정</span></a><a href="#"><span>?</span><span>도움말</span></a></nav>', 1)
-        page = page.replace('</style>', '.shell{--es-normal:#2ba969;--es-attention:#e59b2f;--es-critical:#df4f61;--es-unknown:#9aa8b5;--es-border:#e2e8ee;--es-text:#172033;--es-accent:#2f6fed}body{overflow-x:hidden}.shell,main,.equipment-status2-panel,.equipment-status2-chart-grid{min-width:0;max-width:100%}main{padding-top:30px!important}.equipment-status2-panel,.equipment-status-search,.equipment-status-panel{background:#fff!important}.top{margin-bottom:4px!important}.top p{display:none!important}.top .action{display:none!important}.equipment-status-search{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:4px!important}.equipment-status-search label:has(#equipment-status-name){grid-column:1 / span 3;min-width:0}.equipment-status-search label:has(#equipment-status-name) input{display:block;width:100%!important;min-width:0}.equipment-status-search button{grid-column:4;align-self:end;width:100%;}.equipment-status2-panel{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;overflow:hidden}.equipment-status2-panel>.equipment-status2-head{display:none}.equipment-status2-chart-grid{margin-bottom:0!important}.equipment-status2-chart-grid article{background:#fff!important;border:1px solid #e2e8ee!important;border-radius:14px!important;box-shadow:0 12px 30px rgba(29,43,70,.07)!important;min-width:0;overflow:hidden}.equipment-status-panel{border:1px solid #e2e8ee!important;border-radius:14px!important;padding:22px!important;margin-top:2px!important;box-shadow:0 12px 30px rgba(29,43,70,.07)!important}.equipment-status-page{background:#f7f8fb!important}.equipment-status-panel__body{grid-template-columns:300px minmax(0,1fr);gap:28px}.equipment-status-tree{height:620px;max-height:620px;padding:16px 14px;border:1px solid #e2e8ee;border-radius:12px;background:#fff}.equipment-status-tree summary,.equipment-status-tree button{font-size:13px;color:#68778b;padding:8px 6px;border-radius:6px}.equipment-status-tree__children{margin-left:10px;padding-left:13px;border-left:1px solid #dce5eb}.equipment-status-list{gap:0;min-width:0}.equipment-status-equipment{border-bottom:1px solid #e8edf1!important;background:transparent!important}.equipment-status-equipment__summary{padding:18px 16px;border-radius:10px;background:#f5fafb!important;display:flex;align-items:center;gap:12px;min-width:0}.equipment-status-equipment__summary:hover,.equipment-status-equipment[open]>summary{background:#edf7f7!important}.equipment-status-dot{width:13px;height:13px;box-shadow:0 0 0 5px rgba(43,169,105,.12)}.equipment-status-item__details{min-width:0}.equipment-status-item__details strong{font-size:16px;color:#26364a}.equipment-status-item__details small{display:block;margin-top:5px;color:#8090a1;white-space:normal}.equipment-status-label{margin-left:auto;font-weight:800}.equipment-status-sensors{margin:0 0 8px 43px;padding:6px 0 4px 18px;border-left:1px solid #dce5eb}.equipment-status-sensor{display:flex;align-items:center;gap:9px;padding:8px 0;color:#718196;text-decoration:none}.equipment-status-sensor__dot{width:7px;height:7px;border-radius:50%;background:var(--es-normal);flex:none}.equipment-status-sensor__state{margin-left:auto}@media(max-width:900px){.equipment-status-search{grid-template-columns:1fr 1fr}.equipment-status-search label:has(#equipment-status-name){grid-column:1 / -1}.equipment-status-search button{grid-column:1 / -1}.equipment-status-panel__body{grid-template-columns:1fr}.equipment-status-tree{height:auto;max-height:300px}}</style>', 1)
-        page = page.replace('<div class="eyebrow">CMS EQUIPMENT CONTROL</div>', '<div class="eyebrow">2026년 10월 5일 월요일</div>', 1)
-        page = page.replace('</style>', '.top{align-items:start}.top .eyebrow{color:#2f6fed!important;font-size:11px!important;letter-spacing:.14em!important}.top h1{font-size:28px!important;font-weight:800!important;margin-top:7px!important}</style>', 1)
-        page = page.replace('</style>', 'html,body,main{background:#f7f8fb!important}</style>', 1)
-        page = page.replace('</head>', '<style>html,body,.shell,main,.equipment-status-content{background:#f7f8fb!important}main{width:100%!important;max-width:1600px!important;margin:0 auto!important;padding-left:38px!important;padding-right:38px!important}.equipment-status-content{width:100%!important}</style></head>', 1)
-        page = page.replace('<label>설비상태<select', '<label>설비유형<select id="equipment-status-type"><option value="all">전체</option></select></label><label>설비상태<select', 1)
-        page = page.replace('<section class="equipment-status-panel">', '<p id="equipment-status-notice" hidden></p><section class="equipment-status-panel">', 1)
-        page = page.replace('href="/history"', 'href="/history2"')
-        return operations_page(page)
+        return render_operations_page(page, active_page="equipment", body_classes=("equipment-status2-page",))
 
     @application.get("/main_ct1", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/main_ct2", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/main_ct3", response_class=HTMLResponse, include_in_schema=False)
+    @application.get("/static/main-control.html", response_class=HTMLResponse, include_in_schema=False)
     async def central_dashboard(request: Request) -> str:
         variant = request.url.path.rsplit("/", 1)[-1]
         page = (STATIC_DIR / "main-control.html").read_text(encoding="utf-8")
-        return page.replace("CMS 중앙 관제", f"CMS {variant.upper()}").replace("전사 설비 리스크 관제", f"{variant.upper()} 중앙부서 대시보드").replace("ctsv1", "ctsv4").replace("ctjs1", "ctjs4")
+        return render_operations_page(page, active_page="control", body_classes=("control-central",))
 
     @application.get("/main_sv1", response_class=HTMLResponse, include_in_schema=False)
     @application.get("/main_sv2", response_class=HTMLResponse, include_in_schema=False)
@@ -274,37 +242,23 @@ def create_app(
     async def site_dashboard(request: Request) -> str:
         variant = request.url.path.rsplit("/", 1)[-1]
         page = (STATIC_DIR / "main-control.html").read_text(encoding="utf-8")
-        return page.replace("CMS 중앙 관제", f"CMS {variant.upper()}").replace("전사 설비 리스크 관제", f"{variant.upper()} 현장 대시보드").replace("ctsv1", "ctsv4").replace("ctjs1", "ctjs4")
+        return render_operations_page(page, active_page="control", body_classes=("control-site",))
 
     @application.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard() -> str:
-        return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-
     @application.get("/dashboard2", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard2() -> str:
+    @application.get("/static/index.html", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard() -> str:
         page = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-        shell = '<aside class="dashboard2-side"><div class="dashboard2-brand"><div class="dashboard2-mark">P</div><span>CMS Operations</span></div><div class="dashboard2-label">CMS 운영</div><nav><a href="/dashboard_ui6"><span>▦</span><b>대시보드</b></a><a href="/equipment-status2"><span>◈</span><b>설비 알람 현황</b></a><a href="/history2"><span>◌</span><b>진단 이력</b></a><a href="/main_ct"><span>⌁</span><b>중앙 관제</b></a></nav><div class="dashboard2-label manage">관리</div><nav><a href="/main_ct"><span>⚙</span><b>설정</b></a><a href="#"><span>?</span><b>도움말</b></a></nav><small class="dashboard2-footer">CMS 운영팀</small></aside>'
-        page = page.replace("<body>", '<body class="dashboard2">', 1)
-        page = page.replace("/static/app.js?v=equipment-ai-v3", "/static/app.js?v=dashboard2-scroll-fix", 1)
-        page = page.replace('<a class="dashboard-home-link" href="/"', '<a class="dashboard-home-link" href="/equipment-status2"', 1)
-        page = page.replace("<div class=\"app-shell\">", shell + '<div class="app-shell">', 1)
-        page = page.replace("</head>", '<link rel="stylesheet" href="/static/dashboard2-shell.css?v=20261006"><link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"><script>history.scrollRestoration="manual";const dashboard2Top=()=>window.scrollTo({top:0,left:0,behavior:"auto"});dashboard2Top();window.addEventListener("DOMContentLoaded",dashboard2Top);window.addEventListener("load",dashboard2Top);window.addEventListener("pageshow",dashboard2Top);setTimeout(dashboard2Top,50);setTimeout(dashboard2Top,300);</script></head>', 1)
-        page = page.replace("</body>", '<script>const dashboard2TopAfterChange=()=>setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),0);document.addEventListener("change",event=>{if(event.target.id==="dataset-select")dashboard2TopAfterChange()});setTimeout(()=>window.scrollTo({top:0,left:0,behavior:"auto"}),1000);</script></body>', 1)
-        return operations_page(page)
+        return render_operations_page(page, active_page="equipment", body_classes=("dashboard2",))
 
     @application.get("/history", response_class=HTMLResponse, include_in_schema=False)
-    async def history() -> str:
-        return (STATIC_DIR / "history.html").read_text(encoding="utf-8")
-
     @application.get("/history2", response_class=HTMLResponse, include_in_schema=False)
-    async def history2() -> str:
+    @application.get("/static/history.html", response_class=HTMLResponse, include_in_schema=False)
+    async def history() -> str:
         page = (STATIC_DIR / "history.html").read_text(encoding="utf-8")
-        page = page.replace('<title>과거 이력 | 설비 진단</title>', '<title>진단 이력 | CMS Operations</title>').replace('<span class="history-kicker">설비 진단 이력</span>', '<span class="history-kicker">2026년 10월 5일 월요일</span>').replace('<p>설비별 진단 근거와 조치 결과를 조회합니다.</p>', '')
-        sidebar = '<aside class="history2-side"><div class="history2-brand"><div class="history2-mark">P</div><span>CMS Operations</span></div><div class="history2-label">CMS 운영</div><nav><a href="/dashboard_ui6"><span>▦</span><b>대시보드</b></a><a href="/equipment-status2"><span>◈</span><b>설비 알람 현황</b></a><a class="active" href="/history2"><span>◌</span><b>진단 이력</b></a><a href="/main_ct"><span>⌁</span><b>중앙 관제</b></a></nav><div class="history2-label manage">관리</div><nav><a href="/main_ct"><span>⚙</span><b>설정</b></a><a href="#"><span>?</span><b>도움말</b></a></nav><small class="history2-footer">CMS 운영팀</small></aside>'
-        css = '<style>.history2-side{position:fixed;inset:0 auto 0 0;width:76px;padding:28px 18px;background:#16263f;color:#c4cede;overflow:hidden;white-space:nowrap;z-index:5;transition:.2s}.history2-side:hover{width:244px}.history2-brand{display:flex;align-items:center;gap:11px;margin-bottom:42px;font-size:17px;font-weight:800}.history2-mark{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#5ce3c0,#2f6fed);color:#10223a;font-size:24px}.history2-brand span,.history2-label,.history2-side nav b,.history2-footer{display:none}.history2-side:hover .history2-brand span,.history2-side:hover .history2-label,.history2-side:hover nav b,.history2-side:hover .history2-footer{display:block}.history2-label{padding:0 10px;margin-bottom:12px;color:#70809a;font-size:10px}.history2-label.manage{margin-top:34px}.history2-side nav a{display:flex;align-items:center;gap:12px;width:52px;padding:12px 10px;margin:3px 0;border-radius:10px;color:#aebcd0;text-decoration:none}.history2-side nav b{font:inherit;font-weight:400}.history2-side nav a.active{color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}.history2-side:hover nav a{width:auto}.history2-footer{position:absolute;bottom:28px;color:#aebcd0;font-size:11px}.history-page{margin-left:76px;min-height:100vh;background:#f7f8fb}.history-topbar{display:none!important}.history-content{max-width:1600px;margin:auto;padding-top:30px!important}@media(max-width:800px){.history-page{margin-left:0}.history2-side{display:none}}</style>'
-        css = css.replace('<style>', '<style>html,body,.history-page{background:#f7f8fb!important}.history-heading{align-items:start}.history-kicker{color:#2f6fed!important;font-size:11px!important;font-weight:800!important;letter-spacing:.14em!important}.history-heading h1{font-size:28px!important;font-weight:800!important;margin-top:7px!important}.history-heading p{display:none!important}.history2-side{font-size:12px!important}.history2-side nav b{font-size:12px!important}.history2-side .history2-label{font-size:9px!important}.history2-side .history2-brand{font-size:15px!important}.history-page{transition:margin-left .2s}.history2-side:hover ~ .history-page{margin-left:244px}.history-content{width:auto!important;max-width:1600px!important;margin:0!important;padding:30px 38px 48px!important}')
-        page = page.replace('</head>', css + '<link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006"></head>', 1).replace('<div class="history-page">', sidebar + '<div class="history-page">', 1)
-        return operations_page(page)
+        return render_operations_page(page, active_page="history", body_classes=("history2-page",))
+
+    application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.get("/api/datasets")
     async def datasets(request: Request) -> dict:

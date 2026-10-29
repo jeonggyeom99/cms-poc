@@ -1,1 +1,103 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard UI Lab</title><link rel="stylesheet" href="/static/dashboard-lab.css?v=lab1"><script type="module" src="/static/modules/main/dashboard-lab.js?v=lab1"></script></head><body><div id="lab" class="lab"><header class="lab-header"><a href="/" class="lab-logo"><i></i><span><small>CMS / UI EXPLORATION</small><b id="variant-title">Dashboard UI 01</b></span></a><nav><a href="/dashboard_ui1">UI 01</a><a href="/dashboard_ui2">UI 02</a><a href="/dashboard_ui3">UI 03</a><a href="/dashboard_ui4">UI 04</a></nav></header><main id="app"></main></div></body></html>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard UI Lab</title>
+    <!-- cms-static:assets -->
+    <link rel="stylesheet" href="/static/cms-tokens.css?v=20261029" />
+    <link rel="stylesheet" href="/static/cms-operations.css?v=task3" />
+    <link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006" />
+    <!-- /cms-static:assets -->
+    <link rel="stylesheet" href="/static/dashboard-lab.css?v=lab1" />
+    <script
+      type="module"
+      src="/static/modules/main/dashboard-lab.js?v=lab1"
+    ></script>
+  </head>
+  <!-- cms-static:body-attributes -->
+  <body
+    class="cms-retained"
+    data-cms-operations
+    data-cms-active-page="overview"
+    data-cms-nav="expanded"
+  >
+    <!-- /cms-static:body-attributes -->
+    <!-- cms-static:sidebar -->
+    <aside id="cms-sidebar" class="cms-sidebar" aria-label="CMS 메뉴">
+      <div class="cms-brand">
+        <div class="cms-brand-mark" aria-hidden="true">P</div>
+        <span class="cms-nav-text">CMS Operations</span>
+      </div>
+      <button
+        id="cms-sidebar-toggle"
+        type="button"
+        aria-controls="cms-sidebar"
+        aria-expanded="true"
+        aria-label="메뉴 접기"
+        title="메뉴 접기"
+      >
+        <span aria-hidden="true">&#9776;</span>
+      </button>
+      <div class="cms-nav-label cms-nav-text">CMS 운영</div>
+      <nav aria-label="CMS 운영">
+        <a
+          href="/dashboard_ui6"
+          aria-label="대시보드"
+          aria-current="page"
+          class="active"
+          ><span aria-hidden="true">&#9638;</span
+          ><b class="cms-nav-text">대시보드</b></a
+        >
+        <a href="/equipment-status2" aria-label="설비 알람 현황"
+          ><span aria-hidden="true">&#9672;</span
+          ><b class="cms-nav-text">설비 알람 현황</b></a
+        >
+        <a href="/history2" aria-label="진단 이력"
+          ><span aria-hidden="true">&#9676;</span
+          ><b class="cms-nav-text">진단 이력</b></a
+        >
+        <a href="/main_ct" aria-label="중앙 관제"
+          ><span aria-hidden="true">&#8769;</span
+          ><b class="cms-nav-text">중앙 관제</b></a
+        >
+      </nav>
+      <div class="cms-nav-label cms-nav-text cms-manage-label">관리</div>
+      <nav aria-label="관리">
+        <a href="/main_ct" aria-label="설정"
+          ><span aria-hidden="true">&#9881;</span
+          ><b class="cms-nav-text">설정</b></a
+        >
+        <a href="#" aria-label="도움말"
+          ><span aria-hidden="true">?</span
+          ><b class="cms-nav-text">도움말</b></a
+        >
+      </nav>
+      <small class="cms-sidebar-footer cms-nav-text">CMS 운영팀</small>
+    </aside>
+    <!-- /cms-static:sidebar -->
+
+    <div id="lab" class="lab shell">
+      <header class="lab-header">
+        <a href="/" class="lab-logo"
+          ><i></i
+          ><span
+            ><small>CMS / UI EXPLORATION</small
+            ><b id="variant-title">Dashboard UI 01</b></span
+          ></a
+        >
+        <nav>
+          <a href="/dashboard_ui1">UI 01</a><a href="/dashboard_ui2">UI 02</a
+          ><a href="/dashboard_ui3">UI 03</a><a href="/dashboard_ui4">UI 04</a>
+        </nav>
+      </header>
+      <div id="app"></div>
+    </div>
+    <!-- cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/core/cms-operations.js?v=task3"
+    ></script>
+    <!-- /cms-static:scripts -->
+  </body>
+</html>

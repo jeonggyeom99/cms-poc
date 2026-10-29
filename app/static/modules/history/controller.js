@@ -128,6 +128,7 @@ function createDetailRow(item) {
 function createSummaryRow(item) {
   const row = element("tr", `history-summary-row${requestedRecordId === String(item.id) ? " is-focused" : ""}`);
   row.dataset.historyId = item.id;
+  row.setAttribute("aria-selected", String(expandedHistoryId === item.id));
   const resultCell = element("td", "history-result");
   const resultTags = element("div", "history-result__tags");
   resultTags.append(
@@ -255,11 +256,14 @@ export async function initializeHistoryPage() {
       }
     }
     renderHistory();
+    document.querySelectorAll(".history-search input, .history-search select, .history-search button").forEach((control) => { control.disabled = false; });
     document.querySelector(".history-summary-row.is-focused")?.scrollIntoView({ block: "center" });
   } catch (error) {
     console.error("CMS history loading failed", error);
     setNotice(`과거 이력을 불러오지 못했습니다. ${error.message}`);
     renderHistory();
+    document.getElementById("history-count").textContent = "조회 실패";
+    document.querySelector(".history-empty").textContent = "과거 이력을 불러오지 못했습니다.";
   }
 }
 

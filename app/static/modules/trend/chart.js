@@ -98,20 +98,20 @@ export function buildExpandedTrendFigure(
   layout.yaxis.title = {
     text: trendAxisTitle(usesDualAxis ? "g" : units[0]),
     standoff: 8,
-    font: { size: 10 },
+    font: { ...layout.font },
   };
   layout.yaxis.rangemode = "tozero";
   layout.xaxis.hoverformat = "%Y-%m-%d %H:%M";
   if (usesDualAxis) {
     const secondaryUnit = units.find((unit) => unit !== "g");
     layout.yaxis2 = {
-      title: { text: trendAxisTitle(secondaryUnit), standoff: 8, font: { size: 10 } },
+      title: { text: trendAxisTitle(secondaryUnit), standoff: 8, font: { ...layout.font } },
       overlaying: "y",
       side: "right",
       rangemode: "tozero",
       showgrid: false,
       linecolor: palette.grid,
-      tickfont: { color: palette.muted, size: 10 },
+      tickfont: { ...layout.yaxis.tickfont },
       zeroline: false,
       fixedrange: true,
     };
@@ -184,7 +184,7 @@ export function buildTrendFigure(period = "90", data = getDashboardData()) {
     xanchor: "left",
     yanchor: "top",
   };
-  layout.yaxis.title = { text: "속도 (mm/s)", standoff: 8, font: { size: 10 } };
+  layout.yaxis.title = { text: "속도 (mm/s)", standoff: 8, font: { ...layout.font } };
   layout.yaxis.rangemode = "tozero";
   layout.xaxis.hoverformat = "%Y-%m-%d %H:%M";
 

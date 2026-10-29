@@ -149,10 +149,15 @@ def test_fft_history_excludes_acceleration_all_and_renames_acceleration_env() ->
     assert '"가속도ENV": "가속도"' in formatting
 
 
-def test_trend_and_level_cards_have_equal_widths() -> None:
+def test_trend_and_evidence_tracks_have_scoped_unequal_columns() -> None:
+    import re
+
     styles = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles
+    rules = re.findall(r"(?m)^\.chart-grid\s*\{([^}]+)\}", styles)
+    assert len(rules) == 1
+    assert "grid-template-columns: minmax(0, 1.6fr) minmax(360px, 1fr);" in rules[0]
+    assert "align-items: start;" in rules[0]
 
 
 def test_chart_tips_are_hidden_without_disabling_chart_navigation() -> None:

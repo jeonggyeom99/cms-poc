@@ -1,1 +1,169 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CMS KPI Dashboard</title><link rel="stylesheet" href="/static/dashboard-ui1-kpi.css?v=kpi1"><script type="module" src="/static/modules/main/dashboard-ui1-kpi.js?v=kpi1"></script></head><body><div class="kpi-page"><header><div><small>CONDITION MONITORING SYSTEM</small><h1>Operations KPI Dashboard</h1></div><nav><a href="/dashboard_ui1">KPI</a><a href="/main_ct">Central</a><a href="/main_sv">Site</a><a href="/history">History</a></nav></header><main><div class="board-title"><div><span>EXECUTIVE VIEW</span><h2>설비 운영 핵심성과</h2></div><time id="kpi-date">-</time></div><section class="kpi-grid"><article class="metric-table"><h3>Asset Segment</h3><div class="metric-head"><span>지표</span><span>현재</span><span>비중</span><span>상태</span></div><div id="metric-table"></div></article><section class="center-kpis"><div class="big-kpi"><small>전체 설비</small><strong id="asset-total">-</strong><span>연결된 진단 대상</span></div><div class="big-kpi"><small>정상 설비</small><strong id="asset-normal">-</strong><span id="normal-rate">-</span></div><div class="mini-bars" id="mini-bars"></div></section><article class="metric-table"><h3>Diagnosis Segment</h3><div class="metric-head"><span>지표</span><span>건수</span><span>비율</span><span>상태</span></div><div id="diagnosis-table"></div></article><section class="chart-panel"><div class="panel-head"><h3>공장별 설비 현황</h3><span>현재 상태 기준</span></div><div id="plant-bars" class="plant-bars"></div></section><section class="chart-panel gauge-panel"><div class="panel-head"><h3>운영 건전성</h3><span>정상률</span></div><div class="gauge" id="health-gauge"><b>-</b></div><p id="health-copy">전체 설비의 현재 상태를 집계합니다.</p></section><section class="chart-panel history-panel"><div class="panel-head"><h3>최근 진단 활동</h3><a href="/history">전체 보기</a></div><div id="kpi-history"></div></section></section></main></div></body></html>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CMS KPI Dashboard</title>
+    <!-- cms-static:assets -->
+    <link rel="stylesheet" href="/static/cms-tokens.css?v=20261029" />
+    <link rel="stylesheet" href="/static/cms-operations.css?v=task3" />
+    <link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006" />
+    <!-- /cms-static:assets -->
+    <link rel="stylesheet" href="/static/dashboard-ui1-kpi.css?v=kpi1" />
+    <link rel="stylesheet" href="/static/dashboard-chart-panels.css" />
+    <script
+      type="module"
+      src="/static/modules/main/dashboard-ui1-kpi.js?v=kpi1"
+    ></script>
+  </head>
+  <!-- cms-static:body-attributes -->
+  <body
+    class="cms-retained"
+    data-cms-operations
+    data-cms-active-page="overview"
+    data-cms-nav="expanded"
+  >
+    <!-- /cms-static:body-attributes -->
+    <!-- cms-static:sidebar -->
+    <aside id="cms-sidebar" class="cms-sidebar" aria-label="CMS 메뉴">
+      <div class="cms-brand">
+        <div class="cms-brand-mark" aria-hidden="true">P</div>
+        <span class="cms-nav-text">CMS Operations</span>
+      </div>
+      <button
+        id="cms-sidebar-toggle"
+        type="button"
+        aria-controls="cms-sidebar"
+        aria-expanded="true"
+        aria-label="메뉴 접기"
+        title="메뉴 접기"
+      >
+        <span aria-hidden="true">&#9776;</span>
+      </button>
+      <div class="cms-nav-label cms-nav-text">CMS 운영</div>
+      <nav aria-label="CMS 운영">
+        <a
+          href="/dashboard_ui6"
+          aria-label="대시보드"
+          aria-current="page"
+          class="active"
+          ><span aria-hidden="true">&#9638;</span
+          ><b class="cms-nav-text">대시보드</b></a
+        >
+        <a href="/equipment-status2" aria-label="설비 알람 현황"
+          ><span aria-hidden="true">&#9672;</span
+          ><b class="cms-nav-text">설비 알람 현황</b></a
+        >
+        <a href="/history2" aria-label="진단 이력"
+          ><span aria-hidden="true">&#9676;</span
+          ><b class="cms-nav-text">진단 이력</b></a
+        >
+        <a href="/main_ct" aria-label="중앙 관제"
+          ><span aria-hidden="true">&#8769;</span
+          ><b class="cms-nav-text">중앙 관제</b></a
+        >
+      </nav>
+      <div class="cms-nav-label cms-nav-text cms-manage-label">관리</div>
+      <nav aria-label="관리">
+        <a href="/main_ct" aria-label="설정"
+          ><span aria-hidden="true">&#9881;</span
+          ><b class="cms-nav-text">설정</b></a
+        >
+        <a href="#" aria-label="도움말"
+          ><span aria-hidden="true">?</span
+          ><b class="cms-nav-text">도움말</b></a
+        >
+      </nav>
+      <small class="cms-sidebar-footer cms-nav-text">CMS 운영팀</small>
+    </aside>
+    <!-- /cms-static:sidebar -->
+
+    <div class="kpi-page shell">
+      <header>
+        <div>
+          <small>CONDITION MONITORING SYSTEM</small>
+          <strong>Operations KPI Dashboard</strong>
+        </div>
+        <nav>
+          <a href="/dashboard_ui1">KPI 1</a><a href="/dashboard_ui2">KPI 2</a
+          ><a href="/main_ct">Central</a><a href="/main_sv">Site</a
+          ><a href="/history">History</a>
+        </nav>
+      </header>
+      <main>
+        <div class="board-title">
+          <div>
+            <span>EXECUTIVE VIEW</span>
+            <h1>설비 운영 핵심성과</h1>
+          </div>
+          <time id="kpi-date">-</time>
+        </div>
+        <section class="kpi-grid">
+          <article class="metric-table">
+            <h3>Asset Segment</h3>
+            <div class="metric-head">
+              <span>지표</span><span>현재</span><span>비중</span
+              ><span>상태</span>
+            </div>
+            <div id="metric-table"></div>
+          </article>
+          <section class="center-kpis">
+            <div class="big-kpi">
+              <small>전체 설비</small
+              ><strong id="asset-total" data-cms-role="kpi">-</strong
+              ><span>연결된 진단 대상</span>
+            </div>
+            <div class="big-kpi">
+              <small>정상 설비</small
+              ><strong id="asset-normal" data-cms-role="kpi">-</strong
+              ><span id="normal-rate">-</span>
+            </div>
+            <div class="mini-bars" id="mini-bars" data-cms-role="chart"></div>
+          </section>
+          <article class="metric-table">
+            <h3>Diagnosis Segment</h3>
+            <div class="metric-head">
+              <span>지표</span><span>건수</span><span>비율</span
+              ><span>상태</span>
+            </div>
+            <div id="diagnosis-table"></div>
+          </article>
+          <section class="chart-panel">
+            <div class="panel-head">
+              <h3>공장별 설비 현황</h3>
+              <span>현재 상태 기준</span>
+            </div>
+            <div id="plant-bars" class="plant-bars" data-cms-role="chart"></div>
+          </section>
+          <section class="chart-panel gauge-panel">
+            <div class="panel-head">
+              <h3>운영 건전성</h3>
+              <span>정상률</span>
+            </div>
+            <div class="gauge" id="health-gauge">
+              <b data-cms-role="kpi">-</b>
+            </div>
+            <p id="health-copy">전체 설비의 현재 상태를 집계합니다.</p>
+          </section>
+          <section class="chart-panel history-panel">
+            <div class="panel-head">
+              <h3>최근 진단 활동</h3>
+              <a href="/history">전체 보기</a>
+            </div>
+            <div id="kpi-history"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+    <!-- cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/core/cms-operations.js?v=task3"
+    ></script>
+    <!-- /cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/main/dashboard-chart-panels.js?v=20261004"
+    ></script>
+  </body>
+</html>

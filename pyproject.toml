@@ -17,9 +17,14 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28,<1",
+    "playwright>=1.55,<2",
     "pytest>=8.4,<9",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "-m 'not ui'"
+markers = [
+    "ui: browser-based desktop validation tests",
+]

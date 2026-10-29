@@ -32,12 +32,12 @@ export function buildFftFigure(fft, selectedFaultType = null) {
   layout.xaxis.title = {
     text: fft.frequencyUnit === "Hz" ? "주파수 (Hz)" : "주파수 구간",
     standoff: 8,
-    font: { size: 10 },
+    font: { ...layout.font },
   };
   layout.yaxis.title = {
     text: fft.amplitudeUnit ? `${measureModeLabel} (${fft.amplitudeUnit})` : measureModeLabel,
     standoff: 8,
-    font: { size: 10 },
+    font: { ...layout.font },
   };
   const maximumAmplitude = Math.max(
     0,
@@ -59,7 +59,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
     layout.annotations = harmonics.map((harmonic) => ({
       x: harmonic.targetFrequency, xref: "x", y: 1, yref: "paper",
       text: `${bearingFault.type} ${harmonic.order}X`, showarrow: false, yshift: 8,
-      font: { color: palette.danger, size: 10 },
+      font: { ...layout.font, color: palette.danger },
     }));
     const detected = harmonics.filter((harmonic) => harmonic.detected && harmonic.amplitude > 0);
     traces.push({
@@ -67,7 +67,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
       y: detected.map((harmonic) => harmonic.amplitude),
       type: "scatter", mode: "markers+text", name: `${bearingFault.type} Peak`,
       text: detected.map((harmonic) => `${harmonic.order}X`), textposition: "top center",
-      textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
+      textfont: { ...layout.font, color: palette.danger },
       marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
       hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f} ${amplitudeSuffix.trim()}</b><extra>${bearingFault.type} 결함 피크</extra>`,
     });
@@ -89,7 +89,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
       layout.annotations = harmonics.map((harmonic) => ({
         x: harmonic.targetFrequency, xref: "x", y: 1, yref: "paper",
         text: `${harmonic.order}X`, showarrow: false, yshift: 8,
-        font: { color: palette.danger, size: 10 },
+        font: { ...layout.font, color: palette.danger },
       }));
       traces.push({
         x: detected.map((harmonic) => harmonic.detectedFrequency),
@@ -97,7 +97,7 @@ export function buildFftFigure(fft, selectedFaultType = null) {
         type: "scatter", mode: "markers+text", name: "회전 주파수 피크",
         showlegend: false,
         text: detected.map((harmonic) => `${harmonic.order}X`), textposition: "top center",
-        textfont: { color: palette.danger, size: 11, family: "Arial, sans-serif" },
+        textfont: { ...layout.font, color: palette.danger },
         marker: { color: palette.danger, size: 9, line: { color: "#ffffff", width: 1.5 } },
         hovertemplate: `%{text}<br>%{x:.2f} Hz<br><b>%{y:.4f}${amplitudeSuffix}</b><extra>회전 주파수 피크</extra>`,
       });

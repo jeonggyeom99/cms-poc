@@ -1,44 +1,77 @@
 import { fetchDatasetSummaries } from "../api/dashboard.js?v=demo-unbalance-v1";
-import { fetchHistory } from "../api/history.js?v=demo-unbalance-v1";
 
-const esc = (value) => String(value ?? "-").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const esc = (value) => String(value ?? "-").replace(/[&<>"']/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[character]));
+const states = [
+  { key: "normal", label: "정상" },
+  { key: "caution", label: "주의" },
+  { key: "critical", label: "심각" },
+  { key: "unknown", label: "판단 불가" },
+];
 
-async function init() {
-  const tooltip = document.createElement("div"); tooltip.className = "equipment-status2-tooltip"; document.body.appendChild(tooltip);
-  const tooltipStyle = document.createElement("style"); tooltipStyle.textContent = `.equipment-status2-tooltip{position:fixed;display:none;z-index:9999;pointer-events:none;background:#172033;color:#fff;border-radius:7px;padding:7px 10px;font-size:11px;white-space:nowrap;box-shadow:0 6px 18px rgba(23,32,51,.22)}`; document.head.appendChild(tooltipStyle);
-  document.addEventListener("mouseover", (event) => { const target = event.target.closest("[title]"); if (!target || !target.title) return; tooltip.textContent = target.title; tooltip.style.display = "block"; });
-  document.addEventListener("mousemove", (event) => { if (tooltip.style.display === "block") { tooltip.style.left = `${event.clientX + 12}px`; tooltip.style.top = `${event.clientY - 34}px`; } });
-  document.addEventListener("mouseout", (event) => { if (event.target.closest("[title]")) tooltip.style.display = "none"; });
-  const [datasets, historyPayload] = await Promise.all([fetchDatasetSummaries(), fetchHistory()]);
-  const history = historyPayload.items || [];
-  const style = document.createElement("style");
-  style.textContent = `.equipment-status2-panel{margin:20px 0;background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:22px;box-shadow:0 8px 24px rgba(28,43,67,.05)}.equipment-status2-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:15px}.equipment-status2-head h2{margin:4px 0 0;font-size:18px;color:#172033}.equipment-status2-head span{font-size:11px;color:#8a95a6}.equipment-status2-chart-grid{display:grid;grid-template-columns:1.45fr .75fr;gap:18px;margin-bottom:28px}.equipment-status2-chart-grid article{border:1px solid #edf0f4;border-radius:10px;padding:16px}.equipment-status2-chart-grid article:nth-child(1){grid-column:1;grid-row:2}.equipment-status2-chart-grid article:nth-child(2){grid-column:2;grid-row:2}.equipment-status2-chart-grid article:nth-child(3){grid-column:1;grid-row:1;min-height:270px}.equipment-status2-chart-grid article:nth-child(4){grid-column:2;grid-row:1;min-height:270px}.equipment-status2-chart-grid h3{margin:0 0 14px;font-size:14px;color:#526078}.equipment-status2-bars{display:grid;gap:11px}.equipment-status2-bar{display:grid;grid-template-columns:110px 1fr 24px;align-items:center;gap:9px;font-size:11px;color:#526078}.equipment-status2-bar>div{height:11px;background:#edf1f6;border-radius:8px;overflow:hidden}.equipment-status2-bar i{display:block;height:100%;background:#2f6fed;border-radius:8px}.equipment-status2-bar:nth-child(even) i{background:#18b88a}.equipment-status2-bar b{color:#172033}.equipment-status2-plant-bars{height:220px;display:flex;align-items:end;gap:28px;border-bottom:1px solid #e8edf3;padding:12px 12px 0}.equipment-status2-plant{height:100%;flex:1;display:flex;align-items:end;justify-content:center;gap:6px;position:relative}.equipment-status2-plant i{display:block;width:28px;border-radius:5px 5px 0 0}.equipment-status2-plant i.normal{background:#b9d0f8}.equipment-status2-plant i.issue{background:#2f6fed}.equipment-status2-plant small{position:absolute;top:calc(100% + 8px);font-size:10px;color:#8a95a6;white-space:nowrap}.equipment-status2-pie-wrap{display:flex;align-items:center;gap:14px}.equipment-status2-pie{width:150px;height:150px;border-radius:50%;background:conic-gradient(#18b88a 0 var(--normal),#f59d32 var(--normal) var(--caution),#ee6675 var(--caution) 100%);position:relative;flex:none}.equipment-status2-pie:after{content:"";position:absolute;inset:34px;border-radius:50%;background:#fff}.equipment-status2-pie-legend{display:grid;gap:12px;font-size:12px;color:#526078}.equipment-status2-pie-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}.equipment-status2-detail-head{margin-top:10px}.equipment-status2-table{width:100%;border-collapse:collapse;font-size:12px}.equipment-status2-table th{text-align:left;color:#8a95a6;font-weight:600;padding:9px 8px;border-bottom:1px solid #e8edf3}.equipment-status2-table td{padding:12px 8px;border-bottom:1px solid #f0f3f7;color:#526078}.equipment-status2-table b{color:#172033}.equipment-status2-status{display:inline-block;padding:4px 8px;border-radius:12px;font-size:10px;font-weight:800}.equipment-status2-status.normal{color:#158663;background:#e8faf4}.equipment-status2-status.caution{color:#b76a13;background:#fff4e4}.equipment-status2-status.critical{color:#d14d5b;background:#ffedf0}@media(max-width:900px){.equipment-status2-panel{overflow:auto}.equipment-status2-chart-grid{grid-template-columns:1fr}.equipment-status2-chart-grid article:nth-child(n){grid-column:1;grid-row:auto}.equipment-status2-table{min-width:760px}}`;
-  document.head.appendChild(style);
-  const chartFixStyle = document.createElement("style"); chartFixStyle.textContent = `.equipment-status2-panel{margin-top:-20px!important;margin-bottom:0!important;padding:0!important}.equipment-status-search{border:0!important;box-shadow:none!important;padding:10px!important;gap:8px!important}.equipment-status-tree{height:500px!important;max-height:500px!important}.equipment-status-equipment__summary{padding:12px 14px!important}.equipment-status2-chart-grid article{overflow:visible!important;min-height:230px!important}.equipment-status2-chart-grid article:nth-child(1){grid-column:1;grid-row:1;position:relative}.equipment-status2-chart-grid article:nth-child(2){grid-column:2;grid-row:1}.equipment-status2-plant-bars{height:180px;position:relative;background:repeating-linear-gradient(to top,transparent 0,transparent 35px,#edf1f6 36px);padding-bottom:26px}.equipment-status2-plant-bars:before{content:"100\\A 75\\A 50\\A 25\\A 0";white-space:pre;position:absolute;left:-2px;top:10px;line-height:35px;color:#9ba3b2;font-size:9px;text-align:right}.equipment-status2-plant-legend{display:flex;gap:14px;margin:0;color:#7b8497;font-size:10px;position:absolute;right:16px;top:17px}.equipment-status2-plant-legend i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}.equipment-status2-plant-legend .normal{background:#b9d0f8}.equipment-status2-plant-legend .issue{background:#2f6fed}`; document.head.appendChild(chartFixStyle);
-  const panel = document.createElement("section"); panel.className = "equipment-status2-panel";
-  const rows = datasets.map((item) => {
-    const records = history.filter((entry) => entry.datasetId === item.id); const latest = records[0];
-    const state = item.status === "normal" ? "normal" : item.status === "caution" ? "caution" : "critical";
-    const action = latest ? (latest.result || latest.analysis || "조치 확인 필요") : "진단 이력 없음";
-    return `<tr><td><b>${esc(item.displayName || item.name || item.equipmentCode)}</b><br><small>${esc(item.equipmentCode)}</small></td><td>${esc(item.plant)} · ${esc(item.line)}</td><td>${records.length}건</td><td>${esc(latest?.faultType || latest?.fault || "-")}</td><td>${esc(latest?.date || item.lastMeasuredAt || "-")}</td><td><span class="equipment-status2-status ${state}">${esc(item.statusLabel || state)}</span></td><td>${esc(action)}</td></tr>`;
-  }).join("");
-  const equipmentCounts = datasets.map((item) => [item.displayName || item.name || item.equipmentCode, history.filter((entry) => entry.datasetId === item.id).length]).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const stateCounts = { normal: datasets.filter((item) => item.status === "normal").length, caution: datasets.filter((item) => item.status === "caution").length, critical: datasets.filter((item) => !["normal", "caution"].includes(item.status)).length };
-  const stateTotal = Math.max(datasets.length, 1); const normalPct = stateCounts.normal / stateTotal * 100; const cautionPct = (stateCounts.normal + stateCounts.caution) / stateTotal * 100;
-  const plantMap = new Map(); datasets.forEach((item) => { const plant = item.plant || "미지정"; const current = plantMap.get(plant) || { normal: 0, issue: 0 }; item.status === "normal" ? current.normal++ : current.issue++; plantMap.set(plant, current); });
-  const plants = [...plantMap.entries()]; const plantMax = Math.max(...plants.map(([, value]) => value.normal + value.issue), 1);
-  const people = [["김현장", Math.max(2, Math.round(history.length * .34))], ["이관리", Math.max(2, Math.round(history.length * .27))], ["박정비", Math.max(2, Math.round(history.length * .22))], ["미배정", Math.max(1, Math.round(history.length * .17))]];
-  const bars = (items) => `<div class="equipment-status2-bars">${items.map(([name, value]) => `<div class="equipment-status2-bar"><span>${esc(name)}</span><div><i style="width:${value / Math.max(...items.map((item) => item[1]), 1) * 100}%"></i></div><b>${value}</b></div>`).join("")}</div>`;
-  panel.innerHTML = `<div class="equipment-status2-head"><div><span class="equipment-status-kicker">설비별 분석</span><h2>설비·인원 기준 알람 현황</h2></div><span>${datasets.length}대 설비 · ${history.length}건 이력</span></div><div class="equipment-status2-chart-grid"><article><h3>설비별 알람 발생 건수</h3>${bars(equipmentCounts)}</article><article><h3>인원별 알람 발생 건수</h3>${bars(people)}</article></div><div class="equipment-status2-head equipment-status2-detail-head"><div><span class="equipment-status-kicker">설비 상세 현황</span><h2>설비별 알람·진단·조치 상태</h2></div></div><table class="equipment-status2-table"><thead><tr><th>설비</th><th>공장 · 공정</th><th>알람 건수</th><th>장애 유형</th><th>최근 진단</th><th>현재 상태</th><th>조치 상태</th></tr></thead><tbody>${rows || '<tr><td colspan="7">표시할 설비가 없습니다.</td></tr>'}</tbody></table>`;
-  panel.innerHTML = `<div class="equipment-status2-head"><div><span class="equipment-status-kicker">설비 상태 분석</span><h2>공장별 설비 상태</h2></div><span>${datasets.length}대 설비</span></div><div class="equipment-status2-chart-grid"><article><h3>공장별 설비 상태</h3><div class="equipment-status2-plant-bars" data-ticks="${[1, .75, .5, .25, 0].map((fraction) => Number((plantMax * fraction).toFixed(1))).join("&#10;")}">${plants.map(([name, value]) => `<div class="equipment-status2-plant"><i class="normal" title="${esc(name)} · 정상 ${value.normal}대" style="height:${value.normal ? value.normal / plantMax * 100 : 0}%"></i><i class="issue" title="${esc(name)} · 주의 이상 ${value.issue}대" style="height:${value.issue ? value.issue / plantMax * 100 : 0}%"></i><small>${esc(name)}</small></div>`).join("")}</div><div class="equipment-status2-plant-legend"><span><i class="normal"></i>정상</span><span><i class="issue"></i>주의 이상</span></div></article><article><h3>설비 상태 구성</h3><div class="equipment-status2-pie-wrap"><div class="equipment-status2-pie" style="--normal:${normalPct}%;--caution:${cautionPct}%"></div><div class="equipment-status2-pie-legend"><span><i style="background:#18b88a"></i>정상 ${stateCounts.normal}대</span><span><i style="background:#f59d32"></i>주의 ${stateCounts.caution}대</span><span><i style="background:#ee6675"></i>심각 ${stateCounts.critical}대</span></div></div></article></div>`;
-  const content = document.querySelector(".equipment-status-content");
-  const search = document.querySelector(".equipment-status-search");
-  const equipmentPanel = document.querySelector(".equipment-status-panel");
-  if (search && equipmentPanel) {
-    const panelHead = equipmentPanel.querySelector(".equipment-status-panel__head");
-    if (panelHead) panelHead.after(search);
-    else equipmentPanel.insertBefore(search, equipmentPanel.firstElementChild);
-  }
-  if (content && equipmentPanel) content.insertBefore(panel, equipmentPanel);
+function initializeTooltip() {
+  const tooltip = document.createElement("div");
+  tooltip.className = "equipment-status2-tooltip";
+  tooltip.id = "equipment-status-chart-tooltip";
+  tooltip.role = "tooltip";
+  tooltip.hidden = true;
+  document.body.append(tooltip);
+  const show = (target) => {
+    tooltip.textContent = target.dataset.tooltip;
+    tooltip.hidden = false;
+    const bounds = target.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(8, Math.min(bounds.left, innerWidth - tooltip.offsetWidth - 8))}px`;
+    tooltip.style.top = `${Math.max(8, bounds.top - tooltip.offsetHeight - 8)}px`;
+  };
+  document.addEventListener("mouseover", (event) => {
+    const target = event.target.closest("[data-tooltip]");
+    if (target) show(target);
+  });
+  document.addEventListener("focusin", (event) => {
+    const target = event.target.closest("[data-tooltip]");
+    if (target) show(target);
+  });
+  document.addEventListener("mouseout", (event) => {
+    if (event.target.closest("[data-tooltip]")) tooltip.hidden = true;
+  });
+  document.addEventListener("focusout", () => { tooltip.hidden = true; });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") tooltip.hidden = true; });
 }
-init().catch((error) => console.error("equipment-status2 load failed", error));
+
+async function initializeCharts() {
+  const charts = document.getElementById("equipment-status-charts");
+  const status = document.getElementById("equipment-status-chart-status");
+  initializeTooltip();
+  try {
+    const datasets = await fetchDatasetSummaries();
+    status.textContent = `전체 CMS 연결 ${datasets.length}대`;
+    if (!datasets.length) {
+      charts.textContent = "연결된 CMS 설비가 없습니다.";
+      return;
+    }
+    const counts = Object.fromEntries(states.map(({ key }) => [key, 0]));
+    const plants = new Map();
+    datasets.forEach((item) => {
+      const state = states.some(({ key }) => key === item.status) ? item.status : "unknown";
+      counts[state] += 1;
+      const plant = item.plant || "미지정";
+      const group = plants.get(plant) || { normal: 0, issue: 0, unknown: 0 };
+      group[state === "normal" ? "normal" : state === "unknown" ? "unknown" : "issue"] += 1;
+      plants.set(plant, group);
+    });
+    const maximum = Math.max(...[...plants.values()].map((group) => group.normal + group.issue + group.unknown), 1);
+    charts.innerHTML = `<article aria-labelledby="equipment-status-plant-title"><h3 id="equipment-status-plant-title">공장별 연결 설비</h3>
+      <div class="equipment-status2-plant-legend"><span><i class="normal"></i>정상</span><span><i class="issue"></i>주의 이상</span><span><i class="unknown"></i>판단 불가</span></div>
+      <div class="equipment-status2-plant-bars">${[...plants].map(([name, group]) => {
+        const label = `${name} · 정상 ${group.normal}대 · 주의 이상 ${group.issue}대 · 판단 불가 ${group.unknown}대`;
+        return `<div class="equipment-status2-plant" tabindex="0" aria-label="${esc(label)}" aria-describedby="equipment-status-chart-tooltip" data-tooltip="${esc(label)}"><span>${esc(name)}</span><div class="equipment-status2-plant-track">${["normal", "issue", "unknown"].map((state) => `<i class="${state}" style="width:${group[state] / maximum * 100}%"></i>`).join("")}</div><b>${group.normal + group.issue + group.unknown}대</b></div>`;
+      }).join("")}</div></article>
+      <article aria-labelledby="equipment-status-state-title"><h3 id="equipment-status-state-title">연결 설비 상태</h3><div class="equipment-status2-state-list">${states.map(({ key, label }) => `<div class="equipment-status2-state-row"><span class="equipment-status2-state-label ${key}"><i></i>${label}</span><div class="equipment-status2-state-track"><i class="${key}" style="width:${counts[key] / datasets.length * 100}%"></i></div><b>${counts[key]}대</b></div>`).join("")}</div></article>`;
+  } catch (error) {
+    status.textContent = "CMS 상태를 불러오지 못했습니다.";
+    charts.replaceChildren();
+  } finally {
+    charts.removeAttribute("aria-busy");
+  }
+}
+
+initializeCharts();

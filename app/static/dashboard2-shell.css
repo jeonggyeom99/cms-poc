@@ -1,24 +1,13 @@
-.dashboard2{background:#f7f8fb!important}
-.dashboard2-side{position:fixed;inset:0 auto 0 0;width:76px;padding:28px 18px;background:#16263f;color:#c4cede;overflow:hidden;white-space:nowrap;z-index:20;transition:width .2s}
-.dashboard2-side:hover{width:244px}
-.dashboard2-brand{display:flex;align-items:center;gap:11px;margin-bottom:42px;font-size:15px;font-weight:800}
-.dashboard2-mark{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#5ce3c0,#2f6fed);color:#10223a;font-size:24px;font-weight:900}
-.dashboard2-brand span,.dashboard2-label,.dashboard2-side nav b,.dashboard2-footer{display:none}
-.dashboard2-side:hover .dashboard2-brand span,.dashboard2-side:hover .dashboard2-label,.dashboard2-side:hover nav b,.dashboard2-side:hover .dashboard2-footer{display:block}
-.dashboard2-label{padding:0 10px;margin-bottom:12px;color:#70809a;font-size:9px;letter-spacing:.12em}
-.dashboard2-label.manage{margin-top:34px}
-.dashboard2-side nav a{display:flex;align-items:center;gap:12px;width:52px;padding:12px 10px;margin:3px 0;border-radius:10px;color:#aebcd0;text-decoration:none;font-size:18px}
-.dashboard2-side nav b{font-size:12px;font-weight:400}
-.dashboard2-side nav a.active{color:#fff;background:#254a77;box-shadow:inset 3px 0 #4ed9bb}
-.dashboard2-side:hover nav a{width:auto;font-size:12px}
-.dashboard2-footer{position:absolute;bottom:28px;color:#aebcd0;font-size:11px}
-.dashboard2 .app-shell{margin-left:76px;transition:margin-left .2s}
-.dashboard2-side:hover~.app-shell{margin-left:244px}
-.dashboard2 .topbar{display:flex!important;height:58px;padding:0 38px;background:#f7f8fb;border-bottom:1px solid #e4e9ef;box-shadow:none}
-.dashboard2 .topbar .brand{display:none!important}
-.dashboard2 .topbar .dashboard-home-link{display:flex!important;align-items:center;gap:7px;margin:0;padding:8px 12px;border:1px solid #dfe6ed;border-radius:8px;background:#fff;color:#526078;font-size:12px;font-weight:700;text-decoration:none}
+.dashboard2 .topbar{height:60px;padding:0 38px;background:var(--cms-color-background);border-bottom:1px solid var(--cms-color-border);box-shadow:none;backdrop-filter:none}
+.dashboard2 .topbar .brand{display:none}
+.dashboard2 .topbar .dashboard-home-link{align-items:center;gap:8px;margin:0;min-height:var(--cms-control-height);padding:6px 12px;border:1px solid var(--cms-color-border);border-radius:var(--cms-radius);background:#fff;color:var(--cms-color-text);font-size:var(--cms-type-body);line-height:var(--cms-leading-body);font-weight:var(--cms-weight-strong);text-decoration:none}
 .dashboard2 .topbar .dashboard-home-link svg{width:15px;height:15px}
-.dashboard2 .topbar .dataset-select-wrap{max-width:760px;flex:1 1 auto;justify-content:flex-end;gap:8px;margin-left:auto}
-.dashboard2 .topbar .dataset-select-wrap label{color:#8a96a6;font-size:11px}
-.dashboard2 .topbar .dataset-select-wrap select{height:36px;border:1px solid #dfe6ed;border-radius:8px;background:#fff;color:#26364a;font-size:12px;font-weight:700;box-shadow:none}
-@media(max-width:800px){.dashboard2-side{display:none}.dashboard2 .app-shell{margin-left:0}.dashboard2 .topbar{padding-left:20px}}
+.dashboard2 .topbar .dataset-select-wrap{display:none;min-width:0;max-width:760px;flex:1 1 auto;justify-content:flex-end;gap:8px;margin-left:auto}
+.dashboard2 .topbar .dataset-select-wrap label{color:#8a96a6}
+.dashboard2 .topbar .dataset-select-wrap select{height:36px;border:1px solid #dfe6ed;border-radius:8px;background-color:#fff;color:#26364a;box-shadow:none}
+#dataset-select-toggle{display:none}
+.dashboard2 #dataset-select-toggle{display:block;flex:0 0 36px;width:36px;height:36px;margin-left:auto;padding:8px;border:1px solid var(--cms-color-border);border-radius:var(--cms-radius);background:#fff;color:var(--cms-color-text);cursor:pointer}
+.dashboard2 #dataset-select-toggle::after{content:"";display:block;width:16px;height:16px;background:currentColor;clip-path:polygon(0 10%,100% 10%,100% 20%,0 20%,0 45%,100% 45%,100% 55%,0 55%,0 80%,100% 80%,100% 90%,0 90%)}
+.dashboard2 #dataset-select-toggle[aria-expanded="true"]::after{clip-path:polygon(10% 0,50% 40%,90% 0,100% 10%,60% 50%,100% 90%,90% 100%,50% 60%,10% 100%,0 90%,40% 50%,0 10%)}
+.dashboard2 #dataset-select-toggle[aria-expanded="true"] + .dataset-select-wrap{display:flex}
+@media(max-width:800px){.dashboard2 .topbar{padding-left:20px}}

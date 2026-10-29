@@ -83,11 +83,10 @@ async function init() {
   scope.replaceChildren(new Option("전체 공장", "all"), ...plants.map((plant) => new Option(plant, plant)));
 
   function updateProcesses() {
-    const selected = process.value;
     const available = items.filter((item) => scope.value === "all" || item.plant === scope.value);
     const processes = [...new Set(available.map((item) => item.line).filter(Boolean))].sort();
     process.replaceChildren(new Option("전체 공정", "all"), ...processes.map((line) => new Option(line, line)));
-    process.value = processes.includes(selected) ? selected : "all";
+    process.value = "all";
   }
 
   function applyFilters() {
@@ -103,12 +102,19 @@ async function init() {
   process.addEventListener("change", applyFilters);
   updateProcesses();
   applyFilters();
+  for (const selector of ["#scope-select", "#process-select"]) {
+    document.querySelector(selector).disabled = false;
+  }
+  for (const selector of ["#risk-map", "#signals", "#work-rows", "#recent-activity", "#trend-bars"]) {
+    document.querySelector(selector).ariaBusy = "false";
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => init().catch((error) => {
   setText("#hero-description", "데이터를 불러오지 못했습니다. 잠시 후 다시 열어 주세요.");
   for (const selector of ["#risk-map", "#signals", "#work-rows", "#recent-activity", "#trend-bars"]) {
     document.querySelector(selector).innerHTML = empty("데이터를 불러오지 못했습니다.");
+    document.querySelector(selector).ariaBusy = "false";
   }
   console.error("workspace load failed", error);
 }));

@@ -1,1 +1,157 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>UI 05 · KPI Report</title><link rel="stylesheet" href="/static/dashboard-ui5.css?v=ui5-1"><script type="module" src="/static/modules/main/dashboard-ui5.js?v=ui5-1"></script></head><body><div class="report"><header><a href="/dashboard_ui5"><i></i><span><small>CMS PERFORMANCE REVIEW</small><b>UI 05 / KPI REPORT</b></span></a><nav><a href="/dashboard_ui1">01</a><a href="/dashboard_ui2">02</a><a href="/dashboard_ui3">03</a><a href="/dashboard_ui4">04</a><a class="active" href="/dashboard_ui5">05</a></nav></header><main><section class="intro"><div><span class="eyebrow">EXECUTIVE KPI BRIEF</span><h1>설비 운영 성과 리포트</h1></div><time id="report-date">-</time></section><p id="summary" class="summary">현재 설비 운영 상태를 분석하고 있습니다.</p><section class="report-grid"><div class="chart-area"><div class="section-head"><div><span class="eyebrow">STATUS BY PLANT</span><h2>공장별 상태 비교</h2></div><span>주의 이상 설비 기준</span></div><div id="bar-chart" class="bar-chart"></div><div class="chart-legend"><span><i class="normal"></i>정상</span><span><i class="attention"></i>주의</span><span><i class="critical"></i>심각</span></div></div><aside class="timeline-area"><div class="section-head"><div><span class="eyebrow">DIAGNOSIS LOG</span><h2>진단 이력 타임라인</h2></div></div><div id="timeline"></div></aside></section><section class="table-area"><div class="section-head"><div><span class="eyebrow">ASSET STATUS REGISTER</span><h2>상태별 설비 목록</h2></div><span id="table-count">-</span></div><div class="status-table"><div class="table-head"><span>상태</span><span>설비</span><span>공장</span><span>공정</span><span>상세</span></div><div id="table-body"></div></div></section></main></div></body></html>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UI 05 · KPI Report</title>
+    <!-- cms-static:assets -->
+    <link rel="stylesheet" href="/static/cms-tokens.css?v=20261029" />
+    <link rel="stylesheet" href="/static/cms-operations.css?v=task3" />
+    <link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006" />
+    <!-- /cms-static:assets -->
+    <link rel="stylesheet" href="/static/dashboard-ui5.css?v=ui5-1" />
+    <script
+      type="module"
+      src="/static/modules/main/dashboard-ui5.js?v=ui5-1"
+    ></script>
+  </head>
+  <!-- cms-static:body-attributes -->
+  <body
+    class="cms-retained"
+    data-cms-operations
+    data-cms-active-page="overview"
+    data-cms-nav="expanded"
+  >
+    <!-- /cms-static:body-attributes -->
+    <!-- cms-static:sidebar -->
+    <aside id="cms-sidebar" class="cms-sidebar" aria-label="CMS 메뉴">
+      <div class="cms-brand">
+        <div class="cms-brand-mark" aria-hidden="true">P</div>
+        <span class="cms-nav-text">CMS Operations</span>
+      </div>
+      <button
+        id="cms-sidebar-toggle"
+        type="button"
+        aria-controls="cms-sidebar"
+        aria-expanded="true"
+        aria-label="메뉴 접기"
+        title="메뉴 접기"
+      >
+        <span aria-hidden="true">&#9776;</span>
+      </button>
+      <div class="cms-nav-label cms-nav-text">CMS 운영</div>
+      <nav aria-label="CMS 운영">
+        <a
+          href="/dashboard_ui6"
+          aria-label="대시보드"
+          aria-current="page"
+          class="active"
+          ><span aria-hidden="true">&#9638;</span
+          ><b class="cms-nav-text">대시보드</b></a
+        >
+        <a href="/equipment-status2" aria-label="설비 알람 현황"
+          ><span aria-hidden="true">&#9672;</span
+          ><b class="cms-nav-text">설비 알람 현황</b></a
+        >
+        <a href="/history2" aria-label="진단 이력"
+          ><span aria-hidden="true">&#9676;</span
+          ><b class="cms-nav-text">진단 이력</b></a
+        >
+        <a href="/main_ct" aria-label="중앙 관제"
+          ><span aria-hidden="true">&#8769;</span
+          ><b class="cms-nav-text">중앙 관제</b></a
+        >
+      </nav>
+      <div class="cms-nav-label cms-nav-text cms-manage-label">관리</div>
+      <nav aria-label="관리">
+        <a href="/main_ct" aria-label="설정"
+          ><span aria-hidden="true">&#9881;</span
+          ><b class="cms-nav-text">설정</b></a
+        >
+        <a href="#" aria-label="도움말"
+          ><span aria-hidden="true">?</span
+          ><b class="cms-nav-text">도움말</b></a
+        >
+      </nav>
+      <small class="cms-sidebar-footer cms-nav-text">CMS 운영팀</small>
+    </aside>
+    <!-- /cms-static:sidebar -->
+
+    <div class="report shell">
+      <header>
+        <a href="/dashboard_ui5"
+          ><i></i
+          ><span
+            ><small>CMS PERFORMANCE REVIEW</small
+            ><b>UI 05 / KPI REPORT</b></span
+          ></a
+        >
+        <nav>
+          <a href="/dashboard_ui1">01</a><a href="/dashboard_ui2">02</a
+          ><a href="/dashboard_ui3">03</a><a href="/dashboard_ui4">04</a
+          ><a class="active" href="/dashboard_ui5">05</a>
+        </nav>
+      </header>
+      <main>
+        <section class="intro">
+          <div>
+            <span class="eyebrow">EXECUTIVE KPI BRIEF</span>
+            <h1>설비 운영 성과 리포트</h1>
+          </div>
+          <time id="report-date">-</time>
+        </section>
+        <p id="summary" class="summary">
+          현재 설비 운영 상태를 분석하고 있습니다.
+        </p>
+        <section class="report-grid">
+          <div class="chart-area">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">STATUS BY PLANT</span>
+                <h2>공장별 상태 비교</h2>
+              </div>
+              <span>주의 이상 설비 기준</span>
+            </div>
+            <div id="bar-chart" class="bar-chart" data-cms-role="chart"></div>
+            <div class="chart-legend">
+              <span><i class="normal"></i>정상</span
+              ><span><i class="attention"></i>주의</span
+              ><span><i class="critical"></i>심각</span>
+            </div>
+          </div>
+          <aside class="timeline-area">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">DIAGNOSIS LOG</span>
+                <h2>진단 이력 타임라인</h2>
+              </div>
+            </div>
+            <div id="timeline"></div>
+          </aside>
+        </section>
+        <section class="table-area">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">ASSET STATUS REGISTER</span>
+              <h2>상태별 설비 목록</h2>
+            </div>
+            <span id="table-count">-</span>
+          </div>
+          <div class="status-table">
+            <div class="table-head">
+              <span>상태</span><span>설비</span><span>공장</span
+              ><span>공정</span><span>상세</span>
+            </div>
+            <div id="table-body"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <!-- cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/core/cms-operations.js?v=task3"
+    ></script>
+    <!-- /cms-static:scripts -->
+  </body>
+</html>

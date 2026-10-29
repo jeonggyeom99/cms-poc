@@ -1,7 +1,7 @@
 import { fetchDatasetSummaries } from "../api/dashboard.js";
 import { fetchHistory } from "../api/history.js";
 
-const labels = { normal: "정상", caution: "주의", critical: "심각", unknown: "판단 불가" };
+const labels = { normal: "정상", attention: "주의", critical: "심각", unknown: "판단 불가" };
 const stateOf = (item) => item.status === "caution" ? "attention" : item.status === "critical" ? "critical" : item.status === "normal" ? "normal" : "unknown";
 const escapeText = (value) => String(value || "미지정");
 

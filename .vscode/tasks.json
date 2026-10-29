@@ -1,0 +1,1868 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cms-ui-baseline-server-8010",
+			"type": "shell",
+			"command": "uv",
+			"args": [
+				"run",
+				"uvicorn",
+				"app.main:app",
+				"--host",
+				"127.0.0.1",
+				"--port",
+				"8010"
+			],
+			"isBackground": true
+		},
+		{
+			"label": "cms-task1-review-safety-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task1-fix-safety-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_workflows.py",
+				"tests/ui/test_cms_navigation.py",
+				"tests/ui/test_cms_baseline.py::test_negative_state_inventory"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task1-review-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task1-fix-ui-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task1-review-non-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task1-fix-non-ui-final.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task1-review-evidence-audit",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-evidence.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task1-review-node-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task1-fix-node-collection-final.txt",
+				"-q",
+				"tests/test_operations_ui.py::test_workspace_missing_clock_filter_reset_empty_and_error_states",
+				"tests/test_ui_collection.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-red-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-red-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-chart-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task2-green-chart.txt",
+				"-q",
+				"tests/test_cms_chart_typography.py",
+				"tests/test_fft_layout_ui.py",
+				"tests/test_report_ui.py",
+				"tests/test_trend_direction_ui.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-safe-live-8010",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task2-server.py"
+			],
+			"isBackground": true
+		},
+		{
+			"label": "cms-task2-typography-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-green-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-role-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-red-roles.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py::test_common_role_consumers_and_live_chart_fonts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-non-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task2-non-ui-final.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-ui-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task2-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-review-r1-typography",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-review-r1-typography.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-review-r1-chart",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task2-review-r1-chart.txt",
+				"-q",
+				"tests/test_cms_chart_typography.py",
+				"tests/test_fft_layout_ui.py",
+				"tests/test_report_ui.py",
+				"tests/test_trend_direction_ui.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-review-r1-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task2-review-r1-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-review-r1-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task2-review-r1-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task2-review-r1-evidence",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task2-review-r1-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-shell-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task3-green-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_shell.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-layout-probe",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task3-layout-probe.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_shell.py",
+				"-k",
+				"cms_desktop_case3"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-brief-regression",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task3-brief-regression.txt",
+				"-q",
+				"tests/test_operations_ui.py",
+				"tests/test_app.py",
+				"-k",
+				"presentation or workspace or page_is_served or styles_are_not_nested"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-non-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task3-non-ui-final.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-ui-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task3-ui-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task3-evidence.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task3-final-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task3-non-ui-final.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-focused-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-red-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-selection-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-selection-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-states-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-states-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"loading or styles"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-state-probe",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-state-probe.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"loading and case0"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-state-probe-fresh",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-state-probe-fresh.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"loading and case0"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-green-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-green-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-brief-app",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task4-brief-app-before.txt",
+				"-q",
+				"tests/test_app.py",
+				"-k",
+				"equipment_status or styles_are_not_nested"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-contract-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-contract-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-unknown-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-unknown-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"unknown_status"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-unknown-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-unknown-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"unknown_status"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-brief-final",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task4-brief-app-green.txt",
+				"-q",
+				"tests/test_app.py",
+				"-k",
+				"equipment_status or styles_are_not_nested"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-regression-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-regression-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"tests/ui/test_cms_shell.py",
+				"tests/ui/test_cms_navigation.py",
+				"tests/ui/test_cms_typography.py",
+				"tests/ui/test_cms_geometry.py",
+				"tests/ui/test_cms_workflows.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-regression-unit",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task4-regression-unit.txt",
+				"-q",
+				"tests/test_cms_presentation.py",
+				"tests/test_operations_ui.py",
+				"tests/test_cms_chart_typography.py",
+				"tests/test_fft_layout_ui.py",
+				"tests/test_report_ui.py",
+				"tests/test_trend_direction_ui.py",
+				"tests/test_ui_collection.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-default-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task4-non-ui-final.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-empty-selection-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-empty-selection-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py",
+				"-k",
+				"filters and case0"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-final-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-ui-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task4-evidence.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-all-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-all-ui-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task4-final-reopen",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task4-final-reopen.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_equipment_status.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-detail-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-detail-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-contract-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-contract-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-evidence-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-evidence-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py",
+				"-k",
+				"evidence_roles or related_history"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-evidence-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-evidence-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py",
+				"-k",
+				"evidence_roles or related_history"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-brief-regression",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task5-brief-regression.txt",
+				"-q",
+				"tests/test_fft_layout_ui.py",
+				"tests/test_report_ui.py",
+				"tests/test_ppt_frontend.py",
+				"tests/test_work_order.py",
+				"tests/test_chat_analysis_tools.py",
+				"tests/test_cms_chart_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-cutoff-chat",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-cutoff-chat.txt",
+				"-q",
+				"tests/test_app.py",
+				"-k",
+				"dashboard_until or dashboard_chat"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-all-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-all-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-default-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task5-default-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-final-detail",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-detail-final.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task5-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-related-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-related-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py",
+				"-k",
+				"related_history"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task5-related-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task5-related-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py",
+				"-k",
+				"related_history"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-focused-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-order-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-order-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-order-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-contract-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-contract-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_history.py",
+				"tests/ui/test_cms_control.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-extract",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task6-extract.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-brief-regression",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task6-brief-regression.txt",
+				"-q",
+				"tests/test_operations_ui.py",
+				"tests/test_history.py",
+				"tests/test_report_ui.py",
+				"tests/test_cms_presentation.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-layout-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-layout-check.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"reading_order or desktop_layout"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-overview-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-overview-check.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"dashboard"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-normalize",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task6-normalize.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-variant-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-variant-check.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"desktop_layout and main_ct1 and case0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-contract-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-contract-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_history.py",
+				"tests/ui/test_cms_control.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-default-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task6-default-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-all-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-all-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-extra-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-extra-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"variant_loading or shared_role"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-extra-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-extra-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"variant_loading or shared_role"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-final-owned-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-final-owned-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_history.py",
+				"tests/ui/test_cms_control.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-shell-race-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-shell-race-check.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_shell.py",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"hover_and_focus or variant_loading"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-columns-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-columns-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"desktop_layout and main_ct1 and case0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-columns-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task6-columns-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_control.py",
+				"-k",
+				"desktop_layout and main_ct1 and case0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task6-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task6-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-inventory-first",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-inventory-first.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-canvas-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-canvas-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and dashboard_ui1_canvas"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-canvas-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-canvas-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and dashboard_ui1_canvas"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-detail-controls",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-detail-controls.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and (dashboard] or dashboard2])"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-variants-all",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-variants-all.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-canvas-all",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-canvas-all.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"dashboard_ui1_canvas or dashboard-ui1-canvas"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-kpi-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-kpi-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and (dashboard_ui3 or dashboard_ui1])"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-kpi-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-kpi-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and (dashboard_ui3 or dashboard_ui1])"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-label-row-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-label-row-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"status_labels"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-label-row-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-label-row-check.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"status_labels"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-label-row-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-label-row-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"status_labels"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-contrast-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-contrast-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"contrast"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-contrast-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-contrast-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"contrast"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-full-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-full-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-brief-final",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task7-brief-final.txt",
+				"-q",
+				"tests/test_operations_ui.py",
+				"tests/test_demo_presentation.py",
+				"tests/test_cms_presentation.py",
+				"tests/test_cms_chart_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-default-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task7-default-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-demo-mix-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-demo-mix-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and (dashboard_ui3 or dashboard-ui1-fresh)"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-demo-mix-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-demo-mix-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"case0 and (dashboard_ui3 or dashboard-ui1-fresh)"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-final-reopen",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-final-reopen.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-evidence-check",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task7-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-r1-variants",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-r1-variants-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-r1-brief",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task7-r1-brief-green.txt",
+				"-q",
+				"tests/test_operations_ui.py",
+				"tests/test_demo_presentation.py",
+				"tests/test_cms_presentation.py",
+				"tests/test_cms_chart_typography.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-r1-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task7-r1-default-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-r1-evidence",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task7-r1-evidence.py"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task7-r1-final-reopen",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task7-r1-final-reopen.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_variants.py",
+				"-k",
+				"lab_chart or lab_labels_annotations"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cms-task8-matrix-first",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-matrix-first.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8_final_route and cms_desktop_case1"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-matrix-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-matrix-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8_final_route and cms_desktop_case1"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-matrix-fixed-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-matrix-fixed-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8_final_route and cms_desktop_case1"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-metadata-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-metadata-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"metadata_uses_role_typography"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-final-non-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task8-final-non-ui.txt",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-final-all-ui",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-final-all-ui.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-final-ownership",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"--node",
+				"task8-final-ownership.txt",
+				"-q",
+				"tests/test_cms_presentation.py",
+				"tests/test_report_ui.py",
+				"tests/test_cms_chart_typography.py",
+				"tests/test_operations_ui.py"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-final-reopen",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-final-reopen.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8 or metadata_uses_role_typography"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-evidence",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task8-evidence.py"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-snapshot",
+			"type": "shell",
+			"command": "& 'C:\\Program Files\\Git\\bin\\bash.exe' -c 'cd /c/Users/jeong/Documents/open-source/cms-poc; exec bash .superpowers/sdd/2026-10-29-cms-design-unification/artifacts.sh snapshot task-8-fix1'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-roles-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-roles-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"fft-stat"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-roles-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-roles-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"fft-stat"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-chat-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-chat-red.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8_fix1_detail"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-chat-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-chat-green.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_typography.py",
+				"-k",
+				"task8_fix1_detail"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-tasks-red",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-tasks-red.txt",
+				"-q",
+				"tests/test_cms_presentation.py::test_vscode_task_labels_resolve_unambiguously"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-tasks-green",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-tasks-green.txt",
+				"-q",
+				"tests/test_cms_presentation.py::test_vscode_task_labels_resolve_unambiguously"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-final-start",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				"-B",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task8-evidence.py",
+				"--start"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-preserve-ui-error",
+			"type": "shell",
+			"command": "Copy-Item",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task8-final-all-ui.txt",
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task8-fix1-all-ui-first-error.txt"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-task8-fix1-history-recheck",
+			"type": "shell",
+			"command": "C:\\Users\\jeong\\Documents\\open-source\\cms-poc\\.venv\\Scripts\\python.exe",
+			"args": [
+				".superpowers/sdd/2026-10-29-cms-design-unification/artifacts/task1-verify.py",
+				"task8-fix1-history-recheck.txt",
+				"-q",
+				"-m",
+				"ui",
+				"tests/ui/test_cms_detail.py::test_historical_detail_keeps_cutoff_and_fft"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cms-sdd-package-task8-fix1",
+			"type": "shell",
+			"command": "& 'C:\\Program Files\\Git\\bin\\bash.exe' '.superpowers/sdd/2026-10-29-cms-design-unification/artifacts.sh' package task-8-fix1",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

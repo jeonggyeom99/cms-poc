@@ -1,1 +1,117 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CMS 중앙 관제</title><link rel="stylesheet" href="/static/main-control.css?v=ctsv1"><script type="module" src="/static/modules/main/control-dashboard.js?v=ctjs1"></script></head><body><div id="dashboard" class="control-dashboard"><header class="control-topbar"><a class="control-brand" href="/main_ct1"><i></i><span><small>CMS CONDITION MONITORING</small><strong id="dashboard-title">중앙 통합 관제</strong></span></a><nav><a href="/main_ct1">CT 01</a><a href="/main_ct2">CT 02</a><a href="/main_ct3">CT 03</a><a class="site-link" href="/main_sv1">현장 화면</a></nav></header><main class="control-content"><section class="control-heading"><div><span class="eyebrow" id="variant-label">CENTRAL CONTROL TOWER</span><h1 id="page-heading">전사 설비 리스크 관제</h1><p id="page-description">전 공장 설비 상태와 부서별 대응 우선순위를 통합합니다.</p></div><div class="heading-meta"><b id="live-clock">LIVE</b><span id="updated-at">-</span></div></section><section class="metric-strip"><div><span>전체 설비</span><strong id="total">-</strong><small>연결된 진단 대상</small></div><div class="metric-green"><span>정상</span><strong id="normal">-</strong><small>안정 상태</small></div><div class="metric-amber"><span>주의</span><strong id="attention">-</strong><small>관찰 필요</small></div><div class="metric-red"><span>심각</span><strong id="critical">-</strong><small>우선 대응</small></div></section><div class="visual-grid"><section class="viz-panel wide-panel"><div class="panel-heading"><div><span class="eyebrow">PLANT / DEPARTMENT</span><h2 id="primary-title">공장·부서별 상태 분포</h2></div><span id="primary-note">-</span></div><div id="primary-chart" class="primary-chart" role="img" aria-label="공장별 설비 상태 차트"></div></section><section class="viz-panel donut-panel"><div class="panel-heading"><div><span class="eyebrow">RISK MIX</span><h2>상태 구성</h2></div></div><div id="donut-chart" class="donut-chart"></div><div id="legend" class="legend"></div></section><section class="viz-panel wide-panel"><div class="panel-heading"><div><span class="eyebrow" id="secondary-label">ACTION QUEUE</span><h2 id="secondary-title">우선 확인 대상</h2></div><a href="/history">이력 전체 보기</a></div><div id="secondary-content" class="secondary-content"></div></section><aside class="viz-panel feed-panel"><div class="panel-heading"><div><span class="eyebrow">LIVE SIGNAL</span><h2>이상 신호</h2></div><span class="live-mark">● LIVE</span></div><div id="signal-feed"></div></aside></div></main></div></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMS 중앙 관제</title>
+<!-- cms:assets -->
+<link rel="stylesheet" href="/static/main-control.css?v=ctsv1">
+<script type="module" src="/static/modules/main/control-dashboard.js?v=ctjs1">
+</script>
+</head>
+<body <!-- cms:body-attributes -->>
+<div id="dashboard" class="control-dashboard shell">
+<!-- cms:sidebar -->
+<header class="control-topbar">
+<a class="control-brand" href="/main_ct1">
+<i>
+</i>
+<span>
+<small>CMS CONDITION MONITORING</small>
+<strong id="dashboard-title">중앙 통합 관제</strong>
+</span>
+</a>
+<nav>
+<a href="/main_ct1">CT 01</a>
+<a href="/main_ct2">CT 02</a>
+<a href="/main_ct3">CT 03</a>
+<a class="site-link" href="/main_sv1">현장 화면</a>
+</nav>
+</header>
+<main class="control-content">
+<section class="control-heading">
+<div>
+<span class="eyebrow" id="variant-label">CENTRAL CONTROL TOWER</span>
+<h1 id="page-heading">전사 설비 리스크 관제</h1>
+<p id="page-description">전 공장 설비 상태와 부서별 대응 우선순위를 통합합니다.</p>
+</div>
+<div class="heading-meta">
+<b id="live-clock">LIVE</b>
+<span id="updated-at">-</span>
+</div>
+</section>
+<section class="metric-strip">
+<div>
+<span>전체 설비</span>
+<strong id="total">-</strong>
+<small>연결된 진단 대상</small>
+</div>
+<div class="metric-green">
+<span>정상</span>
+<strong id="normal">-</strong>
+<small>안정 상태</small>
+</div>
+<div class="metric-amber">
+<span>주의</span>
+<strong id="attention">-</strong>
+<small>관찰 필요</small>
+</div>
+<div class="metric-red">
+<span>심각</span>
+<strong id="critical">-</strong>
+<small>우선 대응</small>
+</div>
+</section>
+<div class="visual-grid">
+<section class="viz-panel wide-panel">
+<div class="panel-heading">
+<div>
+<span class="eyebrow">PLANT / DEPARTMENT</span>
+<h2 id="primary-title">공장·부서별 상태 분포</h2>
+</div>
+<span id="primary-note">-</span>
+</div>
+<div id="primary-chart" class="primary-chart" aria-label="공장별 설비 상태 차트" aria-busy="true">
+<p class="empty">설비 데이터를 불러오는 중입니다.</p>
+</div>
+</section>
+<section class="viz-panel donut-panel">
+<div class="panel-heading">
+<div>
+<span class="eyebrow">RISK MIX</span>
+<h2>상태 구성</h2>
+</div>
+</div>
+<div id="donut-chart" class="donut-chart">
+</div>
+<div id="legend" class="legend">
+</div>
+</section>
+<section class="viz-panel wide-panel">
+<div class="panel-heading">
+<div>
+<span class="eyebrow" id="secondary-label">ACTION QUEUE</span>
+<h2 id="secondary-title">우선 확인 대상</h2>
+</div>
+<a href="/history">이력 전체 보기</a>
+</div>
+<div id="secondary-content" class="secondary-content">
+</div>
+</section>
+<aside class="viz-panel feed-panel">
+<div class="panel-heading">
+<div>
+<span class="eyebrow">LIVE SIGNAL</span>
+<h2>이상 신호</h2>
+</div>
+<span class="live-mark">● LIVE</span>
+</div>
+<div id="signal-feed">
+</div>
+</aside>
+</div>
+</main>
+</div>
+<!-- cms:scripts -->
+</body>
+</html>

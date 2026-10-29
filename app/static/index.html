@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="설비 추세와 주파수 분석 데이터를 확인하는 설비 진단 화면">
     <title>설비 진단 화면</title>
+    <!-- cms:assets -->
     <link rel="stylesheet" href="/static/styles.css?v=work-order-v1">
+    <link rel="stylesheet" href="/static/dashboard2-shell.css?v=task3">
     <script defer src="/static/vendor/plotly-3.1.0.min.js"></script>
     <script type="module" src="/static/app.js?v=demo-chat-v1"></script>
   </head>
-  <body>
+  <body <!-- cms:body-attributes -->>
+    <!-- cms:sidebar -->
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="/dashboard" aria-label="설비 진단 화면">
@@ -19,7 +22,7 @@
             <strong>설비 모니터링</strong>
           </span>
         </a>
-        <a class="dashboard-home-link" href="/" aria-label="설비 현황으로 돌아가기">
+        <a class="dashboard-home-link" href="/equipment-status2" aria-label="설비 현황으로 돌아가기">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
           <span>설비 현황</span>
         </a>
@@ -30,6 +33,7 @@
             <option>CSV 목록을 불러오는 중...</option>
           </select>
         </div>
+        <button class="chat-open" id="chat-open" type="button" aria-label="AI 분석 대화 열기" title="AI 분석 대화 열기" aria-controls="chat-panel" aria-expanded="false"><span aria-hidden="true">✦</span></button>
       </header>
 
       <main>
@@ -42,6 +46,13 @@
                 <div><dt>공장</dt><dd id="plant-name">--</dd></div>
                 <div><dt>센서번호</dt><dd id="sensor-number">--</dd></div>
               </dl>
+              <div class="ai-analysis-actions" role="group" aria-label="설비 분석 및 보고서">
+                <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>다시 분석</button>
+                <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
+                <button type="button" class="report-action report-action-ppt" id="work-order-open">W/O 발행하기</button>
+                <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
+              </div>
+              <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
             </div>
             <aside class="overview-fft-result is-neutral" aria-label="현재 주파수 상태">
               <span class="overview-fft-result-label">현재 주파수 상태</span>
@@ -55,17 +66,10 @@
           <section class="equipment-ai-diagnosis" aria-labelledby="ai-analysis-title">
             <div class="card-header">
               <div>
-                <h2 id="ai-analysis-title">AI 분석</h2>
+                <h2 id="ai-analysis-title">AI 분석 요약</h2>
               </div>
             </div>
             <p class="ai-analysis-summary" id="ai-analysis-description" aria-live="polite">설비를 선택하면 AI가 추세와 주파수 이력을 조회해 자동 분석합니다.</p>
-            <div class="ai-analysis-actions">
-              <button type="button" class="ai-analysis-run" id="ai-analysis-run" disabled>다시 분석</button>
-              <button type="button" class="report-action report-action-ppt" id="diagnostic-ppt-export" disabled>진단 보고서 저장</button>
-              <button type="button" class="report-action report-action-ppt" id="work-order-open">W/O 발행하기</button>
-              <button type="button" class="report-action report-action-email" id="email-draft-open" disabled>이메일 본문 복사</button>
-            </div>
-            <p class="report-action-status" id="report-action-status" role="status" aria-live="polite"></p>
           </section>
         </section>
 
@@ -305,7 +309,7 @@
       <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
       <p class="chat-disclaimer">답변은 현재 화면의 측정 요약과 연관 이력을 바탕으로 한 보조 의견입니다.</p>
     </aside>
-    <button class="chat-open" id="chat-open" type="button" aria-label="AI 분석 대화 열기" aria-controls="chat-panel" aria-expanded="false"><span aria-hidden="true">✦</span></button>
     <div class="chat-backdrop" id="chat-backdrop" aria-hidden="true"></div>
+    <!-- cms:scripts -->
   </body>
 </html>

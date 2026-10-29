@@ -241,7 +241,7 @@ async function runAiAnalysis(force) {
       representative = getCachedFftRecord(representativeId);
       if (!representative) {
         try {
-          representative = await fetchFftRecord(dashboardData.meta.datasetId, representativeId, requestedUntil());
+          representative = await fetchFftRecord(dashboardData.meta.datasetId, representativeId, requestedUntil(), requestedStart());
         } catch (error) {
           console.error("AI representative FFT loading failed", error);
         }

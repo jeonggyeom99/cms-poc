@@ -26,11 +26,11 @@ export function buildTimeWaveFigure(fft) {
   const fs = fft.sampling?.valid ? fft.sampling.frequencyHz : null;
   layout.margin = { l: 58, r: 15, t: 30, b: 43 };
   layout.showlegend = false;
-  layout.xaxis.title = { text: fs ? "시간 (s)" : "표본 번호", standoff: 8, font: { size: 10 } };
+  layout.xaxis.title = { text: fs ? "시간 (s)" : "표본 번호", standoff: 8, font: { ...layout.font } };
   layout.yaxis.title = {
     text: fft.amplitudeUnit ? `${measureModeLabel} (${fft.amplitudeUnit})` : measureModeLabel,
     standoff: 8,
-    font: { size: 10 },
+    font: { ...layout.font },
   };
   layout.yaxis.range = waveformRange(samples);
   layout.yaxis.zeroline = true;

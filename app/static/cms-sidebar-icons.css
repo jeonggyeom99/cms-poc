@@ -1,4 +1,5 @@
 /* Shared CMS Operations navigation icon geometry. */
+.cms-sidebar nav a,
 .dashboard2-side nav a,
 .dashboard-ui6 .side nav a,
 .equipment-status2-page .side nav a,
@@ -6,6 +7,7 @@
   gap: 12px;
 }
 
+.cms-sidebar nav a > span:first-child,
 .dashboard2-side nav a > span:first-child,
 .dashboard-ui6 .side nav a > span:first-child,
 .equipment-status2-page .side nav a > span:first-child,

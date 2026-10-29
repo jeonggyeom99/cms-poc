@@ -6,7 +6,23 @@ export function getPlotly() {
   return window.Plotly;
 }
 
+export function readChartTypography(root = globalThis.document?.documentElement) {
+  const fallback = {
+    family: 'Pretendard, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif',
+    size: 12,
+  };
+  if (!root || typeof globalThis.getComputedStyle !== "function") return fallback;
+  const style = globalThis.getComputedStyle(root);
+  const family = style.getPropertyValue("--cms-font-family").trim();
+  const size = Number.parseFloat(style.getPropertyValue("--cms-type-chart"));
+  return {
+    family: family || fallback.family,
+    size: Number.isFinite(size) && size > 0 ? size : fallback.size,
+  };
+}
+
 export function baseLayout() {
+  const typography = readChartTypography();
   return {
     autosize: true,
     margin: { l: 48, r: 18, t: 28, b: 44 },
@@ -16,19 +32,19 @@ export function baseLayout() {
     hoverlabel: {
       bgcolor: "#0d2f3c",
       bordercolor: "#0d2f3c",
-      font: { color: "#ffffff", family: "Arial, sans-serif", size: 11 },
+      font: { ...typography, color: "#ffffff" },
     },
-    font: { color: palette.muted, family: "Arial, sans-serif", size: 11 },
+    font: { ...typography, color: palette.muted },
     xaxis: {
       gridcolor: palette.grid,
       linecolor: palette.grid,
-      tickfont: { color: palette.muted, size: 10 },
+      tickfont: { ...typography, color: palette.muted },
       zeroline: false,
     },
     yaxis: {
       gridcolor: palette.grid,
       linecolor: palette.grid,
-      tickfont: { color: palette.muted, size: 10 },
+      tickfont: { ...typography, color: palette.muted },
       zeroline: false,
       fixedrange: true,
     },
@@ -37,7 +53,7 @@ export function baseLayout() {
       orientation: "h",
       x: 0,
       y: 1.13,
-      font: { size: 10 },
+      font: { ...typography },
     },
   };
 }

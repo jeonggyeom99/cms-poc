@@ -4,11 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CMS 설비 진단 과거 이력을 조회합니다.">
-    <title>과거 이력 | 설비 진단</title>
+    <title>진단 이력 | CMS Operations</title>
+    <!-- cms:assets -->
     <link rel="stylesheet" href="/static/history.css?v=topbar-layout-v2">
     <script type="module" src="/static/modules/history/controller.js?v=korean-ui-v2"></script>
   </head>
-  <body>
+  <body <!-- cms:body-attributes -->>
+    <!-- cms:sidebar -->
     <div class="history-page">
       <header class="history-topbar">
         <a class="history-brand" href="/" aria-label="설비 현황 홈">
@@ -33,7 +35,7 @@
       <main class="history-content">
         <section class="history-heading" aria-labelledby="history-title">
           <div>
-            <span class="history-kicker">설비 진단 이력</span>
+            <span class="history-kicker"></span>
             <h1 id="history-title">과거 이력</h1>
             <p>설비별 진단 근거와 조치 결과를 조회합니다.</p>
           </div>
@@ -45,16 +47,16 @@
             통합검색
             <span class="history-input-wrap">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>
-              <input id="history-keyword" type="search" placeholder="설비명, 센서번호, 문제 또는 분석 결과 검색" autocomplete="off">
+              <input id="history-keyword" type="search" placeholder="설비명, 센서번호, 문제 또는 분석 결과 검색" autocomplete="off" disabled>
             </span>
           </label>
           <label for="history-process">
             공정
-            <select id="history-process">
+            <select id="history-process" disabled>
               <option value="all">전체</option>
             </select>
           </label>
-          <button id="history-reset" type="button">조건 초기화</button>
+          <button id="history-reset" type="button" disabled>조건 초기화</button>
         </section>
 
         <p class="history-notice" id="history-notice" role="status" hidden></p>
@@ -86,5 +88,6 @@
         </section>
       </main>
     </div>
+    <!-- cms:scripts -->
   </body>
 </html>

@@ -1,20 +1,97 @@
 <!doctype html>
 <html lang="ko">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Excel 진단 이력과 CSV 기반 설비 상태를 조회합니다.">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Excel 진단 이력과 CSV 기반 설비 상태를 조회합니다."
+    />
     <title>설비 현황 | 설비 진단</title>
-    <link rel="stylesheet" href="/static/equipment-status.css?v=topbar-layout-v3">
+    <!-- cms-static:assets -->
+    <link rel="stylesheet" href="/static/cms-tokens.css?v=20261029" />
+    <link rel="stylesheet" href="/static/cms-operations.css?v=task3" />
+    <link rel="stylesheet" href="/static/cms-sidebar-icons.css?v=20261006" />
+    <!-- /cms-static:assets -->
+    <link
+      rel="stylesheet"
+      href="/static/equipment-status.css?v=topbar-layout-v3"
+    />
     <script src="/static/equipment-status-demo/equipment-status-excel-data.js"></script>
     <script src="/static/equipment-status-demo/equipment-status-tree-data.js"></script>
-    <script type="module" src="/static/modules/equipment-status/controller.js?v=factory-filter-v2"></script>
+    <script
+      type="module"
+      src="/static/modules/equipment-status/controller.js?v=factory-filter-v2"
+    ></script>
   </head>
-  <body>
-    <div class="equipment-status-page">
+  <!-- cms-static:body-attributes -->
+  <body
+    class="cms-retained"
+    data-cms-operations
+    data-cms-active-page="equipment"
+    data-cms-nav="expanded"
+  >
+    <!-- /cms-static:body-attributes -->
+    <!-- cms-static:sidebar -->
+    <aside id="cms-sidebar" class="cms-sidebar" aria-label="CMS 메뉴">
+      <div class="cms-brand">
+        <div class="cms-brand-mark" aria-hidden="true">P</div>
+        <span class="cms-nav-text">CMS Operations</span>
+      </div>
+      <button
+        id="cms-sidebar-toggle"
+        type="button"
+        aria-controls="cms-sidebar"
+        aria-expanded="true"
+        aria-label="메뉴 접기"
+        title="메뉴 접기"
+      >
+        <span aria-hidden="true">&#9776;</span>
+      </button>
+      <div class="cms-nav-label cms-nav-text">CMS 운영</div>
+      <nav aria-label="CMS 운영">
+        <a href="/dashboard_ui6" aria-label="대시보드"
+          ><span aria-hidden="true">&#9638;</span
+          ><b class="cms-nav-text">대시보드</b></a
+        >
+        <a
+          href="/equipment-status2"
+          aria-label="설비 알람 현황"
+          aria-current="page"
+          class="active"
+          ><span aria-hidden="true">&#9672;</span
+          ><b class="cms-nav-text">설비 알람 현황</b></a
+        >
+        <a href="/history2" aria-label="진단 이력"
+          ><span aria-hidden="true">&#9676;</span
+          ><b class="cms-nav-text">진단 이력</b></a
+        >
+        <a href="/main_ct" aria-label="중앙 관제"
+          ><span aria-hidden="true">&#8769;</span
+          ><b class="cms-nav-text">중앙 관제</b></a
+        >
+      </nav>
+      <div class="cms-nav-label cms-nav-text cms-manage-label">관리</div>
+      <nav aria-label="관리">
+        <a href="/main_ct" aria-label="설정"
+          ><span aria-hidden="true">&#9881;</span
+          ><b class="cms-nav-text">설정</b></a
+        >
+        <a href="#" aria-label="도움말"
+          ><span aria-hidden="true">?</span
+          ><b class="cms-nav-text">도움말</b></a
+        >
+      </nav>
+      <small class="cms-sidebar-footer cms-nav-text">CMS 운영팀</small>
+    </aside>
+    <!-- /cms-static:sidebar -->
+
+    <div class="equipment-status-page shell">
       <header class="equipment-status-topbar">
         <a class="equipment-status-brand" href="/" aria-label="설비 현황 홈">
-          <span class="equipment-status-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="equipment-status-brand__mark" aria-hidden="true"
+            ><i></i><i></i><i></i
+          ></span>
           <span>
             <small>설비 진단 시스템</small>
             <strong>설비 모니터링</strong>
@@ -22,18 +99,26 @@
         </a>
         <nav class="equipment-status-topbar__actions" aria-label="주요 메뉴">
           <a class="equipment-status-home-link" href="/" aria-current="page">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z" /></svg>
+            <svg viewbox="0 0 24 24" aria-hidden="true">
+              <path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z"></path>
+            </svg>
             <span>설비 현황</span>
           </a>
           <a class="equipment-status-history-link" href="/history">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></svg>
+            <svg viewbox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8"></circle>
+              <path d="M12 7v5l3 2"></path>
+            </svg>
             <span>과거 이력</span>
           </a>
         </nav>
       </header>
 
       <main class="equipment-status-content">
-        <section class="equipment-status-heading" aria-labelledby="equipment-status-title">
+        <section
+          class="equipment-status-heading"
+          aria-labelledby="equipment-status-title"
+        >
           <div>
             <span class="equipment-status-kicker">설비 현황</span>
             <h1 id="equipment-status-title">설비 모니터링</h1>
@@ -70,31 +155,67 @@
               <option value="unknown">판단 불가</option>
             </select>
           </label>
-          <label class="equipment-status-search__name" for="equipment-status-name">
+          <label
+            class="equipment-status-search__name"
+            for="equipment-status-name"
+          >
             설비명
-            <input id="equipment-status-name" type="search" placeholder="설비명 입력" autocomplete="off">
+            <input
+              id="equipment-status-name"
+              type="search"
+              placeholder="설비명 입력"
+              autocomplete="off"
+            />
           </label>
           <button id="equipment-status-reset" type="button">조건 초기화</button>
         </section>
 
-        <p class="equipment-status-notice" id="equipment-status-notice" role="status" hidden></p>
+        <p
+          class="equipment-status-notice"
+          id="equipment-status-notice"
+          role="status"
+          hidden
+        ></p>
 
-        <section class="equipment-status-panel" aria-labelledby="equipment-status-list-title">
+        <section
+          class="equipment-status-panel"
+          aria-labelledby="equipment-status-list-title"
+        >
           <div class="equipment-status-panel__head">
             <div>
               <span class="equipment-status-kicker">진단 이력</span>
               <h2 id="equipment-status-list-title">설비 목록</h2>
             </div>
-            <span id="equipment-status-count" aria-live="polite">설비 목록을 불러오는 중...</span>
+            <span id="equipment-status-count" aria-live="polite"
+              >설비 목록을 불러오는 중...</span
+            >
           </div>
           <div class="equipment-status-panel__body">
-            <aside class="equipment-status-tree" id="equipment-status-tree" aria-label="설비 분류 트리"></aside>
-            <div class="equipment-status-list" id="equipment-status-list" role="list" aria-labelledby="equipment-status-list-title" aria-busy="true">
-              <p class="equipment-status-empty">설비 목록을 불러오는 중입니다.</p>
+            <aside
+              class="equipment-status-tree"
+              id="equipment-status-tree"
+              aria-label="설비 분류 트리"
+            ></aside>
+            <div
+              class="equipment-status-list"
+              id="equipment-status-list"
+              role="list"
+              aria-labelledby="equipment-status-list-title"
+              aria-busy="true"
+            >
+              <p class="equipment-status-empty">
+                설비 목록을 불러오는 중입니다.
+              </p>
             </div>
           </div>
         </section>
       </main>
     </div>
+    <!-- cms-static:scripts -->
+    <script
+      type="module"
+      src="/static/modules/core/cms-operations.js?v=task3"
+    ></script>
+    <!-- /cms-static:scripts -->
   </body>
 </html>
