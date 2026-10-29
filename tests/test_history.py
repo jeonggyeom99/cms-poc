@@ -139,12 +139,13 @@ def test_history_page_and_equipment_status_link_are_served(tmp_path: Path) -> No
 
     assert history_response.status_code == 200
     assert 'href="/static/history.css?v=topbar-layout-v2"' in history_response.text
-    assert 'src="/static/modules/history/controller.js?v=korean-ui-v1"' in history_response.text
+    assert 'src="/static/modules/history/controller.js?v=korean-ui-v2"' in history_response.text
     assert 'id="history-keyword"' in history_response.text
     assert 'id="history-process"' in history_response.text
     assert 'id="history-reset"' in history_response.text
     assert 'id="history-list"' in history_response.text
-    assert 'class="equipment-status-history-link" href="/history"' in status_response.text
+    assert 'href="/history2"' in status_response.text
+    assert get(target_app, "/history2").status_code == 200
 
 
 def test_history_api_returns_csv_payload(tmp_path: Path) -> None:

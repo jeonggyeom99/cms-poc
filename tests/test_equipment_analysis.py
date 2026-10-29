@@ -10,7 +10,7 @@ import pytest
 from app.ai_analysis import AiAnalysisPeriod, OpenAIAnalysisGateway, OpenAISettings
 from app.data_loader import load_datasets
 from app.equipment_analysis import (
-    build_equipment_context, build_equipment_tool_executor, equipment_quality_issues,
+    build_equipment_context, build_equipment_tool_executor,
     normalize_equipment_period_timezone, recent_trend_evidence,
 )
 from app.main import create_app
@@ -129,26 +129,6 @@ def test_analysis_cache_is_equipment_scoped_and_optional_record_id(tmp_path):
     assert gateway.contexts[-1]["fft"]["available"] is False
 
 
-def test_equipment_quality_rejects_uninspected_records_and_wrong_units():
-    context = {"trend": {"metrics": [{"unit": "mm/s", "monthlyAverages": [{"mean": 3.5}]}]}}
-    fft = {"recordId": 1, "measuredAt": "2026-01-01 00:00:00", "amplitudeUnit": "g",
-           "spectrum": {"peaks": [{"amplitude": 2.4, "frequency": 30}]}}
-    trace = [{"name": "get_fft_evidence", "result": {"fft": fft}}]
-    result = diagnosis().model_copy(update={
-        "headline": "설비 측정 근거를 확인하고 재측정하세요.",
-        "trend_summary": "부분 기간 평균은 3.5 mm/s입니다.",
-        "fft_summary": "주요 성분은 2.4 g입니다. 추가 점검하세요.",
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01T00:00:00", end="2026-01-01T00:00:00"),
-        "fft_reference_record_ids": [1],
-        "likely_causes": [],
-    })
-    assert equipment_quality_issues(context, result, trace) == []
-    wrong_unit = result.model_copy(update={"fft_summary": "주요 성분은 2.4 mm/s입니다."})
-    assert equipment_quality_issues(context, wrong_unit, trace)
-    uninspected = result.model_copy(update={"fft_reference_record_ids": [99]})
-    assert equipment_quality_issues(context, uninspected, trace)
-
-
 def test_equipment_gateway_allows_model_selected_extra_history_calls(monkeypatch):
     calls = []
     observed = []
@@ -191,37 +171,6 @@ def test_equipment_gateway_allows_model_selected_extra_history_calls(monkeypatch
     assert observed[-1][1]["start"] == "2026-01-01"
 
 
-def test_no_fft_and_graph_summaries_reject_unsupported_diagnosis():
-    context = {"trend": {"metrics": []}}
-    result = diagnosis().model_copy(update={
-        "headline": "설비 측정 조건을 확인하고 재측정하세요.",
-        "fft_summary": "축정렬 불량이 확실합니다.", "likely_causes": [],
-        "fft_findings": [],
-    })
-    assert equipment_quality_issues(context, result, [])
-    limited = result.model_copy(update={"fft_summary": "주파수 근거가 없어 축정렬 불량을 단정할 수 없습니다."})
-    assert equipment_quality_issues(context, limited, []) == []
-
-
-@pytest.mark.parametrize("trend", [
-    {"available": False, "metrics": []},
-    {"available": True, "metrics": [{"key": "velocity", "sampleCount": 1}]},
-])
-def test_missing_trend_rejects_unsupported_persistent_rising_claim(trend):
-    result = diagnosis().model_copy(update={
-        "headline": "진동값의 지속적인 상승이 확인되어 설비 상태를 점검하세요.",
-        "trend_summary": "최근 3개월 진동 속도가 지속 상승하여 설비 상태가 악화되고 있습니다.",
-        "fft_summary": "주파수 근거가 없습니다.", "likely_causes": [],
-        "trend_findings": [], "fft_findings": [],
-    })
-    assert equipment_quality_issues({"trend": trend}, result, [])
-    limited = result.model_copy(update={
-        "headline": "측정 조건을 확인하고 추가 측정하세요.",
-        "trend_summary": "추세 비교 표본이 부족해 지속적인 상승 여부를 판단할 수 없습니다.",
-    })
-    assert equipment_quality_issues({"trend": trend}, limited, []) == []
-
-
 def test_equipment_period_does_not_invent_timezone_missing_from_measurements():
     result = diagnosis().model_copy(update={
         "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01T00:00:00Z", end="2026-01-02T00:00:00Z"),
@@ -234,20 +183,6 @@ def test_equipment_period_does_not_invent_timezone_missing_from_measurements():
     normalized = normalize_equipment_period_timezone(result, trace)
     assert normalized.fft_analysis_period.start.tzinfo is None
     assert normalized.fft_analysis_period.end.tzinfo is None
-
-
-def test_invalid_equipment_period_reports_observed_dates_without_crashing():
-    result = diagnosis().model_copy(update={
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-03T00:00:00", end="2026-01-03T00:00:00"),
-        "fft_reference_record_ids": [2],
-        "likely_causes": [],
-    })
-    trace = [{"name": "get_fft_history_evidence", "result": {"records": [
-        {"recordId": 1, "measuredAt": "2026-01-01 09:15:00", "fft": {"recordId": 1, "measuredAt": "2026-01-01 09:15:00"}},
-        {"recordId": 2, "measuredAt": "2026-01-02 10:30:00", "fft": {"recordId": 2, "measuredAt": "2026-01-02 10:30:00"}},
-    ]}}]
-    issues = equipment_quality_issues({"trend": {"metrics": []}}, result, trace)
-    assert any("2026-01-01, 2026-01-02" in issue for issue in issues)
 
 
 def test_equipment_period_uses_actual_observation_times():

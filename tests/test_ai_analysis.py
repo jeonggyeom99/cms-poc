@@ -19,7 +19,6 @@ from app.ai_analysis import (
     OpenAISettings,
     build_ai_context,
     analysis_cache_ttl_seconds,
-    diagnosis_quality_issues,
 )
 from app.analysis.fft import analyze_acceleration_bearing_fft
 from app.reporting.ai import OpenAIReportGateway
@@ -315,132 +314,61 @@ def test_ai_context_exposes_inner_race_harmonic_separately_from_shaft_1x() -> No
     }
 
 
-def test_ai_diagnosis_quality_requires_supported_insight_and_rejects_false_bearing_cause() -> None:
+def test_single_accepts_first_schema_valid_answer_without_evidence_repair(monkeypatch) -> None:
+    from tests.test_ai_reliability import client, response
+    requests, inspected, closed = [], [], []
     expected = diagnosis().model_copy(update={
-        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
-        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
-        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
-    })
-    bearing_context = inner_race_context()
-    assert diagnosis_quality_issues(bearing_context, expected) == []
-    korean_order = expected.model_copy(update={
-        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1차 고조파 147 Hz에서 0.7 g 피크가 확인됩니다.")],
-        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1차 147 Hz에서 0.7 g입니다.")],
-    })
-    assert diagnosis_quality_issues(bearing_context, korean_order) == []
-    assert diagnosis_quality_issues(bearing_context, diagnosis())
-    rounded_context = deepcopy(bearing_context)
-    rounded_harmonic = rounded_context["fft"]["diagnosis"]["faults"][0]["harmonics"][0]
-    rounded_harmonic["detectedFrequency"] = 141.25
-    rounded_harmonic["amplitude"] = 2.509788
-    rounded = expected.model_copy(update={
-        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 141.25 Hz에서 2.51 g 피크")],
-        "likely_causes": [AiLikelyCause(cause="내륜 결함 후보", confidence="medium", rationale="BPFI 1X 141.25 Hz의 2.51 g 피크")],
-    })
-    assert diagnosis_quality_issues(rounded_context, rounded) == []
-    wrong_frequency = rounded.model_copy(update={"fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 120 Hz에서 2.51 g 피크")]})
-    assert any("주파수" in issue for issue in diagnosis_quality_issues(rounded_context, wrong_frequency))
-    verbose = expected.model_copy(update={"headline": expected.headline + " 추가 설명" * 30})
-    assert any("140자" in issue for issue in diagnosis_quality_issues(bearing_context, verbose))
-    keyword_only = expected.model_copy(update={
-        "headline": "주의 상승 BPFI 147 0.7 가능성",
-        "fft_findings": [AiFinding(heading="FFT", detail="피크가 있습니다.")],
-        "likely_causes": [AiLikelyCause(cause="BPFI", confidence="medium", rationale="추가 검토가 필요합니다.")],
-    })
-    assert diagnosis_quality_issues(bearing_context, keyword_only)
-
-    velocity_context = build_ai_context("1", sample_dataset(), sample_fft(), [])
-    assert any("베어링" in issue for issue in diagnosis_quality_issues(velocity_context, expected))
-    velocity_expected = diagnosis().model_copy(update={
-        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
-        "fft_findings": [AiFinding(heading="1X", detail="속도 FFT 1X 30 Hz에서 1.2 mm/s 피크가 확인됩니다.")],
-    })
-    assert diagnosis_quality_issues(velocity_context, velocity_expected) == []
-    stable_context = deepcopy(velocity_context)
-    stable_context["trend"]["analysis"]["status"] = "stable"
-    false_rising = velocity_expected.model_copy(update={
-        "headline": "속도 진동이 최근 상승해 주의 수준입니다. 속도 FFT에서 불평형이 의심돼 재측정이 필요합니다.",
-        "trend_findings": [AiFinding(heading="속도 진동 상승", detail="최근 상승 상태입니다.")],
-    })
-    assert any("상승이 아니" in issue for issue in diagnosis_quality_issues(stable_context, false_rising))
-    assert diagnosis_quality_issues(velocity_context, diagnosis())
-
-    unavailable = deepcopy(bearing_context)
-    unavailable["fft"]["diagnosis"]["status"] = "unavailable"
-    unsupported = expected.model_copy(update={"counter_evidence": ["베어링"]})
-    assert any("counterEvidence" in issue for issue in diagnosis_quality_issues(unavailable, unsupported))
-
-
-def test_ai_gateway_rewrites_generic_answer_once(monkeypatch) -> None:
-    calls: list[dict] = []
-    expected = diagnosis().model_copy(update={
-        "headline": "속도 진동이 최근 올라 주의 수준에 이르렀습니다. 가속도 FFT에서 베어링 내륜 결함이 의심돼 재측정이 필요합니다.",
-        "likely_causes": [AiLikelyCause(cause="베어링 내륜 결함 후보", confidence="medium", rationale="BPFI 1X 147 Hz에서 0.7 g입니다.")],
-        "fft_findings": [AiFinding(heading="BPFI", detail="BPFI 1X 결함주파수 147 Hz에서 0.7 g 피크가 확인됩니다.")],
+        "headline": "2099-12-31 진동은 9999 g로 상승했습니다.",
+        "fft_reference_record_ids": [999],
     })
 
-    async def create(**kwargs):
-        calls.append(kwargs)
-        if kwargs.get("tool_choice") == "required":
-            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
-            message = types.SimpleNamespace(
-                content=None,
-                refusal=None,
-                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
-            )
-        else:
-            content = diagnosis().model_dump_json() if len(calls) == 2 else expected.model_dump_json()
-            message = types.SimpleNamespace(content=content, refusal=None, tool_calls=None)
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=message)]
-        )
+    async def create(**params):
+        requests.append(params)
+        return (response(calls=["get_trend_evidence", "get_fft_evidence", "get_related_history"])
+                if len(requests) == 1 else response(expected.model_dump_json()))
 
-    class FakeAsyncOpenAI:
-        def __init__(self, **kwargs) -> None:
-            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=create))
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = client(create).chat
+        async def close(self):
+            closed.append(True)
 
-        async def close(self) -> None:
-            pass
+    async def execute(name, arguments):
+        inspected.append(name)
+        return {"records": []}
 
-    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
-    gateway = OpenAIAnalysisGateway(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
-
-    result = asyncio.run(gateway.analyze(inner_race_context()))
-
-    assert result.headline == expected.headline
-    assert len(calls) == 3
-    assert "진단 근거 검사" in calls[2]["messages"][-1]["content"]
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeClient))
+    result = asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(inner_race_context(), execute))
+    assert result == expected
+    assert inspected == ["get_trend_evidence", "get_fft_evidence", "get_related_history"]
+    assert len(requests) == 2  # One evidence batch, one final answer.
+    assert closed == [True]
 
 
-def test_ai_gateway_reports_evidence_failure_after_bounded_repairs(monkeypatch) -> None:
-    calls = 0
+@pytest.mark.parametrize("content", ['{"headline":', '{}', '{"SECRET_FIELD_DATA":123}'])
+def test_single_malformed_json_does_not_retry(monkeypatch, caplog, content) -> None:
+    from app.ai_analysis import AiResponseError
+    from tests.test_ai_reliability import client, response
+    requests, closed = [], []
 
-    async def create(**kwargs):
-        nonlocal calls
-        calls += 1
-        if kwargs.get("tool_choice") == "required":
-            names = ("get_trend_evidence", "get_fft_evidence", "get_related_history")
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(
-                content=None, refusal=None,
-                tool_calls=[types.SimpleNamespace(id=f"call-{name}", type="function", function=types.SimpleNamespace(name=name, arguments="{}")) for name in names],
-            ))])
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=diagnosis().model_dump_json(), refusal=None, tool_calls=None))]
-        )
+    async def create(**params):
+        requests.append(params)
+        return (response(calls=["get_trend_evidence", "get_fft_evidence", "get_related_history"])
+                if len(requests) == 1 else response(content))
 
-    class FakeAsyncOpenAI:
-        def __init__(self, **kwargs) -> None:
-            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=create))
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = client(create).chat
+        async def close(self):
+            closed.append(True)
 
-        async def close(self) -> None:
-            pass
-
-    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI))
-    gateway = OpenAIAnalysisGateway(OpenAISettings(api_key="test-key", model="test-model", timeout_seconds=1))
-
-    with pytest.raises(AiEvidenceError):
-        asyncio.run(gateway.analyze(inner_race_context()))
-    assert calls == 4
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeClient))
+    with pytest.raises(AiResponseError) as failure:
+        asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(inner_race_context()))
+    assert failure.value.reason == "schema_validation"
+    assert len(requests) == 2
+    assert closed == [True]
+    assert "SECRET_FIELD_DATA" not in caplog.text
 
 
 def test_repository_datasets_have_compact_ai_context_contract() -> None:
@@ -514,6 +442,57 @@ def test_ai_analysis_service_caches_and_refreshes_on_force() -> None:
         return first.cached, cached.cached, refreshed.cached, gateway.calls
 
     assert asyncio.run(run()) == (False, True, False, 2)
+
+
+def test_service_does_not_fetch_model_only_fft_references() -> None:
+    class ModelOnlyGateway(CountingGateway):
+        async def analyze(self, context):
+            return diagnosis().model_copy(update={'fft_reference_record_ids': [7, 999999]})
+
+    calls = []
+    async def execute(name, arguments):
+        calls.append((name, arguments))
+        return {'status': 'ready', 'fft': {'recordId': 999999, 'severityAssessments': []}}
+
+    value = {'equipmentAnalysis': True, 'preparedFftEvidence': {'representativeRecords': [
+        {'recordId': 7, 'severityAssessments': [{'recordId': 7, 'status': 'caution'}]}]}}
+    result = asyncio.run(AiAnalysisService(ModelOnlyGateway(), 'test').analyze(value, execute=execute))
+    assert calls == []
+    assert result.fft_severity_assessments == [{'recordId': 7, 'status': 'caution'}]
+    assert result.analysis.fft_reference_record_ids == [7, 999999]
+
+
+@pytest.mark.parametrize('tool_name', ['get_fft_evidence', 'get_fft_history_evidence'])
+def test_service_reuses_legitimate_tool_fft_assessments(monkeypatch, tool_name) -> None:
+    from tests.test_prefetched_analysis import install_client, prepared_context
+    from tests.test_ai_reliability import response
+    requests = []; tool_calls = []
+    grade = {'recordId': 3, 'status': 'danger', 'label': '정지'}
+
+    async def create(**params):
+        requests.append(params)
+        if len(requests) == 1:
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(finish_reason='tool_calls',
+                message=types.SimpleNamespace(content=None, refusal=None, tool_calls=[
+                    types.SimpleNamespace(id='legitimate', type='function', function=types.SimpleNamespace(
+                        name=tool_name, arguments=json.dumps({'record_id': 3} if tool_name == 'get_fft_evidence'
+                        else {'start': None, 'end': None, 'measure_mode': None, 'offset': 0})))]))])
+        return response(diagnosis().model_copy(update={'fft_reference_record_ids': [3, 999999]}).model_dump_json())
+
+    async def execute(name, arguments):
+        tool_calls.append((name, arguments))
+        evidence = {'recordId': 3, 'measuredAt': '2026-01-03', 'severityAssessments': [grade]}
+        if name == 'get_fft_evidence':
+            return {'status': 'ready', 'fft': evidence}
+        return {'status': 'ready', 'records': [{'recordId': 3, 'measuredAt': '2026-01-03', 'fft': evidence}]}
+
+    install_client(monkeypatch, create)
+    backend = OpenAIAnalysisGateway(OpenAISettings('fake', 'test', 1))
+    result = asyncio.run(AiAnalysisService(backend, 'test').analyze(prepared_context(), execute=execute))
+    assert len(requests) == 2 and len(tool_calls) == 1
+    assert tool_calls[0][0] == tool_name
+    assert result.fft_severity_assessments == [grade]
+    assert result.analysis.fft_reference_record_ids == [3, 999999]
 
 
 def test_cached_equipment_period_strips_timezone_without_changing_observation_times() -> None:

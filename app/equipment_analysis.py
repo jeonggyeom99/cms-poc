@@ -9,7 +9,6 @@ from threading import RLock
 from time import monotonic
 import json
 import math
-import re
 from datetime import date, datetime, timedelta
 from hashlib import sha256
 from typing import Any
@@ -243,22 +242,26 @@ Compare only the same measurement mode, unit and measurement point. Changes in R
 frequency resolution limit comparisons. Explain when shaft 1X or other components started
 increasing using actual observed dates and amplitudes. Sparse observations bound the onset
 interval; they do not establish the exact day deterioration began.
-Write all output in natural Korean. headline: 1-2 sentences, at most 140 characters, connecting
-main changes, supported cause candidates and a practical inspection action. Detailed numbers
-belong in the graph summaries and findings. trendSummary: 1-2 sentences about the latest
-90 days (~3 months), monthly average changes and persistence. Only monthlyAverages.mean is a
+Write all output in natural Korean. Use source numbers and dates naturally with correct units.
+headline: two connected paragraphs, at most 700 characters. First connect equipment state,
+Trend and FFT observations to possible causes; then explain priority inspection and judgment
+after remeasurement under the same conditions. trendSummary: 2-3 connected paragraphs within
+500 characters, starting with the latest measurement date, velocity and unit and comparison
+with configured caution/danger criteria. Follow with observed rise onset/acceleration and
+monitoring or additional checks, using the latest 90 days (~3 months), monthly average changes
+and persistence. Do not invent a rise onset date. Only monthlyAverages.mean is a
 monthly average; mark partialMonth periods as partial. A reading difference is not an average.
 The recent 72-hour rule and the 3-month monthly averages describe different windows. You may
 describe long-term increases supported by the monthly averages even when the short-term rule
 is stable. Do not call isolated spikes a sustained increase. Describe missing data explicitly.
-fftSummary: 2-3 connected paragraphs (up to 1200 Korean characters) connecting the historical
-analysis and why the current weekly status was selected. Integrate ALL weeklyExplanationFacts
-into this narrative (you may copy their exact sentences); do not use a separate heading.
-Preserve dates, counts, grade points, competing causes, the peak date/mode/harmonic/value,
-and the criterion range. Explain the count-first ranking and the selected cause's highest weekly
-grade. Mention missing/partial data. Keep grade explanations separate from physical fault certainty.
-Then connect observed historical harmonic changes, dominant components,
-supported hypotheses and practical additional checks. A dominant shaft 1X alone does not establish
+fftSummary: 2-3 connected paragraphs (up to 1200 Korean characters), starting with the
+measurement mode and main cause candidates, then interpreting observed harmonic patterns,
+and ending with practical inspection. Use relevant weeklyExplanationFacts when useful;
+do not repeat every weekly fact or create a citation table. Detailed weekly grades remain
+available in the server status cards. Mention missing/partial data and keep grade explanations
+separate from physical fault certainty. Connect observed historical harmonic changes,
+dominant components, supported hypotheses and practical additional checks.
+A dominant shaft 1X alone does not establish
 misalignment: check 2X/3X and their ratios. Bearing defect harmonics and shaft harmonics differ;
 never mix acceleration g with velocity mm/s or compare different modes as one time series.
 fftAnalysisPeriod.start/end: actual first/last FFT observation timestamps used for comparison,
@@ -276,205 +279,20 @@ Express physical cause candidates as hypotheses, with additional checks. Do not 
 hypotheses to deterministic supported cause codes. Mention missing bearing metadata in counterEvidence when observed.
 Include every requiredCounterEvidence limitation explicitly in counterEvidence; keep the
 provided limitation labels so missing bearing 모델/제조사/형번 or 마스터/계수 remains clear.
-Keep each findings list and recommendedActions to one or two essential items.
+historyFindings: up to three items about actual retrieved equipment/fault cases, recorded actions
+and post-action checks, followed by conditional recommendations for the current equipment.
+When no similar cases or action outcomes were supplied, state the limitation; do not invent them.
+Keep each other findings list and recommendedActions to one or two essential items. Avoid
+repeating the same conclusion across headline, summaries and findings.
 For changes, cite change30Days/change90Days or monthlyAverages.changeFromPreviousMonth from
 the supplied Trend evidence; do not invent derived amounts. For FFT, report observed endpoints and the direction
 of change rather than computing new differences or averages. Absence of a fault peak is a negative
 finding; explain its limits when proposing a physical cause hypothesis.
 
-Style example only (fictional evidence; never copy its numbers or conclusions):
-Trend has three full months with velocity means 3.5, 4.0, 4.5 mm/s. A velocity FFT has
-shaft 1X=2.4 mm/s, 2X=1.2 mm/s, 3X=0.8 mm/s; ratios=0.5 and 0.333; deterministic
-diagnosis=misalignment. Only when the actual evidence supports that diagnosis, write:
-headline: 진동값의 지속적인 상승과 1X·2X·3X 성분이 확인되어 축정렬 상태 불량 가능성이 있습니다. 정렬 상태와 볼트 체결을 우선 점검하고, 조치 후 진동 추세를 재확인하세요.
-trendSummary: 최근 3개월간 진동 속도 월평균이 약 3.5 → 4.5 mm/s로 점진적으로 상승했습니다. 일시적 변동보다 지속적인 상승이 관찰되어 설비 상태 변화를 점검할 필요가 있습니다.
-fftSummary: 회전 주파수 1X 성분이 약 2.4 mm/s로 가장 크며, 2X·3X 성분과 비율도 축정렬 불량 가능성을 지지합니다. 커플링과 볼트 체결, 설치 조건을 추가 점검하세요.
 If only shaft 1X supports unbalance, use 불평형 instead; do not infer misalignment from 1X alone.
 If bearing metadata or comparable history is missing, clearly state the limitation instead
-of copying the example's cause. Return the complete requested JSON schema, not just these three fields.
+of forcing a cause. Return the complete requested JSON schema.
 """
-
-
-def equipment_quality_issues(context: dict, result: AiDiagnosis, trace: list[dict]) -> list[str]:
-    issues: list[str] = []
-    prepared = context.get("preparedFftEvidence", {})
-    groups = prepared.get("groups", [])
-    inspected: dict[int, dict] = {item["recordId"]: item for item in prepared.get("representativeRecords", [])}
-    for call in trace:
-        payload = call["result"]
-        if call["name"] == "get_fft_evidence" and payload.get("fft"):
-            inspected[payload["fft"]["recordId"]] = payload["fft"]
-        if call["name"] == "get_fft_history_evidence":
-            for item in payload.get("records", []):
-                inspected[item["recordId"]] = item["fft"]
-    refs = result.fft_reference_record_ids
-    if len(refs) != len(set(refs)) or any(record_id not in inspected for record_id in refs):
-        issues.append("fftReferenceRecordIds는 실제로 조회한 FFT 기록만 중복 없이 지정하세요.")
-    period = result.fft_analysis_period
-    valid_period = False
-    if inspected:
-        if not refs:
-            issues.append("조회한 대표 FFT 기록 ID를 지정하세요.")
-        stamps = {_timestamp(item["measuredAt"]) for item in inspected.values()}
-        stamps.update(_timestamp(sample["measuredAt"]) for group in groups
-                      for month in group["monthlyComponents"] for component in month["components"].values()
-                      for sample in (component["first"], component["latest"], component["minimum"], component["maximum"]))
-        observed_dates = {stamp.date() for stamp in stamps if stamp is not None}
-        valid_period = bool(
-            period.start and period.end
-            and period.start.date() in observed_dates and period.end.date() in observed_dates
-            and period.start <= period.end
-        )
-        if not valid_period:
-            allowed_dates = ", ".join(day.isoformat() for day in sorted(observed_dates))
-            issues.append(
-                "fftAnalysisPeriod는 조회한 FFT 기록의 실제 관측 날짜로 지정하세요. "
-                f"사용 가능한 관측 날짜: {allowed_dates or '없음'}. "
-                "start/end는 비교한 첫째/마지막 날짜로 지정하세요."
-            )
-    elif refs or period.start is not None or period.end is not None:
-        issues.append("FFT 근거가 없으면 기간은 null, 참조 ID는 빈 배열로 작성하세요.")
-    # Compare measurements within their physical units, rather than any numeric field.
-    trend_values: dict[str, list[float]] = {}
-    trend_changes: dict[str, list[float]] = {}
-    for metric in context["trend"].get("metrics", []):
-        values = [metric.get(key) for key in ("latestValue", "minimum", "maximum", "mean", "warningThreshold", "dangerThreshold")]
-        values.extend(month["mean"] for month in metric.get("monthlyAverages", []))
-        trend_values.setdefault(metric.get("unit"), []).extend(value for value in values if value is not None)
-        changes = [metric.get("change30Days"), metric.get("change90Days")]
-        changes.extend(month.get("changeFromPreviousMonth") for month in metric.get("monthlyAverages", []))
-        trend_changes.setdefault(metric.get("unit"), []).extend(value for value in changes if value is not None)
-    fft_values: dict[str, list[float]] = {"Hz": []}
-    frequency_ranges = [fft["frequencyRange"] for fft in inspected.values()
-                        if isinstance(fft.get("frequencyRange"), (float, int))]
-    frequency_ranges.extend(group["frequencyRange"] for group in groups
-                            if isinstance(group.get("frequencyRange"), (float, int)))
-    frequency_resolutions = [group["frequencyResolution"] for group in groups
-                            if isinstance(group.get("frequencyResolution"), (float, int))]
-    frequency_resolutions.extend(fft["frequencyRange"] / fft["lineCount"] for fft in inspected.values()
-                                 if isinstance(fft.get("frequencyRange"), (float, int))
-                                 and isinstance(fft.get("lineCount"), int) and fft["lineCount"] > 0)
-    def collect_fft(value: Any, unit: str) -> None:
-        if isinstance(value, dict):
-            for key, child in value.items():
-                if isinstance(child, (float, int)) and not isinstance(child, bool):
-                    if key in {"amplitude", "maxAmplitude", "largestPeak", "amplitudeThreshold"}:
-                        fft_values.setdefault(unit, []).append(child)
-                    if key in {"frequency", "targetFrequency", "detectedFrequency", "shaftFrequency"}:
-                        fft_values["Hz"].append(child)
-                elif isinstance(child, (dict, list)):
-                    collect_fft(child, unit)
-        elif isinstance(value, list):
-            for child in value:
-                collect_fft(child, unit)
-    for fft in inspected.values():
-        collect_fft(fft, fft.get("amplitudeUnit"))
-    for group in groups:
-        for month in group["monthlyComponents"]:
-            for component in month["components"].values():
-                for key in ("first", "latest", "minimum", "maximum"):
-                    collect_fft(component[key], group["amplitudeUnit"])
-    weekly = context.get("fftWeeklyDiagnosis") or {}
-    for cause in weekly.get("causes", []):
-        peak = cause.get("peakEvidence") or {}
-        if peak.get("amplitude") is not None:
-            fft_values.setdefault(peak["unit"], []).append(peak["amplitude"])
-        if peak.get("frequency") is not None:
-            fft_values["Hz"].append(peak["frequency"])
-    from app.agents.handoff import evidence_catalog
-    for name in ("trend", "fft", "history"):
-        for fact in evidence_catalog(name, context, [call["result"] for call in trace]).values():
-            if fact.unit in {"rpm", "mm/s/hour"} and isinstance(fact.value, (int, float)):
-                (trend_values if name == "trend" else fft_values).setdefault(fact.unit, []).append(fact.value)
-    combined_values = {unit: list(values) for unit, values in trend_values.items()}
-    for unit, values in fft_values.items():
-        combined_values.setdefault(unit, []).extend(values)
-    trend_parts = [("trendSummary", result.trend_summary), *[(f"trendFindings[{index}].detail", item.heading + " " + item.detail) for index, item in enumerate(result.trend_findings)]]
-    fft_parts = [("fftSummary", result.fft_summary), *[(f"fftFindings[{index}].detail", item.heading + " " + item.detail) for index, item in enumerate(result.fft_findings)]]
-    cause_parts = [("headline", result.headline), ("riskLabel", result.risk_label),
-                   *[(f"likelyCauses[{index}]", item.cause + " " + item.rationale) for index, item in enumerate(result.likely_causes)],
-                   *[(f"counterEvidence[{index}]", text) for index, text in enumerate(result.counter_evidence)],
-                   *[(f"recommendedActions[{index}]", item.action + " " + item.rationale) for index, item in enumerate(result.recommended_actions)],
-                   *[(f"historyFindings[{index}]", item.heading + " " + item.detail) for index, item in enumerate(result.history_findings)]]
-    for label, parts, values_by_unit in (("추세", trend_parts, trend_values),
-                                        ("주파수", fft_parts, fft_values),
-                                        ("원인", cause_parts, combined_values)):
-        for field, summary in parts:
-            for sentence in re.split(r"[.!?\n](?!\d)", summary):
-                for match in re.finditer(r"(?<![\w.])([+-]?\d+(?:\.\d+)?)\s*(mm/s/hour|mm/s|Hz|rpm|g)(?![A-Za-z])", sentence):
-                    value = float(match[1])
-                    candidates = list(values_by_unit.get(match[2], []))
-                    # Explicit criterion bounds are policy values, not observations.
-                    from app.analysis.fft_severity import VELOCITY_LIMITS, ACCELERATION_LIMITS
-                    limits = VELOCITY_LIMITS if match[2] == "mm/s" else ACCELERATION_LIMITS if match[2] == "g" else ()
-                    criterion = (match[2] in ("g", "mm/s")
-                                 and any(word in sentence for word in ("진폭 기준", "구간", "범위"))
-                                 and re.match(r"\s*(?:초과|미만|이하|이상)", sentence[match.end():]))
-                    if criterion:
-                        if value in limits:
-                            continue
-                        issues.append(f"{field}에 잘못된 판정 기준 {value:g} {match[2]}가 있습니다. weeklyExplanationFacts의 기준을 사용하세요.")
-                        continue
-                    metadata_prefix = re.search(r"(?:범위|분해능|해상도|대역)(?:\s*설정)?(?:은|는|이|가|:|=)?\s*(?:약\s*)?$", sentence[:match.start()])
-                    metadata_suffix = re.match(r"\s*(?:의\s*)?(?:범위|분해능|해상도|대역|조건)", sentence[match.end():])
-                    if match[2] == "Hz" and (metadata_prefix or metadata_suffix):
-                        metadata_text = (metadata_prefix[0] if metadata_prefix else "") + (metadata_suffix[0] if metadata_suffix else "")
-                        candidates = frequency_resolutions if any(term in metadata_text for term in ("분해능", "해상도")) else frequency_ranges
-                    if label != "주파수" and any(term in sentence for term in ("변화", "증가", "감소", "상승", "하락", "차이", "대비", "변동", "차분", "증감", "change30Days", "change90Days", "changeFromPreviousMonth")):
-                        candidates.extend(trend_changes.get(match[2], []))
-                        if any(term in sentence for term in ("감소", "하락")):
-                            candidates.extend(-change for change in trend_changes.get(match[2], []) if change < 0)
-                    if any(abs(value - actual) <= max(0.055, abs(actual) * 0.01) for actual in candidates):
-                        continue
-                    detail = "해당 단위 수치는 삭제하고 근거 한계를 설명하세요."
-                    if candidates:
-                        nearest = min(candidates, key=lambda candidate: abs(candidate - value))
-                        detail = f"{match[2]} 근거값 중 가장 가까운 값은 {nearest:.6g}입니다. 맞는 값을 사용하거나 근거가 없음을 설명하세요."
-                    issues.append(f"{label}({field}) 요약에 근거가 없는 {value:g} {match[2]} 값이 있습니다. "
-                                  "이 수치 표현을 삭제하거나 실제 도구 근거에 맞게 수정하세요. " + detail)
-    if valid_period:
-        for record_id in refs:
-            if record_id in inspected and not period.start.date() <= _timestamp(inspected[record_id]["measuredAt"]).date() <= period.end.date():
-                issues.append("대표 FFT 기록은 비교 기간 안에 있어야 합니다.")
-    # Dates and counts are checked against source facts, independently of wording.
-    from app.agents.handoff import evidence_catalog, prose_issues
-    catalogs = {name: list(evidence_catalog(name, context, [call["result"] for call in trace]).values())
-                for name in ("trend", "fft", "history")}
-    all_facts = [fact for facts in catalogs.values() for fact in facts]
-    for field, text, facts in [*[(field, text, catalogs["trend"]) for field, text in trend_parts],
-                               *[(field, text, catalogs["fft"]) for field, text in fft_parts],
-                               *[(field, text, all_facts) for field, text in cause_parts]]:
-        details = []
-        codes = prose_issues(text, facts, absolute_tolerance=0.055, relative_tolerance=0.01,
-                            field=field, details=details)
-        for detail in details:
-            if detail["code"] in {"unsupported_date", "measurement_date_mismatch"} or detail["unit"] in {"count", "score"}:
-                issues.append("source_fact_mismatch:" + json.dumps(detail, ensure_ascii=False))
-    return list(dict.fromkeys(issues))
-
-
-def equipment_issue_codes(issues: list[str]) -> list[str]:
-    """Stable, measurement-free rule identifiers for diagnostic logs."""
-    rules = (
-        ("140자", "headline_length"), ("종합 요약에", "headline_action"),
-        ("fftReferenceRecordIds", "reference_records"), ("대표 FFT 기록 ID", "reference_records"),
-        ("fftAnalysisPeriod", "observation_period"), ("비교 기간 안", "reference_period"),
-        ("FFT 근거가 없으면", "missing_fft_evidence"),
-        ("추세 자료", "insufficient_trend"),
-        ("추세 비교 근거", "unsupported_trend"), ("근거가 없는", "unsupported_measurement"),
-        ("다른 측정 단위", "mixed_units"), ("베어링 정보 제한", "bearing_limitation"),
-        ("권장 점검", "recommended_action"),
-        ("해석하지 못한 FFT", "unavailable_records"),
-    )
-    codes = {next((code for token, code in rules if token in issue), "evidence_policy") for issue in issues}
-    for issue in issues:
-        if issue.startswith("source_fact_mismatch:"):
-            codes.add(json.loads(issue.split(":", 1)[1])["code"])
-        if "근거가 없는" in issue:
-            field = re.search(r"\(([A-Za-z0-9\[\].]+)\)", issue)
-            if field:
-                codes.add("unsupported_measurement:" + field[1])
-    return sorted(codes)
 
 
 def normalize_equipment_period_timezone(result: AiDiagnosis, trace: list[dict], context: dict | None = None) -> AiDiagnosis:
@@ -504,33 +322,3 @@ def normalize_equipment_period_timezone(result: AiDiagnosis, trace: list[dict], 
             end=max(end_observations) if end_observations else period.end.replace(tzinfo=None) if period.end else None,
         )
     return result
-
-
-def weekly_summary_issues(context: dict, summary: str) -> list[str]:
-    weekly = context.get("fftWeeklyDiagnosis")
-    if weekly is None:
-        return []
-    text = re.sub(r"\s+", "", summary).lower()
-    required = []
-    if weekly.get("start"):
-        required.extend((weekly['start'][:10], weekly['end'][:10]))
-    cause = weekly.get("representative")
-    if cause:
-        peak = cause['peakEvidence']
-        required.append({"0": "가속도ALL", "2": "가속도ENV", "3": "속도"}[peak["measureMode"]])
-        required.extend((cause['causeLabel'].lower(), cause['grade'], f"{cause['count']}건", f"{cause['totalScore']}점",
-                         peak['measuredAt'][:10], f"{peak['harmonicOrder']}x", f"{peak['amplitude']:.4f}", "발생횟수", "최고등급"))
-        from app.analysis.fft_severity import grade_criterion
-        required.append(grade_criterion(cause['unit'], cause['highestScore']))
-        for other in weekly['causes']:
-            required.extend((other['causeLabel'].lower(), f"{other['count']}건"))
-    else:
-        required.append(weekly['label'])
-    if weekly.get('limitation') and weekly.get('start'):
-        required.append('제한')
-    missing = [item for item in required if re.sub(r"\s+", "", item).lower() not in text]
-    for item in weekly.get("causes", []):
-        label = re.escape(re.sub(r"\s+", "", item["causeLabel"]).lower())
-        if not re.search(label + rf"(?:은|는|이|가|:)?{item['count']}건.{{0,8}}?{item['totalScore']}점", text):
-            missing.append(f"{item['causeLabel']} {item['count']}건·{item['totalScore']}점")
-    return ["fftSummary에 주간 상태 선정 근거를 빠짐없이 통합하세요. weeklyExplanationFacts의 문장을 그대로 사용하면 됩니다. 누락: " + ', '.join(missing)] if missing else []

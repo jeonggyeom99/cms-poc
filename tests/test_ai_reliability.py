@@ -6,7 +6,7 @@ import types
 import pytest
 
 from app.ai_analysis import AiAnalysisPeriod, AiResponseError, OpenAIAnalysisGateway, OpenAISettings
-from app.equipment_analysis import equipment_issue_codes, equipment_quality_issues, recent_trend_evidence
+from app.equipment_analysis import recent_trend_evidence
 from app.tool_calling import complete_with_tools
 from tests.test_ai_analysis import diagnosis
 
@@ -92,67 +92,97 @@ def equipment_result():
     })
 
 
-@pytest.mark.parametrize("bad_reply, stage", [
-    (response('{"headline":"SECRET_MEASUREMENT"}'), "stage=schema"),
-    (response('{"SECRET_FIELD_DATA":123}'), "stage=schema"),
-    (response("truncated", finish="length"), "reason=response_truncated"),
-    (response(), "reason=empty_response"),
-    (response(equipment_result().model_copy(update={"fft_summary": "진폭은 9999 g입니다."}).model_dump_json()), "stage=evidence"),
+@pytest.mark.parametrize("equipment", [True, False])
+@pytest.mark.parametrize("bad_reply, reason", [
+    (response('{"headline":"SECRET_MEASUREMENT"}'), "schema_validation"),
+    (response('{"SECRET_FIELD_DATA":123}'), "schema_validation"),
+    (response("truncated", finish="length"), "response_truncated"),
+    (response(), "empty_response"),
 ])
-def test_gateway_repairs_output_without_repeating_evidence_tools(monkeypatch, caplog, bad_reply, stage):
-    requests = []
-    replies = iter([
-        response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"]),
-        bad_reply, response(equipment_result().model_dump_json()),
-    ])
+def test_gateway_output_failure_does_not_retry(monkeypatch, caplog, equipment, bad_reply, reason):
+    requests, inspected, closed = [], [], []
 
     async def create(**params):
         requests.append(params)
-        return next(replies)
+        return (response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"]
+                         if equipment else ["get_trend_evidence", "get_fft_evidence", "get_related_history"])
+                if len(requests) == 1 else bad_reply)
 
     class FakeClient:
         def __init__(self, **kwargs):
             self.chat = client(create).chat
-
         async def close(self):
-            pass
+            closed.append(True)
+
+    async def inspect(name, arguments):
+        inspected.append(name)
+        return {"records": []}
 
     monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeClient))
-    context = {"equipmentAnalysis": True, "datasetId": "1", "equipment": {}, "fftInventory": {},
+    context = {"equipmentAnalysis": equipment, "datasetId": "1", "equipment": {}, "fftInventory": {},
                "scope": "설비", "trend": {"metrics": []}, "fft": {}}
-    gateway = OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1))
-    result = asyncio.run(gateway.analyze(context, execute))
-    assert result == equipment_result()
-    assert len(requests) == 3
-    assert requests[-1]["tool_choice"] == "none"
-    assert requests[-1]["max_completion_tokens"] == 4800
-    assert stage in caplog.text
+    with pytest.raises(AiResponseError) as failure:
+        asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(context, inspect))
+    assert failure.value.reason == reason
+    assert len(requests) == 2
+    assert len(inspected) == 3
+    assert closed == [True]
     assert "SECRET_MEASUREMENT" not in caplog.text
     assert "SECRET_FIELD_DATA" not in caplog.text
 
 
-def test_equipment_schema_repairs_stop_after_two_outputs(monkeypatch):
-    requests = []
+@pytest.mark.parametrize("field,text", [
+    ("headline", "2099-12-31 진동 9999 g로 지속 상승합니다."),
+    ("fft_summary", "500 Hz 피크와 BPFO 외륜 결함이 확실합니다."),
+    ("trend_summary", "현재 측정값은 -9.9 mm/s입니다."),
+    ("risk_label", "진동 9999 g"),
+    ("counter_evidence", "2099-12-31 측정값은 9999 g입니다."),
+    ("likely_causes", "FTF 결함은 9999 g입니다."),
+    ("recommended_actions", "9999 g 측정값으로 점검하세요."),
+    ("history_findings", "조회하지 않은 설비의 2099-12-31 9999 g 사례입니다."),
+    ("trend_findings", "측정값은 9999 g입니다."),
+    ("fft_findings", "피크 9999 Hz입니다."),
+])
+def test_equipment_single_accepts_first_answer_without_evidence_repair(monkeypatch, field, text):
+    from app.ai_analysis import AiFinding, AiLikelyCause, AiRecommendedAction
+    requests, inspected = [], []
+    expected = equipment_result().model_copy(update={
+        "fft_reference_record_ids": [999],
+        "fft_analysis_period": AiAnalysisPeriod(start="2099-01-01", end="2099-01-02"),
+    })
+    if field == "counter_evidence":
+        value = [text]
+    elif field == "likely_causes":
+        value = [AiLikelyCause(cause=text, confidence="low", rationale="추가 점검")]
+    elif field == "recommended_actions":
+        value = [AiRecommendedAction(priority="high", action=text, rationale="추가 점검")]
+    elif field.endswith("findings"):
+        value = [AiFinding(heading="분석", detail=text)]
+    else:
+        value = text
+    setattr(expected, field, value)
 
     async def create(**params):
         requests.append(params)
-        if len(requests) == 1:
-            return response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"])
-        return response("{}")
+        return (response(calls=["get_fft_evidence", "get_related_history", "get_fft_history_evidence"])
+                if len(requests) == 1 else response(expected.model_dump_json()))
+
+    async def inspect(name, arguments):
+        inspected.append(name)
+        return {"records": []}
 
     class FakeClient:
         def __init__(self, **kwargs):
             self.chat = client(create).chat
-
         async def close(self):
             pass
 
     monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(AsyncOpenAI=FakeClient))
-    context = {"equipmentAnalysis": True, "equipment": {}, "fftInventory": {}, "scope": "설비", "fft": {}}
-    result = asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(context, execute))
-    assert result.risk_level == "unknown"
-    assert result.likely_causes == []
-    assert len(requests) == 3  # One evidence batch and two output attempts.
+    context = {"equipmentAnalysis": True, "equipment": {}, "scope": "설비", "trend": {"metrics": []}}
+    actual = asyncio.run(OpenAIAnalysisGateway(OpenAISettings("fake", "test", 1)).analyze(context, inspect))
+    assert actual == expected
+    assert inspected == ["get_fft_evidence", "get_related_history", "get_fft_history_evidence"]
+    assert len(requests) == 2
 
 
 def mixed_trace():
@@ -169,86 +199,6 @@ def mixed_trace():
     ]}}]
 
 
-def test_equipment_cause_can_be_supported_by_a_nonrepresentative_record():
-    result = equipment_result().model_copy(update={
-        "headline": "내륜 결함 가능성이 있어 베어링을 점검하세요.",
-        "fft_summary": "BPFI 1차 147 Hz에서 0.7 g가 관측됩니다.",
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01", end="2026-01-02"),
-        "fft_reference_record_ids": [1, 2],
-    })
-    context = {"trend": {"metrics": []}}
-    assert equipment_quality_issues(context, result, mixed_trace()) == []
-    unsupported = result.model_copy(update={"headline": "외륜 결함 가능성이 있어 점검하세요."})
-    assert equipment_quality_issues(context, unsupported, mixed_trace()) == []
-    wrong = result.model_copy(update={"fft_summary": "BPFI는 9.9 g입니다."})
-    assert "unsupported_measurement" in equipment_issue_codes(equipment_quality_issues(context, wrong, mixed_trace()))
-    bad_period = result.model_copy(update={"fft_analysis_period": AiAnalysisPeriod(start="2026-01-03", end="2026-01-04")})
-    assert "observation_period" in equipment_issue_codes(equipment_quality_issues(context, bad_period, mixed_trace()))
-    bad_units = result.model_copy(update={"fft_summary": "진폭은 1.2 mm/s에서 0.7 g로 증가했습니다."})
-    assert equipment_quality_issues(context, bad_units, mixed_trace()) == []
-
-
-@pytest.mark.parametrize("positive_text", [
-    "외륜 피크는 미만이지만 결함이 의심됩니다.",
-    "외륜 피크가 없지만 외륜 결함 가능성이 높습니다.",
-    "외륜 피크가 확인되지 않지만 외륜 결함이 의심됩니다.",
-    "외륜 원인 후보를 지지하는 조회 FFT 근거가 없지만 결함이 의심됩니다.",
-    "외륜 원인으로 판단할 수 없지만 외륜 결함이 의심됩니다.",
-    "BPFO 1X에서 0.7 g가 관측되어 외륜 결함입니다.",
-    "BPFO 1X에서 0.7 g가 관측되어 외륜 결함이 존재합니다.",
-])
-def test_negative_fault_finding_does_not_claim_an_unsupported_cause(positive_text):
-    result = equipment_result().model_copy(update={
-        "fft_reference_record_ids": [1, 2],
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01", end="2026-01-02"),
-        "fft_summary": "외륜 결함 피크가 없어 확인되지 않습니다.",
-    })
-    context = {"trend": {"metrics": []}}
-    assert equipment_quality_issues(context, result, mixed_trace()) == []
-    limited = result.model_copy(update={"fft_summary": "외륜 원인 후보를 지지하는 유의한 조회 FFT Peak 또는 확정 진단 근거가 없어 판단이 제한됩니다."})
-    assert equipment_quality_issues(context, limited, mixed_trace()) == []
-    for text in ("외륜 원인으로 판단할 수 없습니다.", "조회 FFT는 BPFO 원인을 지지하지 않습니다.",
-                 "BPFO 1X는 0.014 g에서 0.014 g로 관측되었습니다."):
-        observed = result.model_copy(update={"fft_summary": text})
-        assert "unsupported_cause" not in equipment_issue_codes(equipment_quality_issues(context, observed, mixed_trace()))
-    positive = result.model_copy(update={"fft_summary": positive_text})
-    assert equipment_quality_issues(context, positive, mixed_trace()) == []
-
-
-def test_tool_provided_changes_are_valid_only_as_changes_not_readings():
-    context = {"trend": {"metrics": [{"unit": "mm/s", "latestValue": 5.0,
-                                      "change30Days": -1.2, "monthlyAverages": []}]}}
-    result = equipment_result().model_copy(update={"trend_summary": "30일 변화량은 -1.2 mm/s입니다."})
-    assert equipment_quality_issues(context, result, []) == []
-    reading = result.model_copy(update={"trend_summary": "현재 측정값은 -1.2 mm/s입니다."})
-    assert "unsupported_measurement:trendSummary" in equipment_issue_codes(equipment_quality_issues(context, reading, []))
-    invented = result.model_copy(update={"trend_summary": "30일 변화량은 -9.9 mm/s입니다."})
-    assert equipment_quality_issues(context, invented, [])
-    decrease = result.model_copy(update={"trend_summary": "30일간 1.2 mm/s 감소했습니다."})
-    assert equipment_quality_issues(context, decrease, []) == []
-    relative = result.model_copy(update={"trend_summary": "30일 전 대비 -1.2 mm/s입니다."})
-    assert equipment_quality_issues(context, relative, []) == []
-    named_change = result.model_copy(update={"trend_summary": "change30Days는 -1.2 mm/s입니다."})
-    assert equipment_quality_issues(context, named_change, []) == []
-
-
-@pytest.mark.parametrize("peak_text", ["피크는 500 Hz에서 관측됩니다.",
-                                      "측정 대역 내 500 Hz 피크가 관측됩니다.",
-                                      "측정 범위는 500 Hz이고 피크도 500 Hz입니다."])
-def test_fft_frequency_range_is_allowed_as_metadata_not_a_peak(peak_text):
-    trace = mixed_trace()
-    trace[0]["result"]["records"][0]["fft"]["frequencyRange"] = 500
-    result = equipment_result().model_copy(update={
-        "fft_reference_record_ids": [1, 2],
-        "fft_analysis_period": AiAnalysisPeriod(start="2026-01-01", end="2026-01-02"),
-        "fft_summary": "FFT 측정 대역 설정은 500 Hz이며 추가 점검이 필요합니다.",
-    })
-    context = {"trend": {"metrics": []}}
-    assert equipment_quality_issues(context, result, trace) == []
-    peak = result.model_copy(update={"fft_summary": peak_text})
-    assert "unsupported_measurement" in equipment_issue_codes(equipment_quality_issues(context, peak, trace))
-
-
 def test_monthly_changes_are_computed_from_observed_monthly_means():
     evidence = recent_trend_evidence({"trend": {"points": [
         {"timestamp": "2026-01-15 00:00:00", "value": 3},
@@ -258,22 +208,3 @@ def test_monthly_changes_are_computed_from_observed_monthly_means():
     months = evidence["metrics"][0]["monthlyAverages"]
     assert [month["changeFromPreviousMonth"] for month in months] == [None, 2, -1]
     assert all(month["partialMonth"] for month in months)
-
-@pytest.mark.parametrize('field', ['counter_evidence', 'risk_label', 'recommended_actions', 'likely_causes', 'history_findings', 'trend_findings', 'fft_findings'])
-def test_all_equipment_prose_fields_reject_invented_measurements(field):
-    result = equipment_result().model_copy(update={
-        'fft_reference_record_ids': [1, 2],
-        'fft_analysis_period': AiAnalysisPeriod(start='2026-01-01', end='2026-01-02'),
-    })
-    text = '측정값은 9999 g입니다.'
-    if field == 'counter_evidence':
-        result.counter_evidence = [text]
-    elif field == 'risk_label':
-        result.risk_label = text
-    else:
-        from app.ai_analysis import AiFinding, AiLikelyCause, AiRecommendedAction
-        item = (AiLikelyCause(cause=text, confidence='low', rationale='점검이 필요합니다.') if field == 'likely_causes'
-                else AiRecommendedAction(priority='high', action=text, rationale='점검이 필요합니다.') if field == 'recommended_actions'
-                else AiFinding(heading=text, detail='점검이 필요합니다.'))
-        setattr(result, field, [item])
-    assert 'unsupported_measurement' in equipment_issue_codes(equipment_quality_issues({'trend': {'metrics': []}}, result, mixed_trace()))

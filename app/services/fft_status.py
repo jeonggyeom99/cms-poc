@@ -40,8 +40,11 @@ def weekly_fft_diagnosis(fft: dict | None, *, records_cache: dict | None = None)
                 "cause": entry["cause"], "causeLabel": entry["causeLabel"], "count": 0, "totalScore": 0,
                 "highestScore": 0, "grade": entry["grade"], "state": entry["state"], "unit": entry["unit"],
                 "maxAmplitude": 0, "latestAt": item["measuredAt"], "recordIds": [], "peakRecordId": None, "peakEvidence": None,
+                "countsByMode": {},
             })
             cause["count"] += 1
+            mode = entry["measureMode"]
+            cause["countsByMode"][mode] = cause["countsByMode"].get(mode, 0) + 1
             cause["totalScore"] += entry["score"]
             cause["recordIds"].append(item["id"])
             cause["latestAt"] = max(cause["latestAt"], item["measuredAt"])
@@ -81,9 +84,16 @@ def weekly_explanation_facts(weekly: dict) -> list[str]:
         comparisons = ', '.join(f"{item['causeLabel']} {item['count']}건·{item['totalScore']}점" for item in weekly['causes'])
         facts = [f"최근 7일({period})의 초기 결함 이상 발생은 {comparisons}입니다.",
                  f"발생 횟수 우선, 동률이면 누적 점수·최고 등급·최근 발생 시각 순으로 비교해 {cause['causeLabel']}를 대표 원인으로 선정했습니다.",
-                 f"선택 원인의 주간 최고값은 {peak['measuredAt'][:10]} {mode} {cause['cause']} {peak['harmonicOrder']}X의 {peak['amplitude']:.4f} {peak['unit']}입니다.",
+                 f"선택 원인의 주간 최고값은 {peak['measuredAt'][:10]} {mode} {cause['cause']} {peak['harmonicOrder']}X의 {peak['amplitude']:.4f} {peak['unit']}입니다(기록 {peak['recordId']}, {peak['frequency']}Hz).",
                  f"이는 진폭 기준 {grade_criterion(cause['unit'], cause['highestScore'])} 구간이므로 현재 상태는 {cause['causeLabel']} {cause['grade']}입니다.",
                  "표시 등급은 선택 원인의 주간 최고 등급이며, 진폭 등급만으로 물리적 결함을 확정하지 않습니다."]
+        for item in weekly['causes']:
+            counts = item.get('countsByMode', {})
+            parts = ' + '.join(f"{label} {counts[code]}건" for code, label in
+                               (('2', 'ENV'), ('0', 'ALL'), ('3', '속도')) if counts.get(code))
+            if parts:
+                facts.append(f"전체 {item['cause']} {item['count']}건 = {parts}입니다. 전체 건수를 특정 모드의 건수로 해석하지 않습니다.")
+            facts.append(f"{item['cause']}의 최신 발생일은 {item['latestAt'][:10]}이며, 주간 최고값의 측정일과 별개입니다.")
     if weekly.get('limitation'):
         facts.append(f"집계에는 {weekly['limitation']}의 제한이 있습니다.")
     return facts

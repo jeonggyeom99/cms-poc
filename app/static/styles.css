@@ -2694,6 +2694,12 @@ body.graph-modal-open {
 .overview-fft-stats dd { margin: 0; color: #172b40; font-size: var(--cms-type-body, 14px); line-height: var(--cms-leading-body, 22px); font-weight: var(--cms-weight-strong, 600); overflow-wrap: anywhere; }
 #fft-ai-summary, .graph-ai-period { white-space: pre-line; }
 
+#ai-analysis-description,
+#trend-ai-summary,
+#fft-ai-summary,
+.ai-analysis-finding p,
+.related-history-ai-detail { white-space: pre-line; }
+
 .work-order-dialog { width: min(1040px, calc(100vw - 48px)); }
 .work-order-intro { margin: 0 0 22px; color: #63788a; font-size: 14px; }
 .work-order-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }

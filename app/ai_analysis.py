@@ -27,7 +27,7 @@ from app.services.history import normalize_fault_tag, select_ai_related_history
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_HISTORY_ITEMS = 5
-PROMPT_VERSION = "cms-dashboard-analysis-v11-weekly-explanation"
+PROMPT_VERSION = "cms-dashboard-analysis-v12-narrative-no-value-validation"
 ANALYSIS_TOOL_NAMES = {"get_trend_evidence", "get_fft_evidence", "get_related_history"}
 
 
@@ -74,7 +74,7 @@ class AiAnalysisPeriod(_ApiModel):
 
 
 class AiDiagnosis(_ApiModel):
-    headline: str = Field(min_length=1, max_length=180)
+    headline: str = Field(min_length=1, max_length=700)
     risk_level: Literal["normal", "caution", "danger", "unknown"]
     risk_label: str = Field(min_length=1, max_length=40)
     trend_summary: str = Field(min_length=1, max_length=500)
@@ -702,143 +702,7 @@ def _correct_bearing_message(fft: dict[str, Any]) -> None:
 
 class AiAnalysisGateway(Protocol):
     async def analyze(self, context: dict[str, Any], execute: Any = None) -> AiDiagnosis:
-        """Return a validated diagnosis for an already-sanitized context."""
-
-
-def _mentions_measurement(text: str, value: float | None, unit: str) -> bool:
-    if value is None:
-        return False
-    pattern = rf"(?<!\w)(\d+(?:\.\d+)?)\s*{re.escape(unit)}(?![A-Za-z])"
-    tolerance = max(0.05 if unit == "g" else 0.5, abs(value) * 0.01)
-    return any(
-        abs(float(match.group(1)) - value) <= tolerance
-        for match in re.finditer(pattern, text, flags=re.IGNORECASE)
-    )
-
-
-def diagnosis_quality_issues(context: dict[str, Any], result: AiDiagnosis) -> list[str]:
-    """Reject generic or unsupported conclusions for the selected FFT record."""
-    issues: list[str] = []
-    headline = result.headline.lower()
-    if len(result.headline) > 140:
-        issues.append("headline은 핵심 진단과 확인 조치만 담아 140자 이내로 작성하세요.")
-    if not any(word in headline for word in ("확인", "점검", "재측정", "검토")):
-        issues.append("headline에 구체적인 확인 또는 재측정 조치를 연결하세요.")
-    trend = context.get("trend") or {}
-    metrics = trend.get("metrics") or []
-    velocity = next((item for item in metrics if item.get("key") == "velocity"), None)
-    if velocity and velocity.get("thresholdState") == "caution" and "주의" not in headline:
-        issues.append("headline에 속도 진동의 주의 구간을 명시하세요.")
-    if trend.get("analysis", {}).get("status") == "rising" and not any(
-        word in headline for word in ("상승", "증가", "우상향", "올라", "높아", "커져")
-    ):
-        issues.append("headline에 상승 추세를 명시하세요.")
-    elif trend.get("analysis", {}).get("status") != "rising":
-        trend_text = " ".join(
-            [headline, *[f"{finding.heading} {finding.detail}" for finding in result.trend_findings]]
-        )
-        rising_claims = ("상승 추세", "추세 상승", "우상향", "최근 상승", "최근 올라", "상승 상태", "진동 상승")
-        if any(phrase in trend_text for phrase in rising_claims):
-            issues.append("Trend 분석 상태가 상승이 아니므로 상승 추세라고 표현하지 마세요.")
-
-    fft = context.get("fft") or {}
-    diagnosis = fft.get("diagnosis") or {}
-    mode = (fft.get("measurement") or {}).get("measureMode") or {}
-    mode_code = mode.get("code") if isinstance(mode, dict) else mode
-    cause_text = " ".join([result.headline, *[cause.cause for cause in result.likely_causes]]).lower()
-    race_words = ("내륜", "외륜", "inner race", "outer race", "bpfi", "bpfo")
-    if mode_code in {"0", "2"} and not all(word in headline for word in ("가속도", "fft")):
-        issues.append("headline에 선택 가속도 FFT 측정 모드를 명시하세요.")
-    if mode_code == "3" and not all(word in headline for word in ("속도", "fft")):
-        issues.append("headline에 선택 속도 FFT 측정 모드를 명시하세요.")
-
-    if mode_code in {"0", "2"} and diagnosis.get("status") == "analyzed":
-        fault_type = diagnosis.get("defaultFaultType")
-        fault = next((item for item in diagnosis.get("faults", []) if item.get("type") == fault_type), None)
-        harmonic = next((item for item in (fault or {}).get("harmonics", []) if item.get("significant")), None)
-        race_names = {"BPFI": "내륜", "BPFO": "외륜", "BSF": "볼", "FTF": "케이지"}
-        if harmonic and fault_type in race_names:
-            cause_names = (fault_type.lower(), race_names[fault_type])
-            order = harmonic.get("order")
-            evidence_text = " ".join(finding.detail.lower() for finding in result.fft_findings)
-            leading_cause = result.likely_causes[0] if result.likely_causes else None
-            rationale = leading_cause.rationale.lower() if leading_cause else ""
-            if not any(word in headline for word in cause_names):
-                issues.append("headline에 유의한 베어링 결함 유형을 연결하세요.")
-            if not leading_cause or not any(word in leading_cause.cause.lower() for word in cause_names):
-                issues.append("첫 번째 likelyCause를 유의한 베어링 결함 유형과 일치시키세요.")
-            frequency = harmonic.get("detectedFrequency")
-            amplitude = harmonic.get("amplitude")
-            if order is not None and not re.search(rf"(?<!\d){order}\s*(?:x|차)", evidence_text):
-                issues.append("fftFindings에 결함 고조파 순서를 명시하세요.")
-            if frequency is not None and not _mentions_measurement(evidence_text, frequency, "Hz"):
-                issues.append("fftFindings에 실제 결함 주파수(Hz)를 포함하세요.")
-            if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "g"):
-                issues.append("fftFindings에 실제 피크 진폭(g)을 포함하세요.")
-            if not any(word in evidence_text for word in cause_names):
-                issues.append("fftFindings에 해당 베어링 결함 유형을 명시하세요.")
-            if not any(word in rationale for word in cause_names):
-                issues.append("첫 번째 likelyCause의 설명에 결함 유형을 연결하세요.")
-            if not any(
-                _mentions_measurement(part, value, unit)
-                for part in (evidence_text, rationale)
-                for value, unit in ((frequency, "Hz"), (amplitude, "g"))
-            ):
-                issues.append("FFT 근거나 원인 설명에 실제 측정값을 제시하세요.")
-            if not any(word in headline for word in ("후보", "가능성", "추정", "의심")):
-                issues.append("headline에 결함 가설의 불확실성을 표시하세요.")
-            unsupported_races = {
-                "BPFI": ("bpfo", "외륜", "outer race"),
-                "BPFO": ("bpfi", "내륜", "inner race"),
-                "BSF": race_words,
-                "FTF": race_words,
-            }[fault_type]
-            if any(word in cause_text for word in unsupported_races):
-                issues.append("선택 결함 유형과 다른 베어링 원인을 주장하지 마세요.")
-        elif any(word in cause_text for word in race_words):
-            issues.append("유의한 결함 고조파 근거 없이 내륜·외륜 결함을 추정하지 마세요.")
-    elif any(word in cause_text for word in race_words):
-        issues.append("유의한 베어링 결함 주파수 근거 없이 내륜·외륜 결함을 추정하지 마세요.")
-
-    if mode_code == "3" and diagnosis.get("status") == "analyzed":
-        cause_names = {
-            "unbalance": ("unbalance", "불평형", "언밸런스"),
-            "misalignment": ("misalignment", "축정렬", "정렬 불량", "미스얼라인"),
-        }.get(diagnosis.get("diagnosis"))
-        if cause_names:
-            if not any(word in headline for word in cause_names):
-                issues.append("headline에 속도 FFT의 규칙 기반 원인 후보를 연결하세요.")
-            one_x = next((item for item in diagnosis.get("harmonics", []) if item.get("order") == 1), None)
-            if one_x and one_x.get("detectedFrequency") is not None:
-                frequency = one_x["detectedFrequency"]
-                amplitude = one_x.get("amplitude")
-                evidence_text = " ".join(finding.detail.lower() for finding in result.fft_findings)
-                if "1x" not in evidence_text or not _mentions_measurement(evidence_text, frequency, "Hz"):
-                    issues.append("fftFindings에 속도 FFT의 1X 주파수(Hz)를 포함하세요.")
-                if amplitude is not None and not _mentions_measurement(evidence_text, amplitude, "mm/s"):
-                    issues.append("fftFindings에 속도 FFT의 1X 진폭(mm/s)을 포함하세요.")
-
-    if mode_code in {"0", "2"} and diagnosis.get("status") != "analyzed":
-        limitations = " ".join(result.counter_evidence).lower()
-        reason = ((fft.get("diagnosticLimitation") or {}).get("code") or "")
-        required_terms = {
-            "bearing_not_configured": ("모델", "제조사", "형번"),
-            "bearing_not_found": ("마스터", "계수"),
-            "bearing_master_ambiguous": ("중복", "계수"),
-            "bearing_coefficients_invalid": ("계수",),
-            "bearing_master_unavailable": ("마스터",),
-        }.get(reason)
-        if required_terms is None:
-            message = diagnosis.get("message") or ""
-            required_terms = ("rpm", "회전수") if "RPM" in message else ("피크", "주파수", "판정")
-        if not any(word in limitations for word in required_terms):
-            issues.append("베어링 진단 불가 사유를 counterEvidence에 기록하세요.")
-    if fft.get("available") and not any(
-        word in " ".join(action.action for action in result.recommended_actions)
-        for word in ("확인", "점검", "재측정", "측정", "검사")
-    ):
-        issues.append("권장 점검에 실행 가능한 확인 또는 재측정 조치를 포함하세요.")
-    return issues
+        """Return a parsed diagnosis for an already-sanitized context."""
 
 
 COMMON_INSTRUCTIONS = """You are a condition-monitoring analyst assisting a Korean CMS dashboard.
@@ -862,20 +726,28 @@ For grade-only bearing statements use the explicit Korean phrase 진폭 기준 �
 Do not restrict hypotheses to deterministic supported cause codes.
 Do not present grade scores as measured amplitudes or introduce threshold numbers
 as observations. Detailed per-harmonic grades are rendered separately by the server.
+Use source numbers and dates naturally, with their units, in connected Korean paragraphs.
+Do not invent rise onset dates, action outcomes or past cases missing from the input.
+Keep internal field names and citation tables out of prose; avoid repeating the same conclusion
+across the headline, summaries and findings. Preserve essential data limitations.
 """
 
 SYSTEM_INSTRUCTIONS = COMMON_INSTRUCTIONS + """
-headline은 현장 담당자가 바로 읽을 수 있는 자연스러운 한국어 1~2문장으로 작성한다.
-140자를 넘기지 말고, 가능하면 100자 안팎으로 쓴다. 속도 진동의 현재 수준과
-최근 변화, 선택한 FFT가 시사하는 원인 후보, 확인할 행동을 흐름 있게 연결한다.
+headline은 현장 담당자가 바로 읽을 수 있는 자연스러운 한국어 2문단, 최대 700자로 작성한다.
+첫 문단은 설비 상태와 추세·FFT 관측을 원인 가능성으로 연결하고, 다음 문단은
+우선 점검과 동일 조건 재측정 후 판단할 사항을 설명한다. 입력에 있는 수치와 날짜를 자연스럽게 쓴다.
 측정값을 나열하거나 입력 필드명·영문 상태값을 그대로 옮기지 않는다.
 "후보를 지지합니다" 같은 번역투 대신 "의심됩니다", "가능성이 있어 확인이
 필요합니다"처럼 자연스럽게 쓴다. 고장 확정 표현은 피한다.
-1X, Hz, g 등 상세 측정값은 headline에 억지로 넣지 말고 fftFindings에 적는다.
 첫 likelyCause.rationale은 같은 결함 근거를 설명하고, recommendedActions에는
 재측정 또는 현장 점검처럼 실행할 수 있는 조치를 제시한다.
-Trend 분석 상태가 rising일 때만 상승이라고 쓰고, 진단 FFT 근거가 없으면
-원인을 만들어 내지 말고 판단의 제한을 알린다.
+trendSummary는 2~3문단, 최대 500자로 최신 측정일·속도와 단위, 주의/위험 기준 대비 상태,
+근거에 있는 상승 시작 시점·가속도, 모니터링과 추가 확인을 연결한다. 단기 상승 규칙과
+장기 월평균 변화는 구분하고, 관측에 없는 상승 시작일은 만들지 않는다.
+fftSummary는 2~3문단, 최대 1200자로 측정 모드·주요 결함 후보, 고조파 패턴과 권장 점검을 연결한다.
+주간 집계는 관련 있는 근거만 설명하고 모든 주간 사실을 반복할 필요는 없다.
+historyFindings는 실제 조회 사례의 설비·결함·조치·조치 후 확인과 현재 적용 조건을 최대 3개로 쓴다.
+사례나 조치 효과가 없으면 그 한계를 알리고, 진단 FFT 근거가 없으면 원인을 만들어 내지 않는다.
 
 For acceleration FFT (measureMode 0 or 2), a bearing cause requires diagnosis.status
 analyzed and a significant harmonic in the corresponding fault entry. BPFI means
@@ -958,85 +830,43 @@ class OpenAIAnalysisGateway:
             async with asyncio.timeout((10 if equipment_analysis else 6) * self._settings.timeout_seconds):
 
                 response_format = {"type": "json_schema", "json_schema": {"name": "cms_dashboard_ai_diagnosis", "strict": True, "schema": AiDiagnosis.model_json_schema()}}
-                trace: list[dict] = []
-                for attempt in range(2 if equipment_analysis else 3):
-                    content = None
-                    diagnostics = {"request_id": request_id, "attempt": attempt + 1}
-                    failure: AiAnalysisError | None = None
-                    try:
-                        content, current_trace = await complete_with_tools(
-                            client, self._settings.model, messages, tools, execute,
-                            required_tools=ANALYSIS_TOOL_NAMES if attempt == 0 and not equipment_analysis else None,
-                            allow_additional_tools=equipment_analysis if attempt == 0 else False,
-                            response_format=response_format,
-                            max_completion_tokens=(3200 if equipment_analysis else 2400) if attempt == 0 else 4800,
-                            max_tool_rounds=(2 if equipment_analysis else 4) if attempt == 0 else 0,
-                            max_tool_calls=4 if equipment_analysis else 8,
-                            prioritize_required=equipment_analysis,
-                            diagnostics=diagnostics,
-                            observer=observer,
-                        )
-                        if attempt == 0:
-                            trace = current_trace
-                    except AiResponseError as error:
-                        logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=%s stage=%s reason=%s rounds=%s calls=%s finish=%s missing_required=%s",
-                                       request_id, self._settings.model, context.get("datasetId"), attempt + 1, error.diagnostics.get("phase"), error.reason,
-                                       error.diagnostics.get("tool_rounds"), error.diagnostics.get("tool_calls"),
-                                       error.diagnostics.get("finish_reason"), error.diagnostics.get("missing_required"))
-                        if error.reason not in {"response_truncated", "empty_response"} or error.diagnostics.get("phase") != "final":
-                            raise
-                        if attempt == 0:
-                            trace = error.trace
-                        failure = error
-                        issues = ["앞선 응답이 잘렸거나 비어 있습니다. 조회한 근거를 유지하고 간결한 완전한 JSON을 작성하세요."]
-                    if failure is None:
-                        try:
-                            result = AiDiagnosis.model_validate_json(content)
-                        except ValidationError as error:
-                            allowed_fields = {name for model in (AiDiagnosis, AiFinding, AiLikelyCause, AiRecommendedAction, AiAnalysisPeriod)
-                                              for field_name, field in model.model_fields.items()
-                                              for name in (field_name, field.alias)}
-                            fields = sorted({".".join(str(part) if isinstance(part, int) or part in allowed_fields else "<extra>"
-                                                      for part in item["loc"]) + ":" + item["type"]
-                                             for item in error.errors(include_input=False, include_context=False)})
-                            logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=%s stage=schema fields=%s",
-                                           request_id, self._settings.model, context.get("datasetId"), attempt + 1, fields)
-                            failure = AiResponseError("schema_validation")
-                            issues = ["JSON 필드와 자료형을 수정하세요: " + ", ".join(fields)]
-                        else:
-                            if equipment_analysis:
-                                from app.equipment_analysis import equipment_issue_codes, equipment_quality_issues, normalize_equipment_period_timezone
-                                result = normalize_equipment_period_timezone(result, trace, context)
-                                issues = equipment_quality_issues(context, result, trace)
-                                codes = equipment_issue_codes(issues)
-                            else:
-                                issues = diagnosis_quality_issues(context, result)
-                                codes = ["single_record_evidence"] if issues else []
-                            if not issues:
-                                logger.info("AI analysis ready request_id=%s attempt=%s", request_id, attempt + 1)
-                                return result
-                            logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=%s stage=evidence rules=%s",
-                                           request_id, self._settings.model, context.get("datasetId"), attempt + 1, codes)
-                            if equipment_analysis:
-                                from app.agents.handoff import evidence_catalog
-                                evidence_ids = [eid for name in ("trend", "fft", "history")
-                                                for eid in evidence_catalog(name, context, [call["result"] for call in trace])]
-                                logger.warning("AI evidence details request_id=%s issues=%s reference_ids=%s evidence_ids=%s", request_id, issues, result.fft_reference_record_ids, evidence_ids)
-                            failure = AiEvidenceError()
-                    if attempt == (1 if equipment_analysis else 2):
-                        if equipment_analysis:
-                            from app.agents.handoff import evidence_catalog, limited_handoff
-                            from app.agents.orchestrator import MultiAgentAnalysisGateway
-                            codes = equipment_issue_codes(issues) if isinstance(failure, AiEvidenceError) else [failure.reason]
-                            handoffs = [limited_handoff(name, context, evidence_catalog(name, context, [call["result"] for call in trace]), codes)
-                                        for name in ("trend", "fft", "history")]
-                            return MultiAgentAnalysisGateway._limited_diagnosis(self, context, handoffs, {})
-                        raise failure
-                    if content:
-                        messages.append({"role": "assistant", "content": content})
-                    messages.append({"role": "user", "content":
-                                     "진단 근거 검사에서 다음 문제가 발견되었습니다. 이미 조회된 도구 결과만 사용하고 새 도구를 호출하지 마세요. "
-                                     "모든 필드를 포함하는 간결한 JSON 전체를 다시 작성하세요: " + " ".join(issues)})
+                diagnostics = {"request_id": request_id, "attempt": 1}
+                try:
+                    content, trace = await complete_with_tools(
+                        client, self._settings.model, messages, tools, execute,
+                        required_tools=None if equipment_analysis else ANALYSIS_TOOL_NAMES,
+                        allow_additional_tools=equipment_analysis,
+                        response_format=response_format,
+                        max_completion_tokens=3200 if equipment_analysis else 2400,
+                        max_tool_rounds=2 if equipment_analysis else 4,
+                        max_tool_calls=4 if equipment_analysis else 8,
+                        prioritize_required=equipment_analysis,
+                        diagnostics=diagnostics,
+                        observer=observer,
+                    )
+                except AiResponseError as error:
+                    logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=1 stage=%s reason=%s rounds=%s calls=%s finish=%s missing_required=%s",
+                                   request_id, self._settings.model, context.get("datasetId"), error.diagnostics.get("phase"), error.reason,
+                                   error.diagnostics.get("tool_rounds"), error.diagnostics.get("tool_calls"),
+                                   error.diagnostics.get("finish_reason"), error.diagnostics.get("missing_required"))
+                    raise
+                try:
+                    result = AiDiagnosis.model_validate_json(content)
+                except ValidationError as error:
+                    allowed_fields = {name for model in (AiDiagnosis, AiFinding, AiLikelyCause, AiRecommendedAction, AiAnalysisPeriod)
+                                      for field_name, field in model.model_fields.items()
+                                      for name in (field_name, field.alias)}
+                    fields = sorted({".".join(str(part) if isinstance(part, int) or part in allowed_fields else "<extra>"
+                                              for part in item["loc"]) + ":" + item["type"]
+                                     for item in error.errors(include_input=False, include_context=False)})
+                    logger.warning("AI analysis rejected request_id=%s model=%s dataset_id=%s attempt=1 stage=schema fields=%s",
+                                   request_id, self._settings.model, context.get("datasetId"), fields)
+                    raise AiResponseError("schema_validation") from error
+                if equipment_analysis:
+                    from app.equipment_analysis import normalize_equipment_period_timezone
+                    result = normalize_equipment_period_timezone(result, trace, context)
+                logger.info("AI analysis ready request_id=%s attempt=1", request_id)
+                return result
         except asyncio.TimeoutError as error:
             logger.warning("AI analysis failed request_id=%s stage=timeout", request_id)
             raise AiTimeoutError() from error
@@ -1213,19 +1043,30 @@ class AiAnalysisService:
 
     async def _run(self, cache_key: str, context: dict[str, Any], execute: Any = None) -> AiAnalysisResponse:
         try:
+            # Retain only evidence returned by normal, budgeted gateway Tool calls.
+            prepared = {item["recordId"]: item for item in
+                        context.get("preparedFftEvidence", {}).get("representativeRecords", [])}
+
+            async def execute_with_evidence(name: str, arguments: dict) -> dict:
+                payload = await execute(name, arguments)
+                if name == "get_fft_evidence" and payload.get("fft"):
+                    evidence = payload["fft"]
+                    prepared[evidence["recordId"]] = evidence
+                elif name == "get_fft_history_evidence":
+                    for item in payload.get("records", []):
+                        if item.get("fft"):
+                            evidence = item["fft"]
+                            prepared[evidence["recordId"]] = evidence
+                return payload
+
             if execute is not None and isinstance(self._gateway, OpenAIAnalysisGateway):
-                diagnosis = await self._gateway.analyze(context, execute)
+                diagnosis = await self._gateway.analyze(context, execute_with_evidence)
             else:
                 diagnosis = await self._gateway.analyze(context)
             # Server-owned assessments remain mandatory even if the model omits grades.
             assessments = []
-            prepared = {item["recordId"]: item for item in
-                        context.get("preparedFftEvidence", {}).get("representativeRecords", [])}
             for record_id in diagnosis.fft_reference_record_ids:
                 evidence = prepared.get(record_id)
-                if evidence is None and execute is not None and context.get("equipmentAnalysis"):
-                    payload = await execute("get_fft_evidence", {"record_id": record_id})
-                    evidence = payload.get("fft")
                 if evidence is None and context.get("fft", {}).get("recordId") == record_id:
                     evidence = context["fft"]
                 if evidence:

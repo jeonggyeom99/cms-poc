@@ -11,7 +11,7 @@ import {
   renderAiAnalysisError,
   resetAiAnalysis,
   setAiAnalysisLoading,
-} from "../analysis/ai.js?v=demo-datasets-v8";
+} from "../analysis/ai.js?v=ai-paragraphs-v1";
 import {
   bindEmailDraft,
   resetEmailDraft,
@@ -67,7 +67,8 @@ import {
   bindRelatedHistory,
   renderRelatedHistory,
   resetRelatedHistoryExpansion,
-} from "../fft/related-history.js?v=demo-datasets-v8";
+  resetRelatedHistoryAi,
+} from "../fft/related-history.js?v=ai-paragraphs-v1";
 import { fetchRelatedHistory } from "../api/history.js?v=demo-datasets-v8";
 import { bindGraphModal, openExpandedGraph } from "../modal/modal.js?v=equipment-ai-v4-korean-ui-v1";
 import { populateSummary } from "../summary/summary.js?v=korean-ui-v1";
@@ -116,6 +117,7 @@ function diagnosisBaseline() {
 
 function resetAiAnalysisForEquipment() {
   aiAnalysisRequest += 1;
+  resetRelatedHistoryAi();
   const baseline = diagnosisBaseline();
   resetAiAnalysis({ available: Boolean(getDashboardData()?.meta?.datasetId), baseline });
   resetReportActionsFor(baseline?.fft);
@@ -221,6 +223,7 @@ async function runAiAnalysis(force) {
   if (!dashboardData?.meta?.datasetId) return;
 
   const requestId = ++aiAnalysisRequest;
+  resetRelatedHistoryAi();
   resetReportActionsFor(null);
   setAiAnalysisLoading(baseline);
   try {
@@ -254,6 +257,7 @@ async function runAiAnalysis(force) {
     renderAiAnalysis(payload, diagnosisBaseline());
   } catch (error) {
     if (requestId !== aiAnalysisRequest) return;
+    resetRelatedHistoryAi();
     renderAiAnalysisError(
       error.message || "인공지능 분석을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.",
       baseline,
@@ -310,6 +314,7 @@ export async function loadDashboard(datasetId) {
   const select = document.getElementById("dataset-select");
   renderTrendDirection(null, "loading");
   setDashboardData(null);
+  relatedHistoryRequest += 1;
   resetFftRecordState();
   resetRelatedHistoryExpansion();
   resetFftRecordFilters();
@@ -340,6 +345,7 @@ export async function loadDashboard(datasetId) {
     void runAiAnalysis(false);
   } catch (error) {
     console.error("Dashboard data loading failed", error);
+    resetRelatedHistoryAi();
     setExpandButtonEnabled("trend", false);
     setExpandButtonEnabled("fft", false);
     setExpandButtonEnabled("timewave", false);

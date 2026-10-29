@@ -164,29 +164,31 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_TIMEOUT_SECONDS=20
 AI_ANALYSIS_CACHE_TTL_SECONDS=86400
 AI_ANALYSIS_MODE=multi
-# 선택: 검증된 Hand-off JSON/Markdown과 실행 지표 저장
+# 선택: 서버 출처를 붙인 Hand-off JSON/Markdown과 실행 지표 저장
 # AI_AGENT_TRACE_DIR=.cache/agent-traces
 ```
 
-설비 상세 화면을 열면 AI가 최근 3개월 추세와 보유한 전체 주파수 이력을 조회해 **설비 단위**로 한 번 분석합니다. 종합 요약은 주요 변화·근거가 있는 원인 가능성·우선 점검을 연결한 1~2문장으로 표시하고, 추세·주파수 그래프 아래에도 각각 짧은 분석을 표시합니다. 가상 근거와 대응하는 한국어 예시를 프롬프트에 포함하되 예시 숫자나 결론을 실제 설비에 복사하지 않도록 합니다. 1X 우세만으로 축정렬 불량을 판단하지 않고 2X·3X 및 배수 비율 근거를 함께 확인합니다. 화면에는 요약 분석을 표시하고 별도의 상세 진단 카드는 표시하지 않습니다. 추세 그래프와 AI 추세 분석은 최신 추세 측정일 기준 최근 90일(약 3개월)로 고정하며, 월별 평균·표본 수·부분 월의 실제 관측 기간을 제공합니다.
+설비 상세 화면을 열면 AI가 최근 3개월 추세와 보유한 전체 주파수 이력을 조회해 **설비 단위**로 한 번 분석합니다. 추세는 최신 측정값·단위·임계값 대비 상태와 확인 사항을 2~3문단(최대 500자), FFT는 모드·결함 후보·주요 성분 해석과 권장 점검을 2~3문단(공개 응답 최대 1,200자)으로 작성하도록 요청합니다. 공통 전문 Agent 내부 요약 한도는 기존 500자를 유지합니다. 과거 이력은 실제 사례의 조치·조치 후 확인과 조건부 권고를 최대 3개 항목(항목당 700자)으로 표시하며, 종합 `headline`은 상태·원인 가능성과 우선 점검을 연결한 2문단을 허용하도록 최대 700자로 확대했습니다. 개행은 문단으로 표시하고 HTML처럼 보이는 문자열도 `textContent`로 안전하게 표시합니다. 입력에 없는 상승 시작일·조치 효과를 지어내지 않도록 프롬프트에 지시하지만, 답변의 사실 여부는 서버에서 대조하지 않습니다. 추세 근거는 최신 추세 측정일 기준 최근 90일이며 월별 평균·표본 수·부분 월의 관측 기간을 제공합니다. 화면 날짜 범위와 AI 전달 범위의 기존 불일치는 이번 변경에서 해결하지 않았습니다.
 
 첫 AI 요청에는 최근 90일 추세·설정 임계값과 전체 FFT 이력을 서버에서 압축한 근거를 함께 제공합니다. FFT는 측정 모드·단위·측정점·RPM·주파수 범위·분해능별로 나누며, 월별 주요 성분의 최초·최신·최소·최대값과 원본 기록 ID·측정일, 이상 기록 수·최초 이상 관측일을 포함합니다. 이 값은 월평균이 아닌 실제 관측값입니다. 각 그룹의 최초·최신·최초 이상·주요 진폭 최대 기록에서 중복을 제거한 최대 6개 대표 기록과 관련 과거 이력도 제공합니다. 해석하지 못한 기록은 제한사항으로 표시합니다.
 
-기본 `multi` 경로는 Trend·FFT·History 전문 LLM을 병렬 호출하고, 검증된 Hand-off JSON과 중복을 제거한 근거 테이블을 Main Synthesis LLM에 전달합니다. Markdown은 사람이 확인하는 추적 파일로 저장합니다. 종합 LLM은 전체 요약·위험도·통합 원인 가설·반대 근거·우선 점검만 작성하고, 서버가 전문 Agent의 요약·관측 결과와 주간 등급·기간·대표 기록을 조립해 기존 응답 형식으로 반환합니다. 근거가 있는 세 영역의 정상 경로는 LLM 4회이며, 자료가 없는 영역은 호출을 생략하고 제한을 전달합니다. `AI_ANALYSIS_MODE=single`은 기존 단일 Agent 경로를 선택하며, 충분한 근거가 있으면 LLM 1회로 분석합니다. 추가 근거가 꼭 필요한 경우에만 `get_fft_evidence`, `get_fft_history_evidence`, `get_related_history`를 사용하며, Multi-Agent는 FFT·History 각각 최대 1회 도구 응답 단계와 전체 공유 예산 4개 호출로 제한합니다. 동일 인자 반복 호출은 차단하며 Trend와 Synthesis는 추가 도구를 호출하지 않습니다. 기존 single 경로는 최대 2회 도구 응답 단계·4개 호출을 유지합니다. 이력 추가 조회는 페이지당 최대 50개이며 다음 페이지는 같은 날짜·모드 필터로 조회합니다. 서로 다른 단위나 측정 조건을 같은 추세로 비교하지 않으며, 듬성듬성한 측정에서 정확한 고장 시작일을 단정하지 않습니다. `OPENAI_TIMEOUT_SECONDS`는 각 OpenAI 응답 제한시간이며, 전체 설비 분석은 기존과 같이 최대 10배까지 허용합니다.
+기본 `multi` 경로는 Trend·FFT·History 전문 LLM을 병렬 호출하고, 서버 출처를 붙인 Hand-off JSON과 중복을 제거한 근거 테이블을 Main Synthesis LLM에 전달합니다. Markdown은 사람이 확인하는 추적 파일로 저장합니다. 종합 LLM은 전체 요약·위험도·통합 원인 가설·반대 근거·우선 점검만 작성하고, 서버가 전문 Agent의 요약·관측 결과와 주간 등급·기간·대표 기록을 조립해 기존 응답 형식으로 반환합니다. 근거가 있는 세 영역의 정상 경로는 LLM 4회이며, 자료가 없는 영역은 호출을 생략하고 제한을 전달합니다. `AI_ANALYSIS_MODE=single`은 기존 단일 Agent 경로를 선택하며, 충분한 근거가 있으면 LLM 1회로 분석합니다. 추가 근거가 꼭 필요한 경우에만 `get_fft_evidence`, `get_fft_history_evidence`, `get_related_history`를 사용하며, Multi-Agent는 FFT·History 각각 최대 1회 도구 응답 단계와 전체 공유 예산 4개 호출로 제한합니다. 동일 인자 반복 호출은 차단하며 Trend와 Synthesis는 추가 도구를 호출하지 않습니다. 기존 single 경로는 최대 2회 도구 응답 단계·4개 호출을 유지합니다. 이력 추가 조회는 페이지당 최대 50개이며 다음 페이지는 같은 날짜·모드 필터로 조회합니다. 서로 다른 단위나 측정 조건을 같은 추세로 비교하지 않으며, 듬성듬성한 측정에서 정확한 고장 시작일을 단정하지 않습니다. `OPENAI_TIMEOUT_SECONDS`는 각 OpenAI 응답 제한시간이며, 전체 설비 분석은 기존과 같이 최대 10배까지 허용합니다.
 
-같은 설비·원본 측정 이력·관련 이력·모델·분석 버전의 결과는 기본 24시간 동안 재사용하며, 서버 재시작 후에도 유지됩니다. 주파수 기록이나 베어링 결함을 화면에서 바꿔도 설비 AI 분석을 다시 실행하지 않습니다. `다시 분석`은 설비 전체의 캐시를 건너뛰고 결과를 갱신합니다. 동시에 진행 중인 동일 분석은 요청을 공유합니다. 주파수 분석 아래에 실제 비교 기간과 대표 기록을 표시하며, 보고서 버튼도 서버가 검증된 FFT Hand-off에서 정한 첫 번째 대표 FFT 기록을 사용합니다.
+같은 설비·원본 측정 이력·관련 이력·모델·분석 버전의 결과는 기본 24시간 동안 재사용하며, 서버 재시작 후에도 유지됩니다. 주파수 기록이나 베어링 결함을 화면에서 바꿔도 설비 AI 분석을 다시 실행하지 않습니다. `다시 분석`은 설비 전체의 캐시를 건너뛰고 결과를 갱신합니다. 동시에 진행 중인 동일 분석은 요청을 공유합니다. 주파수 분석 아래에 실제 비교 기간과 대표 기록을 표시하며, 보고서 버튼도 서버가 FFT Hand-off의 원본 근거에서 조립한 첫 번째 대표 FFT 기록을 사용합니다.
 
 `POST /api/dashboard/{dataset_id}/ai-analysis`는 `until`(선택), `force`(기본 false)로 요청합니다. 기존 `recordId`·`selectedFaultType`은 호환성을 위해 받지만 설비 분석의 조회 기준으로 사용하지 않습니다. 응답의 `analysis`에는 기존 상세 진단과 함께 `trendSummary`, `fftSummary`, `fftAnalysisPeriod`(실제 관측 시작·종료 일시), `fftReferenceRecordIds`가 포함됩니다.
+
+History는 서로 다른 관측 결과를 최대 3개까지 우선 보존합니다. 중복을 제거한 뒤 자리가 남으면 별도 요약을 첫 항목으로 추가하며, 관측 결과가 없는 요약만의 응답도 표시합니다.
 
 캐시는 프로젝트 `.cache/ai-analysis/`의 키별 JSON 파일에 저장되며, 구조화된 분석 결과와 같은 내용의 마크다운 본문을 함께 보관합니다. Git에는 포함하지 않습니다. 유효기간은 `AI_ANALYSIS_CACHE_TTL_SECONDS`의 양의 정수로 변경할 수 있으며, 잘못된 값은 기본값 `86400`을 사용합니다. 만료 여부는 요청 시 확인하고, 원본 분석 입력·모델·내부 분석 기준 버전·Agent 구성·Hand-off 버전이 바뀌면 새로 분석합니다. 압축 Prefetch도 원본 fingerprint와 조회 범위로 최대 32건·24시간 재사용하며, 명시적 재분석에서는 새로 준비합니다. 분석 실패 시 기존 파일을 유지하고 오류를 반환하며, 파일 저장 실패 시에는 분석 결과를 반환하고 메모리 캐시와 서버 로그를 남깁니다. 단일 서버 프로세스를 기준으로 하며 별도의 만료 파일 정리 작업은 없습니다.
 
 모델은 요청마다 필요한 조회 도구를 선택하며 여러 도구를 호출할 수 있습니다. 서버는 조회 설비와 날짜·레코드 ID를 확인하고, 원본 FFT 주파수/진폭 배열은 도구 결과에서 제외합니다. API key는 브라우저에 전송되지 않습니다. 채팅 API 응답의 `toolCalls`에는 호출한 도구와 인자, 반환된 근거가 담깁니다.
 
-기존 `single` 모드의 설비 종합 분석은 첫 요청에 전달한 근거와 추가 도구 결과를 함께 검증합니다. AI의 최종 응답이 잘리거나 비어 있거나 JSON 필드·측정 근거 검증에 실패하면, 이미 전달한 근거로 최대 한 번 전체 응답을 보정하고, 계속 실패하면 서버 원본 근거와 판단 제한을 반환합니다. 최초 출력은 2,400토큰, 보정 출력은 4,800토큰으로 제한하며 기존 전체 분석 시간 제한 안에서 실행합니다. 보정 중에는 도구를 다시 호출하지 않습니다. 설비 전체 진단은 대표 FFT 한 건에 원인을 강제하지 않고 전달한 대표 기록·전체 이력 요약·추가 조회 기록을 검증에 사용합니다. 측정 대역·분해능 설명과 피크 수치를 구분하고, 원인명에 직접 연결된 점검 요청과 원인 주장을 구분합니다. 수치·단위·측정일·기간·대표 기록 검증은 계속 적용합니다. 원인 가설과 제한 문구의 표현만으로 응답을 거부하지 않습니다.
+`single`·`multi` 모두 최종 출력은 한 번만 JSON 파싱과 기존 Pydantic 형식 처리를 수행합니다. AI 문장의 수치·단위·날짜·기간·설비/기록/인용 ID·Agent 목록을 원본과 대조해 거부하는 검사와, 형식 또는 근거 오류를 고치는 후속 LLM 호출은 제거했습니다. `single`의 잘림·빈 응답·형식 오류는 기존 안전한 API 오류로 종료하며, `multi`의 일부 전문 Agent 또는 종합 실패는 가능한 하위 분석과 서버 근거를 담은 제한 응답을 반환합니다. 추가 single fallback은 호출하지 않습니다. 최초 single 출력 한도는 설비 분석 3,200토큰, 기존 단일 기록 분석 2,400토큰을 유지합니다. 요청 파라미터·Tool 조회 범위·CSV 유효성·데이터셋 격리·규칙 계산·파일/이미지 검사와 채팅 및 PPT의 독립 검증은 유지합니다. 검증 제거로 잘못된 수치나 해석이 그대로 표시될 수 있으며, 정상 최초 응답의 지연 개선률은 보장하지 않습니다.
 
 추세 도구의 월평균에는 이전 월평균과의 차이(`changeFromPreviousMonth`)를 함께 제공합니다. 변화량은 도구가 제공한 값만 사용하며, 서로 다른 단위의 측정값을 하나의 증가·감소로 비교하지 않습니다.
 
-실패 시 서버 로그의 `request_id`로 같은 분석의 보정 시도를 추적할 수 있습니다. 로그에는 `model`, `dataset_id`, 실패 단계(`tools`, `final`, `schema`, `evidence`), 도구 호출 제한 사유, 출력 종료 사유, JSON 오류 필드 경로 또는 근거 검증 규칙 ID를 기록합니다. 근거 오류에는 문제 필드·값·단위와 관련 근거 ID도 기록합니다. 제공자 오류는 허용된 오류 코드와 숫자 형식의 재요청 대기시간만 기록합니다. `unsupported_measurement`는 근거와 맞지 않는 수치, `observation_period`는 실제 관측 날짜와 맞지 않는 기간을 뜻합니다. API key, 원문 AI 응답, 측정 배열은 기록하지 않습니다. API 오류 응답의 기존 `code`와 `message` 구조는 유지하며 도구 제한·필수 근거 누락·응답 잘림은 각각 다른 안내 문구로 표시합니다. 인증·서비스 장애·요청 제한·시간 초과는 자동으로 재작성하지 않습니다.
+서버 로그의 `request_id`로 분석 요청과 형식 처리 실패를 추적할 수 있습니다. 모델·데이터셋 ID·도구 제한·응답 종료 사유·JSON/스키마 오류 코드와 허용된 제공자 오류 메타데이터를 기록합니다. 제거한 원본 값 대조의 실패 상세는 수집하지 않습니다. API key, 원문 제공자 응답, 원본 측정 배열은 기록하지 않습니다. API 오류 응답의 기존 `code`와 `message` 구조는 유지하며 인증·서비스 장애·요청 제한·시간 초과를 자동으로 재작성하지 않습니다.
 
 AI 결과는 Trend/FFT의 기존 규칙 기반 판정을 보조하는 참고 정보입니다. 남은 수명이나 MTBF를 예측하지 않으며, 현장 운전 조건과 점검 결과를 포함한 최종 판단은 담당자가 수행해야 합니다.
 
@@ -217,8 +219,8 @@ PPT는 작성 후 독립된 UI 검증 에이전트가 실제 렌더링 이미지
 대시보드 API의 `fftWeeklyDiagnosis`는 기간, 평가·제외 기록 수, 원인별 집계와 대표 원인을
 반환하며, 원인별 `peakEvidence`에는 최고 진폭의 기록·측정일·모드·고조파·주파수·단위가 포함됩니다.
 상태 카드는 원인명과 등급, 기간, 통계를 분리해 표시합니다. **AI 주파수 분석**은 최대 1,200자로
-주간 발생 횟수·누적 점수와 경쟁 원인, 선정 순서, 최고 진폭과 등급 기준 및 판단 제한을
-기존 FFT 비교 설명에 연결합니다. AI 분석 응답의 최상위 `fftSeverityAssessments`에는 AI 대표 기록의 고조파별
+입력 근거를 자연스러운 문단으로 설명하도록 요청합니다. 주간 집계는 근거와 상태/기준 카드에 유지하며,
+`weeklyExplanationFacts` 전체를 요약 앞에 자동으로 붙이거나 모두 반복시키지 않습니다. AI 분석 응답의 최상위 `fftSeverityAssessments`에는 AI 대표 기록의 고조파별
 값·단위·등급이 서버 계산 결과로 포함됩니다. AI가 등급 문구를 생략해도 분석 카드의
 **FFT 기준 판정**에서 필수 표시하며, 기존 AI 진단 JSON 구조는 유지합니다.
 
@@ -286,13 +288,31 @@ RPM, 제조사 또는 형번이 없거나 베어링 마스터에 일치하는 �
 
 5번 Dust Collect Fan 데모는 <http://127.0.0.1:8000/dashboard2?dataset=5>에서 확인합니다. 현재 CSV의 속도 주의 알람·상승 추세와 베어링 내륜(BPFI) 초기 결함을 근거로 고정 AI 답변을 표시합니다. FFT 선택·그래프·주간 집계·연관 과거 이력은 실제 데이터를 사용합니다. 현재 CSV의 속도 8.88 mm/s, 가속도 5.37 g 및 ENV 141.25 Hz·0.788 g와 2026년 4월 27일 진단 PPT의 과거 수치를 구분하며, CSV 과거 이력의 외륜(BPFO) 진단과 PPT 내륜 진단 간 차이도 점검 사항으로 안내합니다. 재분석 시에도 같은 데모 답변을 제공하고, 이메일·HTML 데모 보고서에 동일한 답변을 사용합니다.
 
-## Multi-Agent 검증과 추적
+## Multi-Agent 출력 정책과 추적
 
-전문 Agent는 서버가 제공한 원본 근거 ID를 선택해 해석합니다. 값·단위·관측일·집계 기간·측정 조건·실제 원본 기록 ID는 서버가 채우며, 해석의 인용까지 합친 근거 목록을 검증합니다. 날짜가 일치해도 다른 FFT 기록의 측정값을 가져다 쓸 수 없습니다. 검증은 원본 수치·단위·측정일·집계 기간과 설비·근거·FFT·과거 사례 ID 일치에 집중합니다. 원인 후보·확정 표현·점검 문구·측정 조건 비교 표현만으로 거부하지 않습니다. 측정 조건이 다르면 비교를 제한하고 불확실성을 설명하라는 프롬프트 지침은 유지합니다. 검증 통과는 수치 근거의 일치를 의미하며 진단의 정답을 보증하지 않습니다. History Hand-off에는 FFT별 실제 cutoff·결함 유형·조회 정책과 반환 ID를 보존합니다.
+현재 무검증 PoC 정책은 `validationPolicyVersion=disabled-poc-v1`, `outputValueValidation=false`, `specialistRepairs=0`, `synthesisRepairs=0`이며 single·multi 모두 이전 정책의 캐시와 분리됩니다. TTL과 기존 캐시 파일은 유지합니다. 성공한 종합 trace 상태는 `completed`입니다. 기존 지표 수집기와의 호환을 위해 `repair_seconds`, `validation_seconds`, `validation_assembly_seconds` 키를 남기는 곳은 모두 `0`으로 기록하며, 검증·교정 소요시간을 측정한 값이 아닙니다. `validation_failures`에는 JSON/스키마 등 출력 처리 실패 코드만 남기며 삭제한 원본 값 대조의 실패 상세는 수집하지 않습니다. 요청 ID, Agent별 상태·전체/LLM 시간·호출 수·토큰, Tool 수, 오류 코드와 최종 조립 결과는 계속 기록합니다.
 
-전문 Agent의 형식/근거 오류는 문제 필드·값·단위·인용 ID·기대 기록 ID를 전달해 한 번 교정하고, 계속 실패하면 실패 코드가 있는 원본 근거만 전달합니다. 다른 영역으로 종합을 계속하며 실패 영역을 결과에 표시합니다. Synthesis 교정도 최대 한 번입니다. 전문 분석 전체 또는 종합 검증 실패 시 검증된 하위 결과와 서버 근거로 원인 미확정의 제한 응답을 구성하며 추가 single 분석은 호출하지 않습니다. 전체 시간 예산은 `10 × OPENAI_TIMEOUT_SECONDS` 안에 유지합니다. 공통 제공자 장애·인증·할당량 문제에는 비효율적인 fallback을 반복하지 않습니다.
+전문 Agent는 서버가 제공한 원본 근거 ID를 선택해 해석합니다. 서버는 현재 요청의 카탈로그에 존재하는 근거만 연결하고 값·단위·관측일·집계 기간·측정 조건·실제 원본 기록 ID와 설비 메타데이터를 채웁니다. 존재하지 않는 인용 ID나 잘못된 설비·기간을 담은 정상 JSON도 원본 대조나 교정 호출 없이 처리하며, 이 출처 조립은 AI 해석이 사실과 일치한다는 보증이 아닙니다. History Hand-off에는 실제 FFT별 cutoff·결함 유형·조회 정책과 반환 ID를 보존합니다. 측정 조건 차이와 불확실성을 설명하라는 프롬프트 지침은 유지합니다.
 
-`AI_AGENT_TRACE_DIR`를 지정하면 같은 요청 ID의 `<request_id>.json`과 사람이 읽을 수 있는 `<request_id>.md`를 각각 저장합니다. 동시에 `<dataset_id>/trend.md`, `<dataset_id>/fft.md`, `<dataset_id>/history.md`와 `<dataset_id>/synthesis.md`에 각 Agent의 최신 Hand-off를 개별 저장합니다(예: `.cache/agent-traces/1/trend.md`). 종합 파일은 성공 시 검증된 최종 진단을, 실패 시 실패 코드와 제한 결과를 저장합니다. 요청별 로그와 최신 파일에 동일한 요청 ID를 기록합니다. 개별 파일은 재분석 시 갱신되며 요청별 파일은 유지됩니다. 검증 정책 버전도 캐시 키에 포함합니다. Markdown 파일에는 데이터셋 ID·요청 ID·실행 지표와 각 전문 Agent의 검증된 Hand-off가 포함됩니다. 요청별 검증된 Hand-off JSON·Markdown, Agent별 시간·상태, 실패/성공을 포함한 LLM 호출 수·토큰, Tool 수와 fallback을 기록합니다. 제공자가 usage를 반환하지 않으면 토큰은 `null`입니다. 거부된 원문 AI 응답·원본 측정 배열·API Key는 저장하지 않습니다. 추적 파일 보관/정리는 운영자가 관리합니다.
+전문 Agent와 Synthesis의 교정 호출은 모두 0회입니다. 자료 없음·일부 Agent 실패는 실패 코드와 제한을 보존하고 가능한 영역의 분석을 계속합니다. 정상 결과는 Trend·FFT·History 병렬 호출 뒤 Synthesis 호출이라는 기존 실행 구조를 유지합니다. 전체 시간 예산은 `10 × OPENAI_TIMEOUT_SECONDS`이며 공통 제공자 장애·인증·할당량 문제에는 fallback을 반복하지 않습니다.
+
+새 캐시 버전은 `cms-dashboard-analysis-v12-narrative-no-value-validation`, `cms-multi-agent-v6-linked-measurements`, `source-linked-handoff-v8-measurement-bundles`입니다. 정책 버전 및 설정을 single·multi 캐시 키에 모두 포함해 이전 결과와 분리하며 기존 TTL·파일은 유지합니다.
+
+FFT 근거는 기록·측정일·모드·주파수·진폭을 한 묶음(`evidence_catalog.measurements`)으로 함께 전달하고 기존 인용 ID를 유지합니다. 선별 및 Synthesis 전달 과정에서도 주파수·진폭 쌍을 보존합니다. 주간 최고값의 출처는 `peakEvidence.measuredAt`이며 `latestAt`은 별도 최신 발생일입니다. 주간 전체 건수는 `countsByMode`로 ALL·ENV·속도 모드별 건수와 구분합니다. 등급 계산과 대표 원인 선정 순서는 그대로입니다.
+
+전문 Agent 내부 요약도 Trend 500자, FFT 1,200자로 구분합니다. 전체 JSON 출력 예산은 FFT 3,600토큰, Trend·History 각 2,200토큰, Synthesis 2,400토큰입니다. 요약에는 관측 → 가능한 해석 → 우선 점검을 담고, 관측·가설 항목에는 추가 설명을 중심으로 씁니다. History 자료 없음과 API 호출 실패 안내는 서버가 구분합니다. [실제 CSV 재검증 보고서](docs/multi-agent/linked-fft-evidence-validation.md)에 응답 품질과 잔존 오류를 기록했습니다. 이 방식은 정확성을 보장하지 않습니다.
+
+`AI_AGENT_TRACE_DIR`를 지정하면 같은 요청 ID의 `<request_id>.json`과 사람이 읽을 수 있는 `<request_id>.md`를 각각 저장합니다. 동시에 `<dataset_id>/trend.md`, `<dataset_id>/fft.md`, `<dataset_id>/history.md`와 `<dataset_id>/synthesis.md`에 각 Agent의 최신 Hand-off를 개별 저장합니다(예: `.cache/agent-traces/1/trend.md`). 종합 파일은 성공 시 최종 진단을, 실패 시 실패 코드와 제한 결과를 저장합니다. 요청별 로그와 최신 파일에 동일한 요청 ID를 기록합니다. 개별 파일은 재분석 시 갱신되며 요청별 파일은 유지됩니다. Markdown 파일에는 데이터셋 ID·요청 ID·실행 지표와 서버 출처를 붙인 Hand-off가 포함됩니다. Agent별 시간·상태, 실패/성공을 포함한 LLM 호출 수·토큰, Tool 수와 fallback을 기록합니다. 제공자가 usage를 반환하지 않으면 토큰은 `null`입니다. 원문 제공자 응답·원본 측정 배열·API Key는 저장하지 않습니다. 추적 파일 보관/정리는 운영자가 관리합니다.
+
+실제 API 호출 없는 통합 검증은 다음 명령으로 실행합니다. 실제 CSV를 읽고 전문 응답과 종합만 Mock하며, 테스트의 OpenAI client 생성 guard가 `.env` 키 유무와 관계없이 실제 호출을 막습니다.
+
+```bash
+uv run pytest -q tests/test_linked_fft_evidence.py tests/test_ai_narrative.py tests/test_multi_agent.py tests/test_ai_analysis.py tests/test_ai_reliability.py tests/test_equipment_analysis.py tests/test_prefetched_analysis.py tests/test_tool_calling.py tests/test_ai_wording_ui.py
+uv run pytest -q tests/test_app.py tests/test_chat_analysis_tools.py tests/test_history.py tests/test_fft_severity.py tests/test_report_ai.py tests/test_report_contracts.py tests/test_report_endpoints.py tests/test_report_ui.py tests/test_ppt_report.py tests/test_ppt_validation.py tests/test_ppt_frontend.py tests/test_email_draft.py tests/test_demo_presentation.py
+uv run pytest -q
+```
+
+Windows에서는 `PYTHONUTF8=1`을 설정하고, 이미 설치된 환경의 `.venv/Scripts/python.exe -m pytest`로 같은 그룹을 실행할 수 있습니다. Mock 테스트는 응답 계약과 회귀를 확인하며 실제 LLM 문체·응답 지연·진단 정확도를 측정하지 않습니다. 아래 이력 보고서의 과거 실측 결과는 당시 정책의 기록으로 유지합니다.
 
 실제 비교에는 설정된 API Key가 사용되고 과금될 수 있습니다.
 

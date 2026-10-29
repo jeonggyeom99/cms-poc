@@ -185,36 +185,13 @@ assert.match(content, /베어링 교체/);
     subprocess.run(['node', '--input-type=module', '-e', script], cwd=Path(__file__).resolve().parents[1], check=True)
 
 
-def test_grade_statement_does_not_claim_physical_bearing_fault():
-    from app.equipment_analysis import equipment_quality_issues
-    raw = bearing_record()
-    raw['analysis']['diagnosis']['faults'] = raw['analysis']['diagnosis']['faults'][:1]
-    evidence = _fft_summary(raw)
-    result = diagnosis().model_copy(update={
-        'headline': '진폭 기준 FTF 초기 결함 등급으로 점검이 필요합니다.',
-        'fft_summary': 'FTF는 진폭 기준 초기 결함 등급입니다.',
-        'fft_reference_record_ids': [1], 'likely_causes': [], 'fft_findings': [],
-        'fft_analysis_period': {'start': None, 'end': None},
-    })
-    from app.ai_analysis import AiAnalysisPeriod
-    result.fft_analysis_period = AiAnalysisPeriod(start=raw['measuredAt'], end=raw['measuredAt'])
-    context = {'trend': {'metrics': []}, 'preparedFftEvidence': {'representativeRecords': [evidence], 'groups': []}}
-    assert not any('FTF 원인' in issue for issue in equipment_quality_issues(context, result, []))
-    from app.ai_analysis import AiLikelyCause
-    result.likely_causes = [AiLikelyCause(cause='FTF', confidence='low', rationale='진폭 기준 초기 결함 등급입니다.')]
-    assert any('FTF 원인' in issue for issue in equipment_quality_issues(context, result, []))
-    result.likely_causes = []
-    result.fft_summary = '진폭 기준 초기 결함 등급이며 FTF 결함이 의심됩니다.'
-    assert any('FTF 원인' in issue for issue in equipment_quality_issues(context, result, []))
-
-
 def test_unknown_frequency_scale_does_not_produce_a_grade():
     raw = record()
     raw['frequencyUnit'] = 'bin'
     assert assess_fft_harmonics(raw)[0]['grade'] == '판정 불가'
 
 
-def test_server_fetches_an_additional_ai_reference_and_caches_it():
+def test_server_preserves_prepared_reference_grades_and_caches_without_extra_queries():
     evidence = _fft_summary(record(2, values=(25, 1, 1)))
     calls = []
     class Gateway:
@@ -223,40 +200,20 @@ def test_server_fetches_an_additional_ai_reference_and_caches_it():
     async def execute(name, arguments):
         calls.append((name, arguments))
         return {'fft': evidence}
-    context = {'equipmentAnalysis': True, 'preparedFftEvidence': {'representativeRecords': []}}
+    context = {'equipmentAnalysis': True, 'preparedFftEvidence': {'representativeRecords': [evidence]}}
     service = AiAnalysisService(Gateway(), 'test-model')
     async def run():
         response = await service.analyze(context, execute=execute)
         assert response.fft_severity_assessments[0]['grade'] == '정지'
         assert response.model_dump(by_alias=True)['fftSeverityAssessments'][0]['recordId'] == 2
         cached = await service.analyze(context, execute=execute)
-        assert cached.cached and len(calls) == 1
+        assert cached.cached and calls == []
+        assert cached.fft_severity_assessments == response.fft_severity_assessments
     asyncio.run(run())
-
-
-@pytest.mark.parametrize('text', [
-    'FTF·BSF 원인은 확정하지 마세요.',
-    'FTF·BSF 결함을 단정하지 않습니다.',
-])
-def test_bearing_grade_limitations_are_not_positive_fault_claims(text):
-    from app.equipment_analysis import equipment_quality_issues
-    raw = bearing_record()
-    evidence = _fft_summary(raw)
-    result = diagnosis().model_copy(update={
-        'headline': text + ' 현장 상태를 점검하세요.',
-        'fft_reference_record_ids': [1], 'likely_causes': [], 'fft_findings': [],
-    })
-    from app.ai_analysis import AiAnalysisPeriod
-    result.fft_analysis_period = AiAnalysisPeriod(start=raw['measuredAt'], end=raw['measuredAt'])
-    context = {'trend': {'metrics': []}, 'preparedFftEvidence': {'representativeRecords': [evidence], 'groups': []}}
-    assert not any('원인 후보' in issue for issue in equipment_quality_issues(context, result, []))
-    result.headline = text + ' 하지만 FTF 결함이 의심됩니다. 점검하세요.'
-    assert any('FTF 원인 후보' in issue for issue in equipment_quality_issues(context, result, []))
 
 
 def test_weekly_peak_evidence_and_integrated_explanation(monkeypatch):
     from app.services.fft_status import weekly_explanation_facts
-    from app.equipment_analysis import weekly_summary_issues
     value = weekly(monkeypatch, [record(1, '2026-04-29 12:00:00', values=(5, 1, 1)),
                                 record(2, values=(1, 11, 1)),
                                 record(3, cause='misalignment', values=(5, 1, 1))])
@@ -264,44 +221,17 @@ def test_weekly_peak_evidence_and_integrated_explanation(monkeypatch):
     assert peak['recordId'] == 2 and peak['harmonicOrder'] == 2
     assert peak['frequency'] == 60 and peak['amplitude'] == 11
     summary = ' '.join(weekly_explanation_facts(value))
-    context = {'fftWeeklyDiagnosis': value}
-    assert weekly_summary_issues(context, summary) == []
-    assert weekly_summary_issues(context, summary.replace('11.0000', '12.0000'))
-    assert weekly_summary_issues(context, summary.replace('2건', '9건'))
-    assert weekly_summary_issues(context, summary.replace('속도', ''))
-    assert weekly_summary_issues(context, summary.replace('1건·1점', '1건'))
-    assert weekly_summary_issues(context, summary.replace('Unbalance 2건·3점', 'Unbalance 1건·1점'))
-    assert weekly_summary_issues(context, '주파수 성분을 확인했습니다.')
+    assert '2X의 11.0000 mm/s' in summary
+    assert 'Unbalance 2건' in summary and '3점' in summary
+    assert '속도' in summary and '최고 등급' in summary
 
 
 def test_weekly_explanation_missing_data_and_partial(monkeypatch):
     from app.services.fft_status import weekly_explanation_facts
-    from app.equipment_analysis import weekly_summary_issues
     for value in (weekly_fft_diagnosis(None), weekly(monkeypatch, [record(values=(1, 1, 1))])):
         summary = ' '.join(weekly_explanation_facts(value))
-        assert weekly_summary_issues({'fftWeeklyDiagnosis': value}, summary) == []
+        assert value['label'] in summary
     raw = record()
     raw['analysis']['diagnosis']['harmonics'][2]['detected'] = False
     value = weekly(monkeypatch, [raw])
     assert '제한' in ' '.join(weekly_explanation_facts(value))
-
-
-def test_criterion_values_are_not_mistaken_for_measured_peaks(monkeypatch):
-    from app.services.fft_status import weekly_explanation_facts
-    from app.equipment_analysis import equipment_quality_issues
-    raw = bearing_record()
-    raw['analysis']['diagnosis']['faults'] = raw['analysis']['diagnosis']['faults'][:1]
-    raw['analysis']['diagnosis']['faults'][0]['harmonics'][0]['amplitude'] = .4
-    value = weekly(monkeypatch, [raw])
-    evidence = _fft_summary(raw)
-    from app.ai_analysis import AiAnalysisPeriod
-    result = diagnosis().model_copy(update={'headline': '베어링 상태를 점검하세요.',
-        'fft_summary': ' '.join(weekly_explanation_facts(value)), 'fft_findings': [], 'likely_causes': [],
-        'fft_reference_record_ids': [1],
-        'fft_analysis_period': AiAnalysisPeriod(start=raw['measuredAt'], end=raw['measuredAt'])})
-    context = {'trend': {'metrics': []}, 'fftWeeklyDiagnosis': value,
-               'preparedFftEvidence': {'representativeRecords': [evidence], 'groups': []}}
-    issues = equipment_quality_issues(context, result, [])
-    assert issues == []
-    result.fft_summary += ' 실제 FTF 피크는 1 g입니다.'
-    assert any('근거가 없는 1 g' in issue for issue in equipment_quality_issues(context, result, []))

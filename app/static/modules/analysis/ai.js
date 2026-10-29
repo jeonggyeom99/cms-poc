@@ -1,3 +1,5 @@
+import { renderRelatedHistoryAi } from "../fft/related-history.js?v=ai-paragraphs-v1";
+
 // Translate model enum/field labels at presentation time; preserve API evidence and numbers.
 export function formatAiText(value) {
   if (typeof value !== "string") return value;
@@ -168,6 +170,7 @@ export function setAiAnalysisLoading(baseline) {
 export function renderAiAnalysis(payload, baseline = null) {
   const { description, run, details } = elements();
   const analysis = payload.analysis;
+  renderRelatedHistoryAi(analysis.historyFindings);
   description.textContent = formatAiText(analysis.headline);
   const period = analysis.fftAnalysisPeriod;
   const dates = period?.start && period?.end

@@ -112,7 +112,7 @@ def test_complete_with_tools_requires_named_evidence_before_final(monkeypatch) -
 
     async def create(**kwargs):
         calls.append(kwargs)
-        if kwargs["tool_choice"] == "required":
+        if kwargs.get("tool_choice") == "required":
             tool_calls = [
                 types.SimpleNamespace(
                     id=f"call-{len(calls)}-{name}", type="function",
@@ -163,6 +163,67 @@ def test_complete_with_tools_omits_reasoning_effort_for_legacy_models() -> None:
     content, _ = asyncio.run(complete_with_tools(
         client, "gpt-4o-mini", [], [], execute,
     ))
+
+    assert content == "done"
+    assert "reasoning_effort" not in calls[0]
+
+
+@pytest.mark.parametrize("model", ["gpt-6-luna", "gpt-6-luna-2026-01-01"])
+def test_complete_with_tools_sets_no_reasoning_effort_for_gpt_6_luna(model) -> None:
+    calls = []
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("tool_choice") == "required":
+            message = types.SimpleNamespace(
+                tool_calls=[types.SimpleNamespace(
+                    id="call-test", type="function",
+                    function=types.SimpleNamespace(name="get_test", arguments="{}"),
+                )], content=None, refusal=None,
+            )
+        else:
+            message = types.SimpleNamespace(tool_calls=None, content="done", refusal=None)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
+
+    client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=create)))
+
+    async def execute(name, arguments):
+        return {"status": "ready"}
+
+    content, trace = asyncio.run(complete_with_tools(
+        client, model, [], [{"type": "function", "function": {"name": "get_test"}}], execute,
+        required_tools={"get_test"}, allow_additional_tools=False,
+    ))
+
+    assert content == "done"
+    assert [item["name"] for item in trace] == ["get_test"]
+    assert [call["tool_choice"] for call in calls] == ["required", "none"]
+    assert all(call["reasoning_effort"] == "none" for call in calls)
+
+    calls.clear()
+    narrative, _ = asyncio.run(complete_with_tools(client, model, [], [], execute))
+
+    assert narrative == "done"
+    assert calls[0]["reasoning_effort"] == "none"
+    assert "tools" not in calls[0]
+
+
+@pytest.mark.parametrize("model", ["gpt-6", "gpt-6-mini"])
+def test_complete_with_tools_omits_reasoning_effort_for_other_gpt_6_models(model) -> None:
+    calls = []
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(tool_calls=None, content="done", refusal=None)
+        )])
+
+    client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=create)))
+
+    async def execute(name, arguments):
+        return {"status": "ready"}
+
+    content, _ = asyncio.run(complete_with_tools(client, model, [], [], execute))
 
     assert content == "done"
     assert "reasoning_effort" not in calls[0]

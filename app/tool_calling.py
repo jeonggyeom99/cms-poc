@@ -74,7 +74,7 @@ async def complete_with_tools(
         }
         # GPT-5.6 Luna requires reasoning_effort="none" when function tools
         # are used with Chat Completions.
-        if model.startswith("gpt-5.6-"):
+        if model.startswith("gpt-5.6-") or model == "gpt-6-luna" or model.startswith("gpt-6-luna-"):
             params["reasoning_effort"] = "none"
         if response_format is not None and not waiting_for_required:
             params["response_format"] = response_format

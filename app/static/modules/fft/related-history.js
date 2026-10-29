@@ -8,6 +8,16 @@ function element(tagName, className, text) {
 let relatedHistory = [];
 let relatedHistoryKey = null;
 let expandedHistoryId = null;
+let relatedHistoryAi = [];
+
+export function renderRelatedHistoryAi(findings) {
+  relatedHistoryAi = Array.isArray(findings) ? findings : [];
+  renderHistoryList();
+}
+
+export function resetRelatedHistoryAi() {
+  renderRelatedHistoryAi([]);
+}
 
 export function relatedHistoryTag(fft, selectedFaultType = null) {
   const diagnosis = fft?.analysis?.diagnosis;
@@ -112,19 +122,41 @@ function detailItem(label, content) {
 export function renderRelatedHistory(tag, items) {
   const section = document.getElementById("fft-related-history");
   const count = document.getElementById("fft-related-history-count");
-  const list = document.getElementById("fft-related-history-list");
   const key = tag ? `${tag.fault}:${tag.faultType}` : null;
   if (key !== relatedHistoryKey) expandedHistoryId = null;
   relatedHistoryKey = key;
   relatedHistory = Array.isArray(items) ? items : [];
   section.hidden = false;
   count.textContent = `${relatedHistory.length.toLocaleString("ko-KR")}건`;
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const list = document.getElementById("fft-related-history-list");
+  if (!list) return;
   if (!relatedHistory.length) {
     list.replaceChildren(element("p", "related-history-empty", "일치하는 과거 이력이 없습니다."));
-    return;
+  } else {
+    list.replaceChildren(...relatedHistory.map(relatedHistoryCard));
   }
-  list.replaceChildren(...relatedHistory.map(relatedHistoryCard));
-  if (relatedHistory.some((item) => item.demoRelated)) {
+  if (relatedHistoryAi.length) {
+    const analysis = element("section", "graph-ai-analysis");
+    analysis.setAttribute("aria-label", "AI 연관과거 이력 분석");
+    analysis.append(
+      element("h3", null, "AI 연관과거 이력 분석"),
+      element("p", "graph-ai-period", "설비 전체 분석 기준"),
+    );
+    relatedHistoryAi.forEach((finding) => {
+      const item = element("div", "related-history-ai-finding");
+      item.append(
+        element("strong", null, finding.heading || "과거 이력 근거"),
+        element("p", "related-history-ai-detail", finding.detail || "--"),
+      );
+      analysis.append(item);
+    });
+    list.append(analysis);
+    document.getElementById("fft-related-history").hidden = false;
+  } else if (relatedHistory.some((item) => item.demoRelated)) {
     const analysis = element("section", "graph-ai-analysis");
     analysis.setAttribute("aria-label", "AI 연관과거 이력 분석");
     analysis.append(element("h3", null, "AI 연관과거 이력 분석"), element("p", null,
